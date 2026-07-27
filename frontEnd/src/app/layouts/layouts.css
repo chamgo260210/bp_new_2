@@ -197,6 +197,8 @@
   padding: 0;
 }
 
+.public-shell--auth .public-main { width: 100%; padding: 0; }
+
 .public-footer {
   justify-content: center;
   border-block-start: var(--border-width) solid var(--color-border-default);

@@ -8,6 +8,7 @@ import { AUTH_STATUS } from '../features/auth/authSession.js';
 
 const user = {
   id: 1,
+  username: 'ventureuser',
   email: 'user@example.com',
   displayName: '통합 사용자',
 };
@@ -56,8 +57,8 @@ describe('auth and project integration flow', () => {
       initialSnapshot: { status: AUTH_STATUS.UNAUTHENTICATED, user: null },
     });
 
-    fireEvent.change(document.getElementById('login-email'), {
-      target: { value: 'user@example.com' },
+    fireEvent.change(document.getElementById('login-username'), {
+      target: { value: 'ventureuser' },
     });
     fireEvent.change(document.getElementById('login-password'), {
       target: { value: 'safe-password' },

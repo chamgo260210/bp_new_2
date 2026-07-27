@@ -1,6 +1,7 @@
 package com.aivle.backend.auth;
 
 import com.aivle.backend.auth.dto.AuthResponse;
+import com.aivle.backend.auth.dto.SignupResponse;
 import com.aivle.backend.auth.dto.LoginRequest;
 import com.aivle.backend.auth.dto.LogoutRequest;
 import com.aivle.backend.auth.dto.RefreshRequest;
@@ -28,15 +29,16 @@ public class AuthController {
     private final CurrentUserProvider currentUserProvider;
 
     @PostMapping("/auth/signup")
-    public ResponseEntity<ApiResponse<AuthResponse>> signup(
+    public ResponseEntity<ApiResponse<SignupResponse>> signup(
         @Valid @RequestBody SignupRequest request,
         HttpServletRequest servletRequest
     ) {
         String requestId = requestId(servletRequest);
-        AuthResponse response = authService.signup(
-            request.email(),
+        SignupResponse response = authService.signup(
+            request.username(),
             request.password(),
             request.displayName(),
+            request.email(), request.organizationName(), request.departmentName(), request.jobTitle(),
             requestId
         );
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -50,8 +52,9 @@ public class AuthController {
     ) {
         String requestId = requestId(servletRequest);
         return ApiResponse.success(authService.login(
-            request.email(),
+            request.username(),
             request.password(),
+            servletRequest.getRemoteAddr(),
             requestId
         ), requestId);
     }

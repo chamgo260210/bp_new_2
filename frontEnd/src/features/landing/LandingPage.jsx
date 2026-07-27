@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import DemoSimulator from './components/DemoSimulator.jsx';
 import HeroSection from './components/HeroSection.jsx';
@@ -34,15 +34,24 @@ function FaqSection() { const [open, setOpen] = useState(null); return <section 
 
 function DemoSection({ reducedMotion }) { return <section id="demo" className="landing-section landing-demo" aria-labelledby="demo-title"><div className="landing-container"><p className="landing-eyebrow">INTERACTIVE DEMO</p><h2 id="demo-title" tabIndex="-1">설명보다 빠르게,<br />서비스 흐름을 직접 확인하세요.</h2><p className="landing-section__lede">샘플 사업계획서가 구조화되고 검토 결과로 이어지는 과정을 가상 데모로 체험할 수 있습니다.</p><DemoSimulator reducedMotion={reducedMotion} /><p className="demo-disclaimer">이 데모는 제품 흐름을 설명하기 위한 시뮬레이션입니다. 실제 파일이 업로드되거나 AI 분석이 실행되지 않습니다.</p></div></section>; }
 
-function FinalCta({ reducedMotion }) { return <section className="landing-final-cta" aria-labelledby="cta-title"><div className="landing-container"><h2 id="cta-title">사업 아이디어를<br />검증 가능한 프로젝트로 전환하세요.</h2><p>문서 등록부터 구조화, 위험 검토와 고객 검증 계획까지 하나의 흐름에서 시작할 수 있습니다.</p><div className="landing-actions"><Link className="landing-button" to="/auth/signup">무료로 프로젝트 시작하기</Link><Link className="landing-button landing-button--ghost" to="/auth/login">로그인</Link></div><button className="visually-hidden" type="button" onClick={() => scrollToSection('top', reducedMotion)}>맨 위로</button></div></section>; }
+function FinalCta({ reducedMotion }) { return <section className="landing-final-cta" aria-labelledby="cta-title"><div className="landing-container"><h2 id="cta-title">사업 아이디어를<br />검증 가능한 프로젝트로 전환하세요.</h2><p>문서 등록부터 구조화, 위험 검토와 고객 검증 계획까지 하나의 흐름에서 시작할 수 있습니다.</p><div className="landing-actions"><Link className="landing-button" to="/auth/signup" state={{ authTransition: true, source: 'landing', intent: 'signup' }}>무료로 프로젝트 시작하기</Link><Link className="landing-button landing-button--ghost" to="/auth/login" state={{ authTransition: true, source: 'landing', intent: 'login' }}>로그인</Link></div><button className="visually-hidden" type="button" onClick={() => scrollToSection('top', reducedMotion)}>맨 위로</button></div></section>; }
 
 export default function LandingPage() {
+  const location = useLocation();
+  const routerNavigate = useNavigate();
   const ids = useMemo(() => navItems.map(([id]) => id), []);
   const activeId = useScrollSpy(ids);
   const reducedMotion = useReducedMotion();
-  const intro = useLandingIntro(reducedMotion);
+  const skipFromInternalRoute = location.state?.skipLandingIntro === true;
+  const intro = useLandingIntro(reducedMotion, { skipFromInternalRoute });
   const navigate = useCallback((id, options = {}) => scrollToSection(id, reducedMotion, options.focus), [reducedMotion]);
   useEffect(() => { document.documentElement.classList.toggle('landing-scroll-snap', !reducedMotion); return () => document.documentElement.classList.remove('landing-scroll-snap'); }, [reducedMotion]);
+  useEffect(() => {
+    if (!skipFromInternalRoute) return;
+    const nextState = { ...location.state };
+    delete nextState.skipLandingIntro;
+    routerNavigate(`${location.pathname}${location.hash}`, { replace: true, state: Object.keys(nextState).length ? nextState : null });
+  }, [location.hash, location.pathname, location.state, routerNavigate, skipFromInternalRoute]);
   const introCompleted = intro.complete;
   const interactive = intro.state === 'settling' || introCompleted;
   return <div className="landing-page"><LandingBootIntro onSkip={intro.skip} reducedMotion={reducedMotion} state={intro.state} /><div className={`landing-page__content is-${intro.state}`} inert={interactive ? undefined : 'true'}><LandingHeader activeId={activeId} onNavigate={navigate} /><HeroSection introState={intro.state} reducedMotion={reducedMotion} onNavigate={navigate} /><IntroSection /><WorkflowSection onNavigate={navigate} /><FeatureSection /><TrustAndOutcome /><FaqSection /><DemoSection reducedMotion={reducedMotion} /><FinalCta reducedMotion={reducedMotion} /><LandingFooter onNavigate={navigate} /></div></div>;

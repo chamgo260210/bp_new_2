@@ -1,6 +1,7 @@
 package com.aivle.backend.common.exception;
 
 import com.aivle.backend.common.response.ApiResponse;
+import com.aivle.backend.auth.LoginRateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,19 @@ import java.util.List;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    @ExceptionHandler(LoginRateLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLoginRateLimit(
+        LoginRateLimitExceededException exception,
+        HttpServletRequest request
+    ) {
+        ErrorCode code = ErrorCode.LOGIN_RATE_LIMITED;
+        return ResponseEntity.status(code.getHttpStatus())
+            .header("Retry-After", Long.toString(exception.getRetryAfterSeconds()))
+            .body(ApiResponse.failure(
+                code.name(), code.getMessage(), List.of(), false, requestId(request)
+            ));
+    }
+
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ApiResponse<Void>> handleOptimisticLock(
         OptimisticLockingFailureException exception,

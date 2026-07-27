@@ -26,9 +26,9 @@ export default function LandingHeader({ activeId, onNavigate }) {
         <a className="landing-brand" href="#top" onClick={(event) => { event.preventDefault(); navigate('top'); }}><span aria-hidden="true">V</span>Venture Verify</a>
         <nav className={`landing-nav${open ? ' is-open' : ''}`} id="landing-navigation" aria-label="서비스 탐색">
           {navItems.map(([id, label]) => <button type="button" key={id} className={activeId === id ? 'is-active' : ''} aria-current={activeId === id ? 'true' : undefined} onClick={() => navigate(id)}>{label}</button>)}
-          <Link className="landing-nav__mobile-login" to="/auth/login" onClick={() => setOpen(false)}>로그인</Link>
+          <Link className="landing-nav__mobile-login" to="/auth/login" state={{ authTransition: true, source: 'landing', intent: 'login' }} onClick={() => setOpen(false)}>로그인</Link>
         </nav>
-        <div className="landing-header__actions"><Link className="landing-header__login-action" to="/auth/login">로그인</Link><Link className="landing-button landing-button--small landing-header__primary-action" to="/auth/signup">무료로 시작하기</Link></div>
+        <div className="landing-header__actions"><Link className="landing-header__login-action" to="/auth/login" state={{ authTransition: true, source: 'landing', intent: 'login' }}>로그인</Link><Link className="landing-button landing-button--small landing-header__primary-action" to="/auth/signup" state={{ authTransition: true, source: 'landing', intent: 'signup' }}>무료로 시작하기</Link></div>
         <button className="landing-menu-button" type="button" aria-label="메뉴 열기" aria-expanded={open} aria-controls="landing-navigation" onClick={() => setOpen((value) => !value)}><span /><span /><span /></button>
       </div>
     </header>

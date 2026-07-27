@@ -101,16 +101,27 @@ class ProjectApiIntegrationTests {
     }
 
     private String signup(String email) throws Exception {
-        String response = mockMvc.perform(post("/api/v1/auth/signup")
+        String username = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+        mockMvc.perform(post("/api/v1/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
+                      "username": "%s",
                       "email": "%s",
-                      "password": "safe-password-123",
+                      "password": "a safe project passphrase",
                       "displayName": "Tester"
                     }
-                    """.formatted(email)))
-            .andExpect(status().isCreated())
+                    """.formatted(username, email)))
+            .andExpect(status().isCreated());
+        String response = mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "%s",
+                      "password": "a safe project passphrase"
+                    }
+                    """.formatted(username)))
+            .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
         return JsonPath.read(response, "$.data.tokens.accessToken");
     }

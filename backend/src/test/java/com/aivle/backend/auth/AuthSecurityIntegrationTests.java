@@ -47,54 +47,42 @@ class AuthSecurityIntegrationTests {
     }
 
     @Test
-    void signupNormalizesEmailHashesPasswordAndReturnsUsableAccessToken()
+    void signupNormalizesEmailHashesPasswordWithoutIssuingTokens()
         throws Exception {
-        String response = mockMvc.perform(post("/api/v1/auth/signup")
+        mockMvc.perform(post("/api/v1/auth/signup")
                 .header("X-Request-Id", "signup-request")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
+                      "username": "  OWNERUSER ",
                       "email": "  OWNER@Example.COM ",
-                      "password": "safe-password-123",
+                      "password": "a safe long password",
                       "displayName": "  Owner  "
                     }
                     """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.data.user.email")
                 .value("owner@example.com"))
+            .andExpect(jsonPath("$.data.user.username").value("owneruser"))
             .andExpect(jsonPath("$.data.user.displayName").value("Owner"))
-            .andExpect(jsonPath("$.data.tokens.tokenType").value("Bearer"))
-            .andReturn().getResponse().getContentAsString();
-
-        String accessToken =
-            JsonPath.read(response, "$.data.tokens.accessToken");
-        String refreshToken =
-            JsonPath.read(response, "$.data.tokens.refreshToken");
+            .andExpect(jsonPath("$.data.signupCompleted").value(true))
+            .andExpect(jsonPath("$.data.tokens").doesNotExist());
         String hash = jdbcTemplate.queryForObject(
             "select password_hash from users where email = ?",
             String.class,
             "owner@example.com"
         );
-        String storedRefresh = jdbcTemplate.queryForObject(
-            "select token_hash from refresh_tokens",
-            String.class
-        );
         assertThat(hash)
-            .isNotEqualTo("safe-password-123")
+            .isNotEqualTo("a safe long password")
+            .startsWith("{argon2}")
             .satisfies(value ->
                 assertThat(passwordEncoder.matches(
-                    "safe-password-123",
+                    "a safe long password",
                     value
                 )).isTrue());
-        assertThat(storedRefresh)
-            .doesNotContain(refreshToken)
-            .hasSize(64);
-
-        mockMvc.perform(get("/api/v1/users/me")
-                .header("Authorization", "Bearer " + accessToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.email")
-                .value("owner@example.com"));
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from refresh_tokens", Integer.class
+        )).isZero();
         assertThat(jdbcTemplate.queryForObject(
             "select count(*) from audit_events "
                 + "where event_type = 'USER_SIGNED_UP' "
@@ -104,19 +92,19 @@ class AuthSecurityIntegrationTests {
     }
 
     @Test
-    void loginFailureDoesNotRevealWhetherEmailExists() throws Exception {
+    void loginFailureDoesNotRevealWhetherUsernameExists() throws Exception {
         signup();
         String unknown = mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"email":"unknown@example.com","password":"wrong-password"}
+                    {"username":"unknown-user","password":"wrong-password"}
                     """))
             .andExpect(status().isUnauthorized())
             .andReturn().getResponse().getContentAsString();
         String wrong = mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"email":"owner@example.com","password":"wrong-password"}
+                    {"username":"owneruser","password":"wrong-password"}
                     """))
             .andExpect(status().isUnauthorized())
             .andReturn().getResponse().getContentAsString();
@@ -131,6 +119,29 @@ class AuthSecurityIntegrationTests {
     }
 
     @Test
+    void repeatedLoginFailuresAreRateLimitedByUsernameAndIp() throws Exception {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            mockMvc.perform(post("/api/v1/auth/login")
+                    .with(request -> { request.setRemoteAddr("203.0.113.27"); return request; })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                        {"username":"rate-limit-user","password":"incorrect passphrase"}
+                        """))
+                .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .with(request -> { request.setRemoteAddr("203.0.113.27"); return request; })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"username":"rate-limit-user","password":"incorrect passphrase"}
+                    """))
+            .andExpect(status().isTooManyRequests())
+            .andExpect(header().exists("Retry-After"))
+            .andExpect(jsonPath("$.error.code").value("LOGIN_RATE_LIMITED"));
+    }
+
+    @Test
     void duplicateEmailPasswordPolicyAndInactiveAccountAreRejected()
         throws Exception {
         signup();
@@ -138,8 +149,9 @@ class AuthSecurityIntegrationTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
+                      "username":"duplicateuser",
                       "email":"OWNER@example.com",
-                      "password":"another-safe-password",
+                      "password":"another safe long password",
                       "displayName":"Duplicate"
                     }
                     """))
@@ -150,7 +162,7 @@ class AuthSecurityIntegrationTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "email":"short@example.com",
+                      "username":"shortuser",
                       "password":"short",
                       "displayName":"Short"
                     }
@@ -167,13 +179,40 @@ class AuthSecurityIntegrationTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "email":"owner@example.com",
-                      "password":"safe-password-123"
+                      "username":"owneruser",
+                      "password":"a safe long password"
                     }
                     """))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.error.code")
                 .value("INVALID_CREDENTIALS"));
+    }
+
+    @Test
+    void optionalEmailAcceptsValidFormatsAndIsNotRequired()
+        throws Exception {
+        mockMvc.perform(post("/api/v1/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username":"noemailuser",
+                      "password":"a safe long password",
+                      "displayName":"No email"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username":"emailuser",
+                      "email":"user+project@sub.example.co.kr",
+                      "password":"a safe long password",
+                      "displayName":"Valid domain"
+                    }
+                    """))
+            .andExpect(status().isCreated());
     }
 
     @Test
@@ -293,16 +332,27 @@ class AuthSecurityIntegrationTests {
     }
 
     private String signup() throws Exception {
-        return mockMvc.perform(post("/api/v1/auth/signup")
+        mockMvc.perform(post("/api/v1/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
+                      "username":"owneruser",
                       "email":"owner@example.com",
-                      "password":"safe-password-123",
+                      "password":"a safe long password",
                       "displayName":"Owner"
                     }
+            """))
+            .andExpect(status().isCreated());
+
+        return mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username":"owneruser",
+                      "password":"a safe long password"
+                    }
                     """))
-            .andExpect(status().isCreated())
+            .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
     }
 

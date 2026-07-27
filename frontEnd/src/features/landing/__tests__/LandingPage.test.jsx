@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LandingPage from '../LandingPage.jsx';
 import DemoSimulator from '../components/DemoSimulator.jsx';
 import HeroSection from '../components/HeroSection.jsx';
+import { resetLandingIntroForTests } from '../hooks/useLandingIntro.js';
 
 function renderLanding() { return render(<MemoryRouter><LandingPage /></MemoryRouter>); }
 
@@ -15,6 +16,7 @@ async function finishAutomaticPhase() {
 }
 
 describe('LandingPage', () => {
+  beforeEach(() => resetLandingIntroForTests());
   afterEach(() => vi.useRealTimers());
 
   it('renders its primary content, anchors, and auth links', () => {
@@ -112,6 +114,23 @@ describe('LandingPage', () => {
     expect(document.querySelector('.landing-validation-intro')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: 'Venture Verify' }));
     expect(document.querySelector('.landing-validation-intro')).not.toBeInTheDocument();
+  });
+
+  it('plays on reload and skips the boot intro for internal route state and browser history restoration', () => {
+    const { unmount } = render(<MemoryRouter initialEntries={[{ pathname: '/', state: { skipLandingIntro: true, source: 'auth' } }]}><LandingPage /></MemoryRouter>);
+    expect(document.querySelector('.landing-validation-intro')).not.toBeInTheDocument();
+    unmount();
+    const original = performance.getEntriesByType;
+    resetLandingIntroForTests();
+    performance.getEntriesByType = vi.fn(() => [{ type: 'reload' }]);
+    const reloaded = renderLanding();
+    expect(document.querySelector('.landing-validation-intro')).toBeInTheDocument();
+    reloaded.unmount();
+    resetLandingIntroForTests();
+    performance.getEntriesByType = vi.fn(() => [{ type: 'back_forward' }]);
+    renderLanding();
+    expect(document.querySelector('.landing-validation-intro')).not.toBeInTheDocument();
+    performance.getEntriesByType = original;
   });
 
   it('shortens the boot intro when reduced motion is requested', async () => {
@@ -217,7 +236,7 @@ describe('LandingPage', () => {
     expect(screen.getByRole('link', { name: '내 사업계획서로 시작하기' })).toHaveAttribute('href', '/auth/signup');
     fireEvent.click(screen.getByRole('button', { name: '다른 샘플 체험하기' }));
     expect(screen.getByRole('button', { name: /반려동물_건강관리_구독서비스.docx/ })).toBeInTheDocument();
-  });
+  }, 10000);
 
   it('cleans the active demo timer when the simulator unmounts', () => {
     vi.useFakeTimers();

@@ -5,11 +5,12 @@ import './layouts.css';
 export default function PublicLayout() {
   const { pathname } = useLocation();
   const isLanding = pathname === '/';
+  const isAuth = pathname.startsWith('/auth/');
 
   return (
-    <div className={`public-shell${isLanding ? ' public-shell--landing' : ''}`}>
+    <div className={`public-shell${isLanding ? ' public-shell--landing' : ''}${isAuth ? ' public-shell--auth' : ''}`}>
       <a className="skip-link" href="#main-content">본문으로 바로가기</a>
-      {!isLanding && (
+      {!isLanding && !isAuth && (
         <header className="public-header">
           <Link className="app-brand" to="/">
             <span className="app-brand__mark" aria-hidden="true">V</span>
@@ -23,7 +24,7 @@ export default function PublicLayout() {
       <main id="main-content" className="public-main" tabIndex="-1">
         <Outlet />
       </main>
-      {!isLanding && (
+      {!isLanding && !isAuth && (
         <footer className="public-footer">
           <small>AI 분석 결과는 의사결정을 돕는 참고 정보입니다.</small>
         </footer>

@@ -31,7 +31,10 @@ export default function AppShell() {
 
   async function handleLogout() {
     await logout();
-    navigate('/auth/login', { replace: true });
+    navigate('/auth/login', {
+      replace: true,
+      state: { authTransition: true, source: 'logout', intent: 'login' },
+    });
   }
 
   return (
