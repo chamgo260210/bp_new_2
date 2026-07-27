@@ -18,7 +18,6 @@ import {
 import {
   AuthPlaceholderPage,
   DashboardPage,
-  HomePage,
   NotFoundPage,
   ProjectPlaceholderPage,
   SimplePlaceholderPage,
@@ -27,12 +26,13 @@ import LegalReviewPage from '../../features/legal-review/LegalReviewPage.jsx';
 import FeasibilityPage from '../../features/feasibility/FeasibilityPage.jsx';
 import PersonaPage from '../../features/personas/PersonaPage.jsx';
 import ReportPage from '../../features/report/ReportPage.jsx';
+import LandingPage from '../../features/landing/LandingPage.jsx';
 
 export default function AppRouter() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<LandingPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="auth/login" element={<LoginPage />} />
           <Route path="auth/signup" element={<SignupPage />} />

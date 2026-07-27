@@ -52,7 +52,7 @@ describe('application routing', () => {
   it('renders the public route', () => {
     renderApp('/');
     expect(screen.getByRole('heading', {
-      name: '아이디어를 근거 있는 다음 단계로 연결하세요',
+      name: '사업계획서를, 검증 가능한 다음 단계로.',
     })).toBeInTheDocument();
   });
 
