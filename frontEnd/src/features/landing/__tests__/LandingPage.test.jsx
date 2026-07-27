@@ -189,6 +189,13 @@ describe('LandingPage', () => {
     expect(screen.getByRole('button', { name: '02' })).toHaveAttribute('aria-current', 'step');
   });
 
+  it('uses a fixed morph stage with only the current and incoming workflow slides', () => {
+    renderLanding();
+    expect(document.querySelector('.workflow-copy-track')).not.toBeInTheDocument();
+    expect(document.querySelector('.workflow-preview-frame')).toBeInTheDocument();
+    expect(document.querySelectorAll('.workflow-copy-stack .workflow-slide')).toHaveLength(1);
+  });
+
   it('opens and closes the policy notice dialog', () => {
     renderLanding();
     fireEvent.click(screen.getByRole('button', { name: 'AI 결과 이용 안내' }));

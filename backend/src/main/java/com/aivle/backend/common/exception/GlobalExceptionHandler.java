@@ -2,6 +2,8 @@ package com.aivle.backend.common.exception;
 
 import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.auth.LoginRateLimitExceededException;
+import com.aivle.backend.auth.LoginCredentialsFailedException;
+import com.aivle.backend.auth.LoginAttemptRateLimiter.LoginAttemptStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,8 +29,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(code.getHttpStatus())
             .header("Retry-After", Long.toString(exception.getRetryAfterSeconds()))
             .body(ApiResponse.failure(
-                code.name(), code.getMessage(), List.of(), false, requestId(request)
+                code.name(), code.getMessage(), List.of(), false, requestId(request),
+                loginAttempt(exception.getStatus())
             ));
+    }
+
+    @ExceptionHandler(LoginCredentialsFailedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLoginCredentials(
+        LoginCredentialsFailedException exception,
+        HttpServletRequest request
+    ) {
+        ErrorCode code = ErrorCode.INVALID_CREDENTIALS;
+        return ResponseEntity.status(code.getHttpStatus()).body(ApiResponse.failure(
+            code.name(), code.getMessage(), List.of(), false, requestId(request),
+            loginAttempt(exception.getStatus())
+        ));
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
@@ -107,5 +122,12 @@ public class GlobalExceptionHandler {
 
     private String requestId(HttpServletRequest request) {
         return request.getHeader("X-Request-Id");
+    }
+
+    private ApiResponse.LoginAttempt loginAttempt(LoginAttemptStatus status) {
+        return new ApiResponse.LoginAttempt(
+            status.warningLevel().name(), status.remainingAttempts(),
+            status.limited() ? status.retryAfterSeconds() : null
+        );
     }
 }

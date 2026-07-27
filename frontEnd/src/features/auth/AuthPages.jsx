@@ -21,6 +21,21 @@ import './auth-motion.css';
 
 const usernamePattern = /^[a-z0-9][a-z0-9._-]{3,29}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const warningStorageKey = 'authLoginAttemptWarning';
+
+function persistAttemptWarning(attempt) {
+  if (!attempt || attempt.warningLevel === 'NONE' || attempt.warningLevel === 'LIMITED') {
+    window.sessionStorage.removeItem(warningStorageKey);
+    window.dispatchEvent(new Event('auth-login-attempt-warning'));
+    return;
+  }
+  window.sessionStorage.setItem(warningStorageKey, JSON.stringify({
+    warningLevel: attempt.warningLevel,
+    remainingAttempts: attempt.remainingAttempts,
+    expiresAt: Date.now() + (10 * 60 * 1000),
+  }));
+  window.dispatchEvent(new Event('auth-login-attempt-warning'));
+}
 
 function fieldErrorsFrom(error) {
   const fields = Object.fromEntries((error?.fieldErrors ?? []).map(({ field, message }) => [field, message]));
@@ -91,10 +106,21 @@ export function LoginPage() {
     try {
       await login({ username, password: values.password });
       clearRetryCountdown();
+      window.sessionStorage.removeItem(warningStorageKey);
+      window.dispatchEvent(new Event('auth-login-attempt-warning'));
       setSuccess(true);
       timerRef.current = window.setTimeout(() => navigate(safeReturnTo(location.state?.returnTo), { replace: true }), 280);
     } catch (error) {
-      if (error?.code === 'LOGIN_RATE_LIMITED') startRetryCountdown(error.retryAfterSeconds);
+      if (error?.code === 'LOGIN_RATE_LIMITED') {
+        startRetryCountdown(error.retryAfterSeconds);
+        window.sessionStorage.removeItem(warningStorageKey);
+        window.dispatchEvent(new Event('auth-login-attempt-warning'));
+      } else if (error?.loginAttempt?.warningLevel && error.loginAttempt.warningLevel !== 'NONE') {
+        persistAttemptWarning(error.loginAttempt);
+      } else {
+        window.sessionStorage.removeItem(warningStorageKey);
+        window.dispatchEvent(new Event('auth-login-attempt-warning'));
+      }
       const fields = fieldErrorsFrom(error); setErrors(fields); setGlobalError(getUserErrorMessage(error));
       window.requestAnimationFrame(() => Object.keys(fields).length ? focusFirstError(fields, 'login') : errorRef.current?.focus());
     } finally { setSubmitting(false); }

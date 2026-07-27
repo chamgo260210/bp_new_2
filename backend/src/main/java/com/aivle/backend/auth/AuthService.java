@@ -38,7 +38,12 @@ public class AuthService {
         "$2a$10$7EqJtq98hPqEX7fNZaFWoO5Z14qfIVxqMFXvYI7P0n0nK5YzT.y1C";
     private static final int PASSWORD_MIN_CHARACTERS = 15;
     private static final int PASSWORD_MAX_CHARACTERS = 64;
-    private static final Set<String> COMMON_PASSWORDS = Set.of("password", "password123", "qwerty", "123456789", "ventureverify", "ventureverify123", "letmein", "welcome123");
+    private static final Set<String> COMMON_PASSWORDS = Set.of(
+        "password", "password123", "passwordpassword", "qwerty", "qwerty123",
+        "123456789", "1234567890", "ventureverify", "ventureverify123",
+        "venture-verify", "letmein", "welcome123", "testtesttesttest", "adminadmin"
+    );
+    private static final Set<String> SEQUENTIAL_PATTERNS = Set.of("qwerty", "asdf", "zxcv", "123456", "012345", "987654");
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -85,7 +90,11 @@ public class AuthService {
         return SignupResponse.from(UserResponse.from(user));
     }
 
-    @Transactional(noRollbackFor = BusinessException.class)
+    @Transactional(noRollbackFor = {
+        BusinessException.class,
+        LoginCredentialsFailedException.class,
+        LoginRateLimitExceededException.class
+    })
     public AuthResponse login(
         String username,
         String rawPassword,
@@ -93,10 +102,10 @@ public class AuthService {
         String requestId
     ) {
         String normalizedUsername = normalizeUsername(username);
-        if (loginAttemptRateLimiter.isLimited(normalizedUsername, ipAddress)) {
-            throw new LoginRateLimitExceededException(
-                loginAttemptRateLimiter.retryAfterSeconds(normalizedUsername, ipAddress)
-            );
+        LoginAttemptRateLimiter.LoginAttemptStatus attemptStatus =
+            loginAttemptRateLimiter.getStatus(normalizedUsername, ipAddress);
+        if (attemptStatus.limited()) {
+            throw new LoginRateLimitExceededException(attemptStatus);
         }
         User user = userRepository.findByUsername(normalizedUsername)
             .orElse(null);
@@ -119,8 +128,10 @@ public class AuthService {
                 requestId,
                 Map.of("safeErrorCode", ErrorCode.INVALID_CREDENTIALS.name())
             );
-            loginAttemptRateLimiter.recordFailure(normalizedUsername, ipAddress);
-            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+            LoginAttemptRateLimiter.LoginAttemptStatus failureStatus =
+                loginAttemptRateLimiter.recordFailure(normalizedUsername, ipAddress);
+            if (failureStatus.limited()) throw new LoginRateLimitExceededException(failureStatus);
+            throw new LoginCredentialsFailedException(failureStatus);
         }
         if (!user.canLogin()) {
             auditService.record(
@@ -271,10 +282,52 @@ public class AuthService {
 
     private void validatePassword(String password, String username, String displayName) {
         String folded = password.toLowerCase(Locale.ROOT);
-        String normalizedName = normalizeDisplayName(displayName).toLowerCase(Locale.ROOT);
-        if (!isPasswordShapeValid(password) || COMMON_PASSWORDS.contains(folded) || folded.equals(username) || folded.matches(java.util.regex.Pattern.quote(username) + "\\d+") || (normalizedName.length() >= 4 && folded.contains(normalizedName))) {
+        String comparablePassword = comparable(password);
+        String comparableUsername = comparable(username);
+        String comparableName = comparable(normalizeDisplayName(displayName));
+        boolean containsUsername = comparableUsername.length() >= 4 && comparablePassword.contains(comparableUsername);
+        boolean containsDisplayName = comparableName.codePointCount(0, comparableName.length()) >= 4 && comparablePassword.contains(comparableName);
+        if (!isPasswordShapeValid(password)
+            || COMMON_PASSWORDS.contains(folded)
+            || COMMON_PASSWORDS.contains(comparablePassword)
+            || containsUsername
+            || containsDisplayName
+            || hasExcessiveRepeatedCharacter(comparablePassword)
+            || hasRepeatedSubstringPattern(comparablePassword)
+            || hasSequentialPattern(comparablePassword)) {
             throw new BusinessException(ErrorCode.PASSWORD_POLICY_VIOLATION);
         }
+    }
+
+    // Comparison normalization is only for policy checks. The original password is hashed unchanged.
+    private String comparable(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFKC)
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[\\s._-]", "");
+    }
+
+    private boolean hasExcessiveRepeatedCharacter(String password) {
+        if (password.isEmpty()) return false;
+        int run = 1;
+        for (int index = 1; index < password.length(); index++) {
+            run = password.charAt(index) == password.charAt(index - 1) ? run + 1 : 1;
+            if (run >= 6) return true;
+        }
+        return false;
+    }
+
+    private boolean hasRepeatedSubstringPattern(String password) {
+        for (int size = 2; size <= Math.min(8, password.length() / 3); size++) {
+            if (password.length() % size != 0) continue;
+            String unit = password.substring(0, size);
+            if (unit.repeat(password.length() / size).equals(password)) return true;
+        }
+        return false;
+    }
+
+    private boolean hasSequentialPattern(String password) {
+        return SEQUENTIAL_PATTERNS.stream().anyMatch(pattern ->
+            password.contains(pattern) || password.contains(new StringBuilder(pattern).reverse().toString()));
     }
 
     private boolean isPasswordShapeValid(String password) {

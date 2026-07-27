@@ -120,14 +120,22 @@ class AuthSecurityIntegrationTests {
 
     @Test
     void repeatedLoginFailuresAreRateLimitedByUsernameAndIp() throws Exception {
-        for (int attempt = 0; attempt < 5; attempt++) {
-            mockMvc.perform(post("/api/v1/auth/login")
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            var result = mockMvc.perform(post("/api/v1/auth/login")
                     .with(request -> { request.setRemoteAddr("203.0.113.27"); return request; })
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""
                         {"username":"rate-limit-user","password":"incorrect passphrase"}
                         """))
                 .andExpect(status().isUnauthorized());
+            if (attempt == 3) {
+                result.andExpect(jsonPath("$.error.loginAttempt.warningLevel").value("CAUTION"))
+                    .andExpect(jsonPath("$.error.loginAttempt.remainingAttempts").value(2));
+            }
+            if (attempt == 4) {
+                result.andExpect(jsonPath("$.error.loginAttempt.warningLevel").value("FINAL_WARNING"))
+                    .andExpect(jsonPath("$.error.loginAttempt.remainingAttempts").value(1));
+            }
         }
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -138,7 +146,9 @@ class AuthSecurityIntegrationTests {
                     """))
             .andExpect(status().isTooManyRequests())
             .andExpect(header().exists("Retry-After"))
-            .andExpect(jsonPath("$.error.code").value("LOGIN_RATE_LIMITED"));
+            .andExpect(jsonPath("$.error.code").value("LOGIN_RATE_LIMITED"))
+            .andExpect(jsonPath("$.error.loginAttempt.warningLevel").value("LIMITED"))
+            .andExpect(jsonPath("$.error.loginAttempt.remainingAttempts").value(0));
     }
 
     @Test

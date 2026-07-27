@@ -7,9 +7,9 @@ export default function useAuthBrandCycle({ enabled = true, paused = false, redu
     if (!enabled || paused || reducedMotion) return undefined;
     const interval = window.setInterval(() => {
       if (!document.hidden) setSceneIndex((current) => (current + 1) % sceneCount);
-    }, 13000);
+    }, 7500);
     return () => window.clearInterval(interval);
-  }, [enabled, paused, reducedMotion, sceneCount]);
+  }, [enabled, paused, reducedMotion, sceneCount, sceneIndex]);
 
   return { sceneIndex, setSceneIndex };
 }

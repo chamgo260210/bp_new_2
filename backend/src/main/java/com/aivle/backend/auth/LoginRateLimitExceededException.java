@@ -1,13 +1,15 @@
 package com.aivle.backend.auth;
 
 public class LoginRateLimitExceededException extends RuntimeException {
-    private final long retryAfterSeconds;
+    private final LoginAttemptRateLimiter.LoginAttemptStatus status;
 
-    public LoginRateLimitExceededException(long retryAfterSeconds) {
-        this.retryAfterSeconds = retryAfterSeconds;
+    public LoginRateLimitExceededException(LoginAttemptRateLimiter.LoginAttemptStatus status) {
+        this.status = status;
     }
 
     public long getRetryAfterSeconds() {
-        return retryAfterSeconds;
+        return status.retryAfterSeconds();
     }
+
+    public LoginAttemptRateLimiter.LoginAttemptStatus getStatus() { return status; }
 }

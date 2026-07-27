@@ -40,7 +40,7 @@ function LandingProbe() {
 }
 
 describe('auth pages', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => { vi.useRealTimers(); window.sessionStorage.clear(); });
   it('submits login with accessible fields and returns to an internal route', async () => {
     const session = {
       login: vi.fn(async () => ({ id: 1, displayName: 'User' })),
@@ -86,6 +86,25 @@ describe('auth pages', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('아이디 또는 비밀번호를 확인해 주세요.');
     await waitFor(() => expect(alert.parentElement).toHaveFocus());
+  });
+
+  it('shows the server-provided final warning without treating a 401 as a rate limit', async () => {
+    const session = {
+      login: vi.fn(async () => {
+        throw new ApiError({
+          status: 401,
+          code: 'INVALID_CREDENTIALS',
+          loginAttempt: { warningLevel: 'FINAL_WARNING', remainingAttempts: 1 },
+        });
+      }),
+      subscribe: vi.fn(),
+    };
+    renderAuthPage('/auth/login', session);
+    fillLogin();
+    fireEvent.submit(screen.getByRole('button', { name: '로그인' }).closest('form'));
+    expect(await screen.findByText('마지막 로그인 시도 전 안내')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '로그인' })).toBeEnabled();
+    expect(window.sessionStorage.getItem('authLoginRetryAt')).toBeNull();
   });
 
   it('disables login while a server-provided retry period is active', async () => {
@@ -135,11 +154,11 @@ describe('auth pages', () => {
     const session = { signup: vi.fn(), subscribe: vi.fn() };
     renderAuthPage('/auth/signup', session);
     expect(screen.getByText('15자 이상')).toBeInTheDocument();
-    expect(screen.getByText('비밀번호 확인 일치')).toBeInTheDocument();
+    expect(screen.getByText('비밀번호 확인과 일치')).toBeInTheDocument();
     fireEvent.change(document.getElementById('signup-password'), { target: { value: 'abcdefghijklmno' } });
-    expect(screen.getByText('15자 이상 · 길이 조건을 충족했습니다.')).toBeInTheDocument();
+    expect(screen.getByText('15자 이상')).toBeInTheDocument();
     fireEvent.change(document.getElementById('signup-password-confirm'), { target: { value: 'abcdefghijklmno' } });
-    expect(screen.getByText('비밀번호 확인 일치')).toBeInTheDocument();
+    expect(screen.getByText('비밀번호 확인과 일치')).toBeInTheDocument();
   });
 
   it('makes the brand link a clear internal return to the landing page', () => {
@@ -151,15 +170,15 @@ describe('auth pages', () => {
     expect(screen.getByText('인트로 건너뛰기: true')).toBeInTheDocument();
   });
 
-  it('cycles the brand preview slowly and pauses while the panel is hovered', async () => {
+  it('cycles the brand preview independently and pauses while the preview is hovered', async () => {
     vi.useFakeTimers();
     const session = { login: vi.fn(), subscribe: vi.fn() };
     renderAuthPage('/auth/login', session);
     expect(document.querySelector('.auth-preview__header b')).toHaveTextContent('문서 구조화');
-    await act(async () => { vi.advanceTimersByTime(13000); });
+    await act(async () => { vi.advanceTimersByTime(7500); });
     expect(document.querySelector('.auth-preview__header b')).toHaveTextContent('근거와 위험 확인');
-    const panel = document.querySelector('.auth-brand-panel');
-    fireEvent.mouseEnter(panel);
+    const preview = document.querySelector('.auth-preview');
+    fireEvent.mouseEnter(preview);
     await act(async () => { vi.advanceTimersByTime(6000); });
     expect(document.querySelector('.auth-preview__header b')).toHaveTextContent('근거와 위험 확인');
   });

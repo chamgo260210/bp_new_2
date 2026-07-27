@@ -1,8 +1,19 @@
 import usePasswordChecks from '../hooks/usePasswordChecks.js';
 
+const state = (valid, invalid = false) => valid ? 'is-valid' : invalid ? 'is-invalid' : '';
+function Rule({ valid, invalid, children }) { return <span className={state(valid, invalid)}><span aria-hidden="true">{valid ? '✓' : '○'}</span><span>{children}</span></span>; }
+
 export default function PasswordRequirements({ password, confirmPassword, username, displayName, serverError }) {
   const checks = usePasswordChecks(password, confirmPassword, username, displayName);
-  const state = (valid, invalid = false) => valid ? 'is-valid' : invalid ? 'is-invalid' : '';
-  const uniquenessMessage = checks.isCommonPassword || serverError ? '널리 사용되거나 노출된 적이 있는 비밀번호는 사용할 수 없습니다.' : checks.matchesUsername ? '아이디와 다른 비밀번호를 사용해 주세요.' : checks.matchesDisplayName ? '이름이나 닉네임과 다른 비밀번호를 사용해 주세요.' : '가입 시 추가 보안 검사를 진행합니다.';
-  return <div className="auth-password-rules" aria-label="비밀번호 안내"><strong>비밀번호 안내</strong><span className={state(checks.hasMinimumLength, checks.hasInput && !checks.hasMinimumLength)}><span aria-hidden="true">{checks.hasMinimumLength ? '✓' : '○'}</span><span>15자 이상{checks.hasInput && !checks.hasMinimumLength ? ` · ${checks.remainingMinimumCharacters}자 더 필요` : checks.hasMinimumLength ? ' · 길이 조건을 충족했습니다.' : ''}</span></span><span className={state(checks.isWithinMaximumLength, checks.hasInput && !checks.isWithinMaximumLength)}><span aria-hidden="true">{checks.isWithinMaximumLength ? '✓' : '○'}</span><span>최대 허용 길이 이내{checks.hasInput && !checks.isWithinMaximumLength ? ' · 조금 더 짧게 입력해 주세요.' : ''}</span></span><span className={state(checks.isNotCommonOrSimilar, checks.hasInput && !checks.isNotCommonOrSimilar)}><span aria-hidden="true">{checks.isNotCommonOrSimilar ? '✓' : '○'}</span><span>고유한 비밀번호 · {uniquenessMessage}</span></span><span className={state(checks.confirmationMatches, confirmPassword.length > 0 && !checks.confirmationMatches)}><span aria-hidden="true">{checks.confirmationMatches ? '✓' : '○'}</span><span>비밀번호 확인 일치{confirmPassword.length > 0 && !checks.confirmationMatches ? ' · 비밀번호가 일치하지 않습니다.' : ''}</span></span><p>문장처럼 긴 비밀번호를 사용할 수 있습니다. 공백, 한글, 숫자와 기호를 사용할 수 있습니다.</p></div>;
+  const uniquenessInvalid = checks.hasInput && !checks.isNotCommonOrSimilar;
+  return <div className="auth-password-rules" aria-label="안전한 비밀번호 만들기"><strong>안전한 비밀번호 만들기</strong>
+    <Rule valid={checks.hasMinimumLength} invalid={checks.hasInput && !checks.hasMinimumLength}>15자 이상{checks.hasInput && !checks.hasMinimumLength ? ` · ${checks.remainingMinimumCharacters}자 더 필요` : ''}</Rule>
+    <Rule valid={checks.isWithinMaximumLength} invalid={checks.hasInput && !checks.isWithinMaximumLength}>최대 64자 이하</Rule>
+    <Rule valid={checks.hasInput && !checks.matchesUsername} invalid={checks.matchesUsername}>아이디가 그대로 포함되지 않음</Rule>
+    <Rule valid={checks.hasInput && !checks.matchesDisplayName} invalid={checks.matchesDisplayName}>이름 또는 닉네임이 그대로 포함되지 않음</Rule>
+    <Rule valid={checks.hasInput && !checks.hasRepeatedPattern} invalid={checks.hasRepeatedPattern}>같은 문자나 짧은 문자열을 반복하지 않음</Rule>
+    <Rule valid={checks.hasInput && !checks.isCommonPassword && !checks.hasSequentialPattern && !serverError} invalid={uniquenessInvalid || Boolean(serverError)}>흔히 사용하는 비밀번호나 연속 패턴이 아님</Rule>
+    <Rule valid={checks.confirmationMatches} invalid={confirmPassword.length > 0 && !checks.confirmationMatches}>비밀번호 확인과 일치</Rule>
+    <p>문장처럼 길고 고유한 비밀번호를 권장합니다. 가입할 때 반복 패턴, 계정 정보 포함 여부와 흔히 사용되는 비밀번호를 확인합니다.</p>
+  </div>;
 }

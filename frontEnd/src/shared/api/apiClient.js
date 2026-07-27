@@ -24,7 +24,9 @@ function retryAfterSeconds(response, payload) {
     }
   }
 
-  const bodyValue = payload?.error?.retryAfterSeconds ?? payload?.retryAfterSeconds;
+  const bodyValue = payload?.error?.retryAfterSeconds
+    ?? payload?.error?.loginAttempt?.retryAfterSeconds
+    ?? payload?.retryAfterSeconds;
   const seconds = Number(bodyValue);
   return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null;
 }
@@ -128,6 +130,7 @@ export function createApiClient({
           retryable: payload?.error?.retryable ?? false,
           requestId: payload?.meta?.requestId ?? response.headers.get('x-request-id'),
           retryAfterSeconds: retryAfterSeconds(response, payload),
+          loginAttempt: payload?.error?.loginAttempt ?? null,
         });
       }
       return payload;

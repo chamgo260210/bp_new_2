@@ -7,6 +7,7 @@ export class ApiError extends Error {
     retryable = false,
     requestId = null,
     retryAfterSeconds = null,
+    loginAttempt = null,
     cause,
   } = {}) {
     super(message, cause ? { cause } : undefined);
@@ -17,6 +18,7 @@ export class ApiError extends Error {
     this.retryable = retryable;
     this.requestId = requestId;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.loginAttempt = loginAttempt;
   }
 }
 
