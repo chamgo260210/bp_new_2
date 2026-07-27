@@ -12,5 +12,9 @@ export function createProjectApi(client) {
       const response = await client.get(`/projects/${encodeURIComponent(projectId)}`);
       return response.data;
     },
+    async update(projectId, input) {
+      const response = await client.patch(`/projects/${encodeURIComponent(projectId)}`, input);
+      return response.data;
+    },
   };
 }

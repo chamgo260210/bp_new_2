@@ -45,7 +45,7 @@ describe('project pages', () => {
     });
     expect(await screen.findByRole('link', { name: '실제 프로젝트' })).toBeInTheDocument();
     expect(screen.getByText('작성 중')).toBeInTheDocument();
-    expect(screen.getByText('문서 등록')).toBeInTheDocument();
+    expect(screen.getByText(/현재 단계 문서 등록/)).toBeInTheDocument();
   });
 
   it('renders a retryable project load error', async () => {
@@ -65,14 +65,16 @@ describe('project pages', () => {
     expect(client.post).not.toHaveBeenCalled();
   });
 
-  it('creates a project and navigates to its URL identity', async () => {
+  it('creates a project and lets the user choose how to start', async () => {
     const client = { post: vi.fn(async () => ({ data: project })) };
     renderProject(<ProjectCreatePage />, client, '/projects/new');
     fireEvent.change(document.getElementById('project-title'), {
       target: { value: '실제 프로젝트' },
     });
     fireEvent.submit(screen.getByRole('button', { name: '프로젝트 만들기' }).closest('form'));
-    expect(await screen.findByRole('heading', { name: '프로젝트 상세 도착' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '실제 프로젝트 프로젝트가 만들어졌습니다.' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /사업계획서 업로드/ })).toHaveAttribute('href', '/projects/5/documents');
+    expect(screen.getByRole('link', { name: /직접 입력/ })).toHaveAttribute('href', '/projects/5/input');
     expect(client.post).toHaveBeenCalledWith('/projects', {
       title: '실제 프로젝트',
       description: null,

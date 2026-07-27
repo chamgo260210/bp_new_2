@@ -40,7 +40,7 @@ function renderFlow(path, { session, client, initialSnapshot }) {
 }
 
 describe('auth and project integration flow', () => {
-  it('logs in, lists empty projects, creates one and opens its overview', async () => {
+  it('logs in, shows the workspace empty state, and creates a project without automatic analysis', async () => {
     const session = {
       login: vi.fn(async () => user),
       subscribe: vi.fn(),
@@ -65,17 +65,17 @@ describe('auth and project integration flow', () => {
     });
     fireEvent.submit(screen.getByRole('button', { name: '로그인' }).closest('form'));
 
-    expect(await screen.findByRole('heading', { name: '아직 프로젝트가 없습니다' }))
+    expect(await screen.findByRole('heading', { name: '사업 아이디어를 검증 가능한 프로젝트로 바꿔보세요.' }))
       .toBeInTheDocument();
-    fireEvent.click(screen.getByRole('link', { name: '프로젝트 만들기' }));
+    fireEvent.click(screen.getByRole('link', { name: '첫 프로젝트 만들기' }));
     fireEvent.change(document.getElementById('project-title'), {
       target: { value: '통합 프로젝트' },
     });
     fireEvent.submit(screen.getByRole('button', { name: '프로젝트 만들기' }).closest('form'));
 
-    expect(await screen.findByRole('heading', { name: '통합 프로젝트' }))
+    expect(await screen.findByRole('heading', { name: '통합 프로젝트 프로젝트가 만들어졌습니다.' }))
       .toBeInTheDocument();
-    expect(screen.getAllByText('문서 등록')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: /나중에 시작/ })).toHaveAttribute('href', '/projects/21/overview');
     expect(client.post).toHaveBeenCalledWith('/projects', expect.objectContaining({
       title: '통합 프로젝트',
     }));

@@ -8,16 +8,17 @@ import ProtectedRoute from '../../features/auth/ProtectedRoute.jsx';
 import PublicOnlyRoute from '../../features/auth/PublicOnlyRoute.jsx';
 import {
   ProjectCreatePage,
+  ProjectBriefInputPage,
   ProjectListPage,
   ProjectOverviewPage,
 } from '../../features/projects/ProjectPages.jsx';
+import WorkspaceHomePage from '../../features/projects/WorkspaceHomePage.jsx';
 import {
   DocumentUploadPage,
   StructuredPlanPage,
 } from '../../features/documents/DocumentPages.jsx';
 import {
   AuthPlaceholderPage,
-  DashboardPage,
   NotFoundPage,
   ProjectPlaceholderPage,
   SimplePlaceholderPage,
@@ -44,7 +45,8 @@ export default function AppRouter() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="app" element={<WorkspaceHomePage />} />
+          <Route path="dashboard" element={<Navigate to="/app" replace />} />
           <Route path="projects" element={<ProjectListPage />} />
           <Route path="projects/new" element={<ProjectCreatePage />} />
           <Route path="reports" element={<SimplePlaceholderPage title="보고서" description="전체 프로젝트 보고서를 확인합니다." />} />
@@ -52,6 +54,7 @@ export default function AppRouter() {
           <Route path="projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<ProjectOverviewPage />} />
+            <Route path="input" element={<ProjectBriefInputPage />} />
             <Route path="documents" element={<DocumentUploadPage />} />
             <Route path="structure" element={<StructuredPlanPage />} />
             <Route path="structured-plan" element={<Navigate to="../structure" replace />} />

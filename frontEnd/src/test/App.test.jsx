@@ -63,7 +63,7 @@ describe('application routing', () => {
 
   it('redirects an authenticated user away from public auth routes', async () => {
     renderApp('/auth/login', authenticated);
-    expect(await screen.findByRole('heading', { name: '프로젝트' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '사업 아이디어를 검증 가능한 프로젝트로 바꿔보세요.' })).toBeInTheDocument();
   });
 
   it('keeps a protected route pending while auth is unknown', () => {
@@ -123,7 +123,7 @@ describe('application routing', () => {
 
   it('renders project context navigation', async () => {
     renderApp('/projects/77/overview', authenticated);
-    expect(await screen.findByRole('navigation', { name: '프로젝트 단계' })).toBeInTheDocument();
+    expect(await screen.findByRole('navigation', { name: '프로젝트 검증 단계' })).toBeInTheDocument();
   });
 
   it('provides the main landmark', () => {
@@ -131,8 +131,9 @@ describe('application routing', () => {
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
 
-  it('uses a single level-one heading in a protected page', () => {
+  it('uses a single level-one heading in a protected page', async () => {
     renderApp('/dashboard', authenticated);
+    await screen.findByRole('heading', { name: '사업 아이디어를 검증 가능한 프로젝트로 바꿔보세요.' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
