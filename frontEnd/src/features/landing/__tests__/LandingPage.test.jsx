@@ -10,9 +10,7 @@ import { resetLandingIntroForTests } from '../hooks/useLandingIntro.js';
 function renderLanding() { return render(<MemoryRouter><LandingPage /></MemoryRouter>); }
 
 async function finishAutomaticPhase() {
-  for (let index = 0; index < 12; index += 1) {
-    await act(async () => { vi.advanceTimersByTime(400); });
-  }
+  await act(async () => { vi.advanceTimersByTime(4800); });
 }
 
 describe('LandingPage', () => {

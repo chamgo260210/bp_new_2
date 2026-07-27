@@ -155,13 +155,13 @@ describe('auth pages', () => {
     vi.useFakeTimers();
     const session = { login: vi.fn(), subscribe: vi.fn() };
     renderAuthPage('/auth/login', session);
-    expect(document.querySelector('.auth-brand-panel__preview-bar b')).toHaveTextContent('문서 구조화');
+    expect(document.querySelector('.auth-preview__header b')).toHaveTextContent('문서 구조화');
     await act(async () => { vi.advanceTimersByTime(13000); });
-    expect(document.querySelector('.auth-brand-panel__preview-bar b')).toHaveTextContent('근거와 위험 확인');
+    expect(document.querySelector('.auth-preview__header b')).toHaveTextContent('근거와 위험 확인');
     const panel = document.querySelector('.auth-brand-panel');
     fireEvent.mouseEnter(panel);
     await act(async () => { vi.advanceTimersByTime(6000); });
-    expect(document.querySelector('.auth-brand-panel__preview-bar b')).toHaveTextContent('근거와 위험 확인');
+    expect(document.querySelector('.auth-preview__header b')).toHaveTextContent('근거와 위험 확인');
   });
 
   it('validates signup password confirmation without calling the API', () => {

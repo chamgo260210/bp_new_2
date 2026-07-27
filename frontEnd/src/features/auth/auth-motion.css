@@ -49,3 +49,33 @@
 @media (max-height: 850px) and (min-width: 901px) { .auth-brand-panel { max-height: calc(100svh - 5.5rem); } .auth-brand-panel h2 { margin-block: 10px 12px; font-size: clamp(34px, 3.6vw, 48px); } .auth-brand-panel__flow { margin-block: 18px; } .auth-brand-panel__typing { min-height: 2.5rem; margin-top: 8px; } }
 @media (max-width: 760px) { .auth-brand-panel__typing { min-height: 2.5rem; } .auth-brand-panel__preview { height: auto; } }
 @media (prefers-reduced-motion: reduce) { .auth-shell__background::before, .auth-shell__background::after, .auth-shell::before, .auth-shell--transitioning .auth-topbar, .auth-shell--transitioning .auth-brand-panel, .auth-shell--transitioning .auth-card, .auth-brand-panel__typing i { animation: none; } }
+
+/* Motion-phase ownership and fixed brand-preview geometry. */
+.auth-shell__grid { align-items: start; }
+.auth-card { align-self: start; }
+.auth-brand-panel { contain: layout paint; min-height: clamp(34rem, calc(100svh - 7rem), 42rem); padding-block: 20px; }
+.auth-brand-copy { position: relative; display: grid; grid-template-rows: 1fr; max-width: 34rem; }
+.auth-brand-copy__reserve { visibility: hidden; pointer-events: none; }
+.auth-brand-copy__reserve h2, .auth-brand-copy__animated h2 { display: grid; grid-template-rows: 1.12em 1.12em; margin: 14px 0 18px; font-size: clamp(38px, 4.2vw, 62px); line-height: 1.12; letter-spacing: -.055em; }
+.auth-brand-copy__reserve h2 span, .auth-brand-copy__animated h2 span, .auth-brand-copy__reserve p span, .auth-brand-copy__animated p span { display: block; }
+.auth-brand-copy__reserve p, .auth-brand-copy__animated p { display: grid; grid-template-rows: 1.65em 1.65em; margin: 0; color: var(--auth-muted); font-size: 17px; line-height: 1.65; }
+.auth-brand-copy__animated { position: absolute; inset: 0; transition: opacity 620ms ease; }
+.auth-brand-copy__cursor { display: inline-block; margin-left: 2px; color: var(--auth-aqua); font-style: normal; animation: auth-cursor 750ms step-end infinite; }
+.auth-preview { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: clamp(14.5rem, 31vh, 17.5rem); max-width: 430px; margin-top: auto; overflow: hidden; border: 1px solid #bddbd5; border-radius: 12px; background: rgb(255 255 255 / .66); box-shadow: 0 16px 34px rgb(22 77 81 / .08); }
+.auth-preview__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 12px; border-bottom: 1px solid #dfeae8; color: #698083; font-size: 11px; }
+.auth-preview__header b { color: #1d6660; font-size: 12px; }
+.auth-preview__viewport { position: relative; min-height: 0; overflow: hidden; padding: 12px; }
+.auth-preview__scene { position: absolute; inset: 12px; display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 7px; animation: auth-scene-enter 420ms ease both; }
+.auth-preview__scene p { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; margin: 0; padding: 8px 10px; border: 1px solid #e1ecea; border-radius: 7px; background: #f8fbfa; color: #557174; font-size: 12px; }
+.auth-preview__scene b { color: #197368; font-size: 12px; }
+.auth-preview__footer { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 7px 12px; border-top: 1px solid #dfeae8; background: #fbfdfd; }
+.auth-preview__dots { display: flex; align-items: center; gap: 3px; }
+.auth-preview__dots button { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.auth-preview__dots button::after { width: 8px; height: 8px; border-radius: 50%; background: #b8cbc9; content: ''; transition: background-color 180ms ease, transform 180ms ease; }
+.auth-preview__dots button.is-active::after { background: var(--auth-aqua); transform: scale(1.12); }
+.auth-preview__dots button:disabled { cursor: default; }
+.auth-preview__dots button:focus-visible { outline: 3px solid rgb(15 136 120 / .32); outline-offset: 1px; }
+.auth-preview__footer small { color: #7b9090; font-size: 10px; }
+@media (max-width: 900px) { .auth-brand-panel { contain: none; min-height: auto; } }
+@media (max-height: 850px) and (min-width: 901px) { .auth-brand-panel { min-height: calc(100svh - 5.5rem); } .auth-brand-copy__reserve h2, .auth-brand-copy__animated h2 { font-size: clamp(34px, 3.6vw, 48px); } }
+@media (prefers-reduced-motion: reduce) { .auth-brand-copy__animated { transition: none; } .auth-brand-copy__cursor, .auth-preview__scene { animation: none; } }
