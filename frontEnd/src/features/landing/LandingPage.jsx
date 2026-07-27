@@ -9,7 +9,7 @@ import WorkflowSection from './components/WorkflowSection.jsx';
 import { faqItems, featureItems, navItems } from './data/landingData.js';
 import useReducedMotion from './hooks/useReducedMotion.js';
 import useLandingIntro from './hooks/useLandingIntro.js';
-import useLandingReveal from './hooks/useLandingReveal.js';
+import useSectionScrollProgress from './hooks/useSectionScrollProgress.js';
 import useScrollSpy from './hooks/useScrollSpy.js';
 import './landing.css';
 import './intro.css';
@@ -55,6 +55,6 @@ export default function LandingPage() {
   }, [location.hash, location.pathname, location.state, routerNavigate, skipFromInternalRoute]);
   const introCompleted = intro.complete;
   const interactive = intro.state === 'settling' || introCompleted;
-  useLandingReveal({ enabled: interactive, reducedMotion });
+  useSectionScrollProgress({ enabled: interactive, reducedMotion });
   return <div className="landing-page"><LandingBootIntro onSkip={intro.skip} reducedMotion={reducedMotion} state={intro.state} /><div className={`landing-page__content is-${intro.state}`} inert={interactive ? undefined : 'true'}><LandingHeader activeId={activeId} onNavigate={navigate} /><HeroSection introState={intro.state} reducedMotion={reducedMotion} onNavigate={navigate} /><IntroSection /><WorkflowSection onNavigate={navigate} /><FeatureSection /><TrustAndOutcome /><FaqSection /><DemoSection reducedMotion={reducedMotion} /><FinalCta reducedMotion={reducedMotion} /><LandingFooter onNavigate={navigate} /></div></div>;
 }

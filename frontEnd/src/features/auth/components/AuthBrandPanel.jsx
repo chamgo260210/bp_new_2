@@ -27,16 +27,16 @@ export default function AuthBrandPanel({ mode }) {
   const { motionReady } = useAuthMotion();
   const [interactionPaused, setInteractionPaused] = useState(false);
   const content = copy[mode];
-  const typed = useBrandCopyTyping(content, { enabled: motionReady, paused: interactionPaused, reducedMotion });
+  const typed = useBrandCopyTyping({ enabled: motionReady, paused: interactionPaused, reducedMotion });
   const { sceneIndex, setSceneIndex } = useAuthBrandCycle({ enabled: motionReady, paused: interactionPaused, reducedMotion, sceneCount: authBrandScenes.length });
   const scene = authBrandScenes[sceneIndex];
   const pauseOnBlur = (event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteractionPaused(false); };
 
   return <aside className="auth-brand-panel" onMouseEnter={() => setInteractionPaused(true)} onMouseLeave={() => setInteractionPaused(false)} onFocusCapture={() => setInteractionPaused(true)} onBlurCapture={pauseOnBlur}>
     <p className="auth-brand-panel__eyebrow">{content.eyebrow}</p>
-    <div className="auth-brand-copy">
-      <div className="auth-brand-copy__reserve" aria-hidden="true"><h2><span>{content.title[0]}</span><span>{content.title[1]}</span></h2><p><span>{content.body[0]}</span><span>{content.body[1]}</span></p></div>
-      <div className="auth-brand-copy__animated" style={{ opacity: typed.opacity }} aria-hidden="true"><h2><span>{typed.titleFirst}<TypingCursor active={typed.active} name="titleFirst" /></span><span>{typed.titleSecond}<TypingCursor active={typed.active} name="titleSecond" /></span></h2><p><span>{typed.bodyFirst}<TypingCursor active={typed.active} name="bodyFirst" /></span><span>{typed.bodySecond}<TypingCursor active={typed.active} name="bodySecond" /></span></p></div>
+    <div className={`auth-brand-copy auth-brand-copy--${typed.step.toLowerCase()}`} aria-hidden="true">
+      <div className="auth-brand-copy__title"><h2><span data-copy-line="title-1">{content.title[0]}<TypingCursor active={typed.step} name="TITLE_1" /></span><span data-copy-line="title-2">{content.title[1]}<TypingCursor active={typed.step} name="TITLE_2" /></span></h2></div>
+      <div className="auth-brand-copy__body"><p><span data-copy-line="body-1">{content.body[0]}<TypingCursor active={typed.step} name="BODY_1" /></span><span data-copy-line="body-2">{content.body[1]}<TypingCursor active={typed.step} name="BODY_2" /></span></p></div>
     </div>
     <p className="visually-hidden">사업 아이디어를 검증 가능한 계획으로 바꾸고, 문서의 핵심 정보와 근거, 위험, 다음 행동을 정리합니다.</p>
     <ol className="auth-brand-panel__flow"><li><b>01</b><span>문서 구조화</span></li><li><b>02</b><span>근거와 위험 확인</span></li><li><b>03</b><span>다음 행동 정리</span></li></ol>
