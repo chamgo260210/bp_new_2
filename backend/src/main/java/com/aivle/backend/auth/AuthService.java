@@ -13,6 +13,7 @@ import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.user.entity.User;
 import com.aivle.backend.user.repository.UserRepository;
+import com.aivle.backend.admin.ServicePolicyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,6 +56,7 @@ public class AuthService {
     private final DomainAuditService auditService;
     private final Clock jobClock;
     private final LoginAttemptRateLimiter loginAttemptRateLimiter;
+    private final ServicePolicyService servicePolicy;
 
     @Transactional
     public SignupResponse signup(
@@ -64,6 +66,7 @@ public class AuthService {
         String email, String organizationName, String departmentName, String jobTitle,
         String requestId
     ) {
+        servicePolicy.requireRegistrationEnabled();
         String normalizedUsername = normalizeUsername(username);
         validateUsername(normalizedUsername); validatePassword(rawPassword, normalizedUsername, displayName);
         String normalizedEmail = normalizeEmail(email);
@@ -258,6 +261,7 @@ public class AuthService {
         }
         validatePassword(request.newPassword(), user.getUsername(), user.getName());
         user.updatePasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.advanceSecurityVersion();
         LocalDateTime now = LocalDateTime.now(jobClock);
         refreshTokenRepository.findAllByUserIdAndDeletedAtIsNull(user.getId()).forEach(token -> token.revoke(now));
         auditService.record(user.getId(), null, AuditEventType.PASSWORD_CHANGED, "USER", user.getId(), requestId, Map.of());
@@ -271,7 +275,7 @@ public class AuthService {
 
     private JwtTokenService.IssuedTokenPair issueAndStore(User user) {
         JwtTokenService.IssuedTokenPair pair =
-            jwtTokenService.issue(user.getId());
+            jwtTokenService.issue(user);
         JwtTokenService.IssuedToken refresh = pair.refresh();
         refreshTokenRepository.save(RefreshToken.issue(
             user,
@@ -341,6 +345,13 @@ public class AuthService {
             || hasSequentialPattern(comparablePassword)) {
             throw new BusinessException(ErrorCode.PASSWORD_POLICY_VIOLATION);
         }
+    }
+
+    /** Used by bootstrap only so it follows the exact production registration policy. */
+    public void validateBootstrapCredentials(String username, String password, String displayName) {
+        String normalizedUsername = normalizeUsername(username);
+        validateUsername(normalizedUsername);
+        validatePassword(password, normalizedUsername, displayName);
     }
 
     // Comparison normalization is only for policy checks. The original password is hashed unchanged.

@@ -21,6 +21,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import com.aivle.backend.user.repository.UserRepository;
+import com.aivle.backend.common.entity.UserStatus;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
@@ -46,9 +48,34 @@ public class JwtConfiguration {
     @Bean("accessTokenDecoder")
     JwtDecoder accessTokenDecoder(
         SecretKey jwtSecretKey,
-        JwtProperties properties
+        JwtProperties properties,
+        UserRepository users
     ) {
-        return decoder(jwtSecretKey, properties, JwtTokenService.ACCESS_TYPE);
+        NimbusJwtDecoder decoder = (NimbusJwtDecoder) decoder(jwtSecretKey, properties, JwtTokenService.ACCESS_TYPE);
+        OAuth2TokenValidator<Jwt> securityVersionValidator = jwt -> {
+            try {
+                Long userId = Long.valueOf(jwt.getSubject());
+                Number claimedVersion = jwt.getClaim("securityVersion");
+                return users.findById(userId)
+                    .filter(user -> user.getStatus() == UserStatus.ACTIVE
+                        && claimedVersion != null
+                        && user.getSecurityVersion().equals(claimedVersion.longValue()))
+                    .isPresent()
+                    ? OAuth2TokenValidatorResult.success()
+                    : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Session has been revoked", null));
+            } catch (RuntimeException exception) {
+                return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Invalid security snapshot", null));
+            }
+        };
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+            new JwtTimestampValidator(properties.clockSkew()),
+            new JwtIssuerValidator(properties.issuer()),
+            jwt -> JwtTokenService.ACCESS_TYPE.equals(jwt.getClaimAsString("tokenType"))
+                ? OAuth2TokenValidatorResult.success()
+                : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Unexpected token type", null)),
+            securityVersionValidator
+        ));
+        return decoder;
     }
 
     @Bean("refreshTokenDecoder")

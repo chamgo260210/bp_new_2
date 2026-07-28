@@ -6,6 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.Optional;
+import java.util.List;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
@@ -25,4 +28,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
                                 @Param("role") com.aivle.backend.common.entity.UserRole role,
                                 @Param("status") com.aivle.backend.common.entity.UserStatus status,
                                 Pageable pageable);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.role = :role and u.status = :status and u.deletedAt is null")
+    List<User> findByRoleAndStatusForUpdate(@Param("role") com.aivle.backend.common.entity.UserRole role,
+                                             @Param("status") com.aivle.backend.common.entity.UserStatus status);
 }

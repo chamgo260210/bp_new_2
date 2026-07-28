@@ -3,6 +3,7 @@ package com.aivle.backend.document.controller;
 import com.aivle.backend.common.entity.DocumentType;
 import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.common.security.CurrentUserProvider;
+import com.aivle.backend.admin.ServicePolicyService;
 import com.aivle.backend.document.application.DocumentCommandService;
 import com.aivle.backend.document.application.DocumentQueryService;
 import com.aivle.backend.document.application.DocumentUploadCommand;
@@ -24,6 +25,7 @@ public class DocumentController {
     private final DocumentCommandService commandService;
     private final DocumentQueryService queryService;
     private final CurrentUserProvider currentUserProvider;
+    private final ServicePolicyService servicePolicy;
 
     @PostMapping(
         value = "/api/v1/projects/{projectId}/documents",
@@ -37,6 +39,7 @@ public class DocumentController {
         @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
         HttpServletRequest request
     ) {
+        servicePolicy.requireDocumentProcessingEnabled();
         DocumentUploadCommand command = new DocumentUploadCommand(
             projectId,
             currentUserProvider.currentUserId(),

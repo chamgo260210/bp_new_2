@@ -61,6 +61,8 @@ public class User extends BaseEntity {
     private LocalDateTime disabledAt;
     private LocalDateTime roleUpdatedAt;
     private Long roleUpdatedBy;
+    @Column(nullable = false)
+    private Long securityVersion = 0L;
 
     private User(
         String username,
@@ -100,6 +102,8 @@ public class User extends BaseEntity {
     }
 
     public void updatePasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
+    public void advanceSecurityVersion() { this.securityVersion += 1; }
 
     public void updateRole(UserRole role, Long actorUserId, LocalDateTime now) {
         this.role = role;

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
+import com.aivle.backend.user.entity.User;
 
 @Service
 @RequiredArgsConstructor
@@ -27,16 +28,16 @@ public class JwtTokenService {
     private final JwtProperties properties;
     private final Clock jobClock;
 
-    public IssuedTokenPair issue(Long userId) {
+    public IssuedTokenPair issue(User user) {
         Instant now = jobClock.instant();
         IssuedToken access = encode(
-            userId,
+            user,
             ACCESS_TYPE,
             now,
             now.plus(properties.accessTokenTtl())
         );
         IssuedToken refresh = encode(
-            userId,
+            user,
             REFRESH_TYPE,
             now,
             now.plus(properties.refreshTokenTtl())
@@ -49,7 +50,7 @@ public class JwtTokenService {
     }
 
     private IssuedToken encode(
-        Long userId,
+        User user,
         String tokenType,
         Instant issuedAt,
         Instant expiresAt
@@ -57,11 +58,13 @@ public class JwtTokenService {
         String jti = UUID.randomUUID().toString();
         JwtClaimsSet claims = JwtClaimsSet.builder()
             .issuer(properties.issuer())
-            .subject(userId.toString())
+            .subject(user.getId().toString())
             .id(jti)
             .issuedAt(issuedAt)
             .expiresAt(expiresAt)
             .claim("tokenType", tokenType)
+            .claim("role", user.getRole().name())
+            .claim("securityVersion", user.getSecurityVersion())
             .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String value = jwtEncoder.encode(

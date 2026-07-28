@@ -5,6 +5,8 @@ import com.aivle.backend.audit.DomainAuditService;
 import com.aivle.backend.common.entity.UserRole;
 import com.aivle.backend.user.entity.User;
 import com.aivle.backend.user.repository.UserRepository;
+import com.aivle.backend.auth.AuthService;
+import com.aivle.backend.common.exception.BusinessException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -26,20 +28,28 @@ public class BootstrapAdminRunner implements ApplicationRunner {
     private final PasswordEncoder passwordEncoder;
     private final DomainAuditService audits;
     private final Clock jobClock;
+    private final AuthService authService;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
         if (!properties.enabled()) return;
         if (blank(properties.username()) || blank(properties.email()) || blank(properties.password())) {
-            log.warn("Bootstrap admin is enabled but required environment variables are missing; no account was created.");
-            return;
+            throw new IllegalStateException("Bootstrap admin is enabled but required environment variables are missing.");
         }
         String username = properties.username().trim().toLowerCase(Locale.ROOT);
         String email = properties.email().trim().toLowerCase(Locale.ROOT);
-        if (users.existsByUsername(username) || users.existsByEmailIgnoreCase(email)) {
-            log.info("Bootstrap admin already exists; creation skipped.");
-            return;
+        authService.validateBootstrapCredentials(username, properties.password(), "Bootstrap Admin");
+        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw new IllegalStateException("Bootstrap admin email is invalid.");
+        var usernameMatch = users.findByUsername(username);
+        var emailMatch = users.findByEmailIgnoreCase(email);
+        if (usernameMatch.isPresent() || emailMatch.isPresent()) {
+            if (usernameMatch.isPresent() && emailMatch.isPresent() && usernameMatch.get().getId().equals(emailMatch.get().getId())
+                && usernameMatch.get().getRole() == UserRole.ADMIN) {
+                log.info("Bootstrap admin creation skipped because the configured ADMIN already exists.");
+                return;
+            }
+            throw new IllegalStateException("Bootstrap admin username or email belongs to a different account.");
         }
         User user = User.register(username, email, passwordEncoder.encode(properties.password()), "Bootstrap Admin", null, null, null);
         user.updateRole(UserRole.ADMIN, null, LocalDateTime.now(jobClock));

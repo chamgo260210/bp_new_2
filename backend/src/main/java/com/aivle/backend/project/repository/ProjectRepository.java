@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 public interface ProjectRepository extends JpaRepository<Project, Long> {
@@ -15,6 +16,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     Optional<Project> findByIdAndDeletedAtIsNull(Long id);
     Optional<Project> findByIdAndOwnerIdAndDeletedAtIsNull(Long id, Long ownerId);
     long countByOwnerIdAndDeletedAtIsNull(Long ownerId);
+    long countByStatusAndDeletedAtIsNull(com.aivle.backend.common.entity.ProjectStatus status);
+    long countByStatusInAndDeletedAtIsNull(Collection<com.aivle.backend.common.entity.ProjectStatus> statuses);
 
     @Query("select p from Project p join fetch p.owner where p.deletedAt is null")
     Page<Project> findAllActiveForAdmin(Pageable pageable);

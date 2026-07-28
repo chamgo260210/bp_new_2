@@ -40,16 +40,18 @@ public class AdminUserService {
     @Transactional
     public AdminUserResponse changeStatus(User actor, Long userId, UserStatus status, String reason, String requestId) {
         User target = find(userId);
+        if (actor.getId().equals(target.getId()) && status != UserStatus.ACTIVE) throw new BusinessException(ErrorCode.SELF_ADMIN_ACCOUNT_CHANGE_NOT_ALLOWED);
         if (target.getStatus() == status) {
             if (status == UserStatus.LOCKED) throw new BusinessException(ErrorCode.USER_ALREADY_LOCKED);
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         if (target.getRole() == UserRole.ADMIN && target.getStatus() == UserStatus.ACTIVE
-            && status != UserStatus.ACTIVE && activeAdminCount() <= 1) {
+            && status != UserStatus.ACTIVE && activeAdminsForUpdate().size() <= 1) {
             throw new BusinessException(ErrorCode.LAST_ACTIVE_ADMIN_REQUIRED);
         }
         UserStatus before = target.getStatus();
         target.updateStatus(status, reason.trim(), LocalDateTime.now(jobClock));
+        target.advanceSecurityVersion();
         revoke(target.getId());
         audits.record(actor.getId(), null, AuditEventType.ADMIN_USER_STATUS_CHANGED, "USER", target.getId(), requestId,
             Map.of("before", before.name(), "after", status.name(), "reason", reason.trim(), "targetUserId", target.getId().toString()));
@@ -63,11 +65,12 @@ public class AdminUserService {
             throw new BusinessException(ErrorCode.SELF_ADMIN_ROLE_CHANGE_NOT_ALLOWED);
         }
         if (target.getRole() == role) throw new BusinessException(ErrorCode.INVALID_REQUEST);
-        if (target.getRole() == UserRole.ADMIN && target.getStatus() == UserStatus.ACTIVE && role != UserRole.ADMIN && activeAdminCount() <= 1) {
+        if (target.getRole() == UserRole.ADMIN && target.getStatus() == UserStatus.ACTIVE && role != UserRole.ADMIN && activeAdminsForUpdate().size() <= 1) {
             throw new BusinessException(ErrorCode.LAST_ACTIVE_ADMIN_REQUIRED);
         }
         UserRole before = target.getRole();
         target.updateRole(role, actor.getId(), LocalDateTime.now(jobClock));
+        target.advanceSecurityVersion();
         revoke(target.getId());
         audits.record(actor.getId(), null, AuditEventType.ADMIN_USER_ROLE_CHANGED, "USER", target.getId(), requestId,
             Map.of("before", before.name(), "after", role.name(), "reason", reason.trim(), "targetUserId", target.getId().toString()));
@@ -78,6 +81,7 @@ public class AdminUserService {
     public void revokeSessions(User actor, Long userId, String reason, String requestId) {
         if (actor.getId().equals(userId)) throw new BusinessException(ErrorCode.SELF_SESSION_REVOKE_NOT_ALLOWED);
         find(userId);
+        users.findById(userId).ifPresent(User::advanceSecurityVersion);
         revoke(userId);
         audits.record(actor.getId(), null, AuditEventType.ADMIN_USER_SESSIONS_REVOKED, "USER", userId, requestId,
             Map.of("reason", reason.trim(), "targetUserId", userId.toString()));
@@ -87,7 +91,7 @@ public class AdminUserService {
         LocalDateTime now = LocalDateTime.now(jobClock);
         refreshTokens.findAllByUserIdAndDeletedAtIsNull(userId).forEach(token -> token.revoke(now));
     }
-    private long activeAdminCount() { return users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE); }
+    private java.util.List<User> activeAdminsForUpdate() { return users.findByRoleAndStatusForUpdate(UserRole.ADMIN, UserStatus.ACTIVE); }
     private User find(Long userId) { return users.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND)); }
     private AdminUserResponse response(User user) {
         return new AdminUserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getName(), user.getRole().name(),

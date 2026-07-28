@@ -10,6 +10,7 @@ import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.project.entity.Project;
+import com.aivle.backend.common.entity.ProjectStage;
 import com.aivle.backend.project.repository.ProjectRepository;
 import com.aivle.backend.user.entity.User;
 import com.aivle.backend.user.repository.UserRepository;
@@ -41,7 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 public class AdminController {
-    private static final List<String> SETTING_KEYS = List.of("maintenanceMode", "registrationEnabled", "documentProcessingEnabled");
     private final AdminAccessService access;
     private final AdminUserService adminUsers;
     private final UserRepository users;
@@ -50,18 +50,12 @@ public class AdminController {
     private final ServiceSettingRepository settings;
     private final DomainAuditService audits;
     private final Clock jobClock;
+    private final AdminOverviewService overviewService;
 
     @GetMapping("/overview")
     public ApiResponse<OverviewResponse> overview(HttpServletRequest request) {
         access.requireAdmin();
-        long totalUsers = users.count();
-        long activeUsers = users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.USER, UserStatus.ACTIVE)
-            + users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE);
-        return ApiResponse.success(new OverviewResponse(
-            new UserMetrics(totalUsers, activeUsers, users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.USER, UserStatus.LOCKED)
-                + users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.LOCKED)),
-            new ProjectMetrics(projects.count(), 0, 0),
-            new JobMetrics(0, 0, 0, false), LocalDateTime.now(jobClock)), requestId(request));
+        return ApiResponse.success(overviewService.overview(), requestId(request));
     }
 
     @GetMapping("/users")
@@ -132,21 +126,23 @@ public class AdminController {
     @GetMapping("/settings")
     public ApiResponse<List<SettingResponse>> settings(HttpServletRequest request) {
         access.requireAdmin();
-        return ApiResponse.success(SETTING_KEYS.stream().map(key -> settings.findById(key)
-            .map(this::settingResponse).orElse(new SettingResponse(key, "false", null, null))).toList(), requestId(request));
+        return ApiResponse.success(java.util.Arrays.stream(ServiceSettingKey.values()).map(key -> settings.findById(key.name())
+            .map(this::settingResponse).orElse(new SettingResponse(key.name(), key.defaultValue(), null, null))).toList(), requestId(request));
     }
 
     @PatchMapping("/settings/{key}")
     public ApiResponse<SettingResponse> updateSetting(@PathVariable String key, @Valid @RequestBody SettingRequest body, HttpServletRequest request) {
         User actor = access.requireAdmin();
-        if (!SETTING_KEYS.contains(key) || !("true".equals(body.value()) || "false".equals(body.value()))) throw new BusinessException(ErrorCode.SERVICE_SETTING_INVALID);
+        ServiceSettingKey settingKey;
+        try { settingKey = ServiceSettingKey.valueOf(key); } catch (IllegalArgumentException exception) { throw new BusinessException(ErrorCode.SERVICE_SETTING_INVALID); }
+        if (!("true".equals(body.value()) || "false".equals(body.value()))) throw new BusinessException(ErrorCode.SERVICE_SETTING_INVALID);
         LocalDateTime now = LocalDateTime.now(jobClock);
-        ServiceSetting setting = settings.findById(key).orElseGet(() -> new ServiceSetting(key, body.value(), actor.getId(), now));
+        ServiceSetting setting = settings.findById(settingKey.name()).orElseGet(() -> new ServiceSetting(settingKey.name(), body.value(), actor.getId(), now));
         String before = setting.getSettingValue();
         setting.update(body.value(), actor.getId(), now);
         settings.save(setting);
         audits.record(actor.getId(), null, AuditEventType.ADMIN_SETTING_UPDATED, "SERVICE_SETTING", null, requestId(request),
-            Map.of("settingKey", key, "before", before, "after", body.value(), "reason", body.reason()));
+            Map.of("settingKey", settingKey.name(), "before", before, "after", body.value(), "reason", body.reason()));
         return ApiResponse.success(settingResponse(setting), requestId(request));
     }
 
@@ -156,13 +152,14 @@ public class AdminController {
     public ApiResponse<AvailabilityResponse> jobs(HttpServletRequest request) { access.requireAdmin(); return ApiResponse.success(new AvailabilityResponse(false, List.of()), requestId(request)); }
 
     private Pageable pageable(int page, int size, String sort) {
-        String[] parts = sort.split(",", 2); String property = switch (parts[0]) { case "lastLoginAt", "projectCount", "username", "createdAt" -> parts[0]; default -> "createdAt"; };
+        String[] parts = sort.split(",", 2); String property = switch (parts[0]) { case "lastLoginAt", "username", "createdAt" -> parts[0]; default -> "createdAt"; };
         Sort.Direction direction = parts.length > 1 && "asc".equalsIgnoreCase(parts[1]) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(direction, property));
     }
     private UserRole parseRole(String value) { if (value == null || value.isBlank()) return null; try { return UserRole.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
     private UserStatus parseStatus(String value) { if (value == null || value.isBlank()) return null; try { return UserStatus.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
-    private ProjectResponse projectResponse(Project p) { return new ProjectResponse(p.getId(), p.getTitle(), p.getOwner().getId(), p.getOwner().getUsername(), p.getIndustryCategory(), p.getStatus().name(), p.getStage().name(), p.getCreatedAt(), p.getUpdatedAt()); }
+    private ProjectResponse projectResponse(Project p) { return new ProjectResponse(p.getId(), p.getTitle(), p.getOwner().getId(), p.getOwner().getUsername(), resolveArea(p.getStage()), p.getIndustryCategory(), p.getStatus().name(), p.getStage().name(), p.getCreatedAt(), p.getUpdatedAt()); }
+    private String resolveArea(ProjectStage stage) { return switch (stage) { case DOCUMENT, STRUCTURING -> "PLAN"; case LEGAL_REVIEW, FEASIBILITY, FINANCIAL -> "REVIEW"; case PERSONA_CONFIGURATION, PANEL_SURVEY, PANEL_DISCUSSION -> "VALIDATE"; case REPORT, MARKETING, COMPLETED -> "REPORT"; }; }
     private AuditResponse auditResponse(AuditEvent a) { return new AuditResponse(a.getId(), a.getActorUserId(), a.getEventType(), a.getAggregateType(), a.getAggregateId(), a.getRequestId(), a.getMetadataJson(), a.getOccurredAt()); }
     private SettingResponse settingResponse(ServiceSetting s) { return new SettingResponse(s.getSettingKey(), s.getSettingValue(), s.getUpdatedBy(), s.getUpdatedAt()); }
     private String requestId(HttpServletRequest request) { return request.getHeader("X-Request-Id"); }
@@ -175,7 +172,7 @@ public class AdminController {
     public record ProjectMetrics(long total, long active, long completed) { }
     public record JobMetrics(long pending, long running, long failed, boolean available) { }
     public record OverviewResponse(UserMetrics users, ProjectMetrics projects, JobMetrics jobs, LocalDateTime generatedAt) { }
-    public record ProjectResponse(Long id, String title, Long ownerId, String ownerUsername, String area, String status, String stage, LocalDateTime createdAt, LocalDateTime updatedAt) { }
+    public record ProjectResponse(Long id, String title, Long ownerId, String ownerUsername, String area, String industryCategory, String status, String stage, LocalDateTime createdAt, LocalDateTime updatedAt) { }
     public record AuditResponse(Long id, Long actorUserId, String action, String aggregateType, Long aggregateId, String requestId, String metadata, LocalDateTime occurredAt) { }
     public record SettingResponse(String key, String value, Long updatedBy, LocalDateTime updatedAt) { }
     public record AvailabilityResponse(boolean available, List<Object> items) { }
