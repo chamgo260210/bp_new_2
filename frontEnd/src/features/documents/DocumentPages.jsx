@@ -32,7 +32,7 @@ function UploadForm({ projectId, newVersion = false }) {
   const [dragging, setDragging] = useState(false);
   const errorRef = useRef(null);
   const onSuccess = useCallback(() => {
-    navigate(`/projects/${projectId}/structure`);
+    navigate(`/app/projects/${projectId}/plan/structure`);
   }, [navigate, projectId]);
   const { file, setFile, upload, uploading, error } =
     useDocumentUpload(projectId, onSuccess);
@@ -161,7 +161,7 @@ function DocumentList({ projectId, documentState }) {
                 <div><dt>최근 업로드</dt><dd>{formatDocumentDate(version.uploadedAt)}</dd></div>
               </dl>
             )}
-            <Link to={`/projects/${projectId}/structure`}>구조화 결과 확인</Link>
+            <Link to={`/app/projects/${projectId}/plan/structure`}>구조화 결과 확인</Link>
           </Card>
         );
       })}

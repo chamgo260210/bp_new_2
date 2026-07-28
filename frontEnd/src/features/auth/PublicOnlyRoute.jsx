@@ -16,7 +16,7 @@ export default function PublicOnlyRoute() {
     return (
       <Navigate
         replace
-        to={safeReturnTo(location.state?.returnTo, '/app')}
+        to={safeReturnTo(location.state?.returnTo, '/app/projects')}
       />
     );
   }

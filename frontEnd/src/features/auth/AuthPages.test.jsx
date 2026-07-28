@@ -17,7 +17,7 @@ function renderAuthPage(path, session) {
         <Routes>
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/signup" element={<SignupPage />} />
-          <Route path="/app" element={<h1>워크스페이스 홈</h1>} />
+          <Route path="/app/projects" element={<h1>프로젝트 허브</h1>} />
           <Route path="/projects" element={<h1>프로젝트 도착</h1>} />
           <Route path="/projects/:id/overview" element={<h1>원래 화면 도착</h1>} />
         </Routes>
@@ -71,7 +71,7 @@ describe('auth pages', () => {
     }, session);
     fillLogin();
     fireEvent.submit(screen.getByRole('button', { name: '로그인' }).closest('form'));
-    expect(await screen.findByRole('heading', { name: '워크스페이스 홈' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '프로젝트 허브' })).toBeInTheDocument();
   });
 
   it('shows a non-enumerating login error and moves focus to it', async () => {

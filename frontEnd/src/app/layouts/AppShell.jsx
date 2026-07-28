@@ -1,35 +1,56 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 
-import { Button, Drawer, ToastRegion } from '../../shared/ui/index.js';
 import { useAuth } from '../../features/auth/AuthProvider.jsx';
+import { useProjects } from '../../features/projects/hooks/useProjects.js';
+import { Button, Drawer, ToastRegion } from '../../shared/ui/index.js';
 import './layouts.css';
 
-const primaryNavigation = [
-  { label: '홈', to: '/app', icon: '⌂' },
-  { label: '프로젝트', to: '/projects', icon: '▣' },
-];
-
-function WorkspaceNavigation({ onNavigate }) {
+function AccountMenu({ user, onLogout, onClose }) {
   return (
-    <nav className="workspace-nav" aria-label="주요 메뉴">
-      <p className="workspace-nav__label">내 워크스페이스</p>
-      {primaryNavigation.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === '/app'}
-          onClick={onNavigate}
-        >
-          <span aria-hidden="true">{item.icon}</span>
-          {item.label}
-        </NavLink>
-      ))}
-      <div className="workspace-nav__divider" />
-      <NavLink to="/settings" onClick={onNavigate}>
-        <span aria-hidden="true">⚙</span>
-        설정
-      </NavLink>
+    <div className="app-account-menu" role="menu" aria-label="계정 메뉴">
+      <strong>{user?.displayName || user?.username}</strong>
+      <span>{user?.username}</span>
+      <Link to="/app/settings" role="menuitem" onClick={onClose}>설정</Link>
+      <Button variant="outline" size="small" role="menuitem" onClick={onLogout}>로그아웃</Button>
+    </div>
+  );
+}
+
+function ProjectSearch({ onChoose }) {
+  const { status, projects } = useProjects();
+  const [query, setQuery] = useState('');
+  const visible = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized || status !== 'success') return [];
+    return projects.filter((project) => [project.name, project.industryCategory, project.description]
+      .join(' ').toLowerCase().includes(normalized)).slice(0, 6);
+  }, [projects, query, status]);
+
+  return (
+    <label className="app-project-search">
+      <span className="visually-hidden">프로젝트 검색</span>
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="프로젝트 검색" />
+      {visible.length > 0 && (
+        <ul>
+          {visible.map((project) => (
+            <li key={project.projectId}>
+              <Link to={`/app/projects/${project.projectId}`} onClick={() => { setQuery(''); onChoose?.(); }}>
+                <strong>{project.name}</strong>
+                <span>{project.industryCategory || '사업 분야 미입력'}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </label>
+  );
+}
+
+function GlobalNavigation({ onNavigate }) {
+  return (
+    <nav className="app-global-nav" aria-label="주요 메뉴">
+      <NavLink to="/app/projects" onClick={onNavigate}>Projects</NavLink>
     </nav>
   );
 }
@@ -39,12 +60,13 @@ export default function AppShell() {
   const [accountOpen, setAccountOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const title = location.pathname.startsWith('/projects/')
-    ? '프로젝트'
-    : location.pathname === '/projects'
-      ? '프로젝트'
-      : '내 워크스페이스';
+
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKeyDown = (event) => { if (event.key === 'Escape') setDrawerOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [drawerOpen]);
 
   async function handleLogout() {
     await logout();
@@ -55,83 +77,26 @@ export default function AppShell() {
   }
 
   return (
-    <div className="workspace-shell">
+    <div className="app-shell">
       <a className="skip-link" href="#main-content">본문으로 바로가기</a>
-
-      <aside className="workspace-sidebar">
-        <NavLink className="workspace-brand" to="/app">
-          <span aria-hidden="true">V</span>
-          <strong>Venture Verify</strong>
-        </NavLink>
-        <div className="workspace-switcher">
-          <span className="workspace-switcher__dot" aria-hidden="true" />
-          내 워크스페이스
-        </div>
-        <WorkspaceNavigation />
-        <NavLink className="workspace-new-project" to="/projects/new">
-          <span aria-hidden="true">＋</span>
-          새 프로젝트
-        </NavLink>
-        <div className="workspace-sidebar__bottom">
-          <a href="mailto:support@ventureverify.local">도움말</a>
-          <button
-            type="button"
-            onClick={() => setAccountOpen((open) => !open)}
-            aria-expanded={accountOpen}
-          >
-            {user?.displayName || '내 계정'}
-            <span aria-hidden="true">⌄</span>
+      <header className="app-topbar">
+        <Link className="app-brand" to="/app/projects"><span aria-hidden="true">V</span>Venture Verify</Link>
+        <GlobalNavigation />
+        <div className="app-topbar__actions">
+          <ProjectSearch />
+          <button type="button" className="app-account-trigger" aria-label="계정 메뉴" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}>
+            {user?.displayName || user?.username || '계정'}
           </button>
+          {accountOpen && <AccountMenu user={user} onLogout={handleLogout} onClose={() => setAccountOpen(false)} />}
         </div>
-        {accountOpen && (
-          <div className="workspace-account-panel">
-            <strong>{user?.displayName}</strong>
-            <span>{user?.username}</span>
-            <Button variant="outline" size="small" onClick={handleLogout}>로그아웃</Button>
-          </div>
-        )}
-      </aside>
-
-      <header className="workspace-desktop-header">
-        <span>{title}</span>
-        <button
-          type="button"
-          aria-label="계정 메뉴"
-          onClick={() => setAccountOpen((open) => !open)}
-          aria-expanded={accountOpen}
-        >
-          {user?.displayName || '내 계정'} ⌄
-        </button>
+        <button type="button" className="app-mobile-menu" aria-label="메뉴 열기" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>☰</button>
       </header>
-
-      <header className="workspace-mobile-header">
-        <button
-          type="button"
-          className="app-header__menu"
-          aria-label="메뉴 열기"
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen(true)}
-        >
-          ☰
-        </button>
-        <strong>{title}</strong>
-        <button type="button" aria-label="계정 메뉴" onClick={() => setAccountOpen((open) => !open)}>◌</button>
-      </header>
-      {accountOpen && (
-        <div className="workspace-mobile-account">
-          <strong>{user?.displayName}</strong>
-          <span>{user?.username}</span>
-          <Button variant="outline" size="small" onClick={handleLogout}>로그아웃</Button>
-        </div>
-      )}
-
-      <main id="main-content" className="workspace-main" tabIndex="-1"><Outlet /></main>
-
+      <main id="main-content" className="app-main" tabIndex="-1"><Outlet /></main>
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="메뉴">
-        <WorkspaceNavigation onNavigate={() => setDrawerOpen(false)} />
-        <NavLink className="workspace-new-project" to="/projects/new" onClick={() => setDrawerOpen(false)}>
-          ＋ 새 프로젝트
-        </NavLink>
+        <GlobalNavigation onNavigate={() => setDrawerOpen(false)} />
+        <ProjectSearch onChoose={() => setDrawerOpen(false)} />
+        <Link className="app-drawer-new" to="/app/projects/new" onClick={() => setDrawerOpen(false)}>새 프로젝트</Link>
+        <AccountMenu user={user} onLogout={handleLogout} onClose={() => setDrawerOpen(false)} />
       </Drawer>
       <ToastRegion />
     </div>
