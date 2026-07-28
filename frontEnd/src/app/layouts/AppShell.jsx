@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../features/auth/AuthProvider.jsx';
+import { useAuthTransition } from '../transitions/AuthTransitionProvider.jsx';
 import { appRoutes, projectRoutes } from '../../features/projects/routing/projectRoutes.js';
 import { useProjects } from '../../features/projects/hooks/useProjects.js';
 import ProjectStatusHelp from '../../features/projects/components/ProjectStatusHelp.jsx';
@@ -62,13 +63,14 @@ export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountPhase, setAccountPhase] = useState('unmounted');
   const [authTransitionFinished, setAuthTransitionFinished] = useState(false);
-  const [logoutTransition, setLogoutTransition] = useState(false);
+  const logoutTransition = false;
   const triggerRef = useRef(null);
   const accountMenuRef = useRef(null);
   const accountExitTimer = useRef(null);
   const accountExitAction = useRef(null);
   const previousPathRef = useRef(null);
   const { user, logout } = useAuth();
+  const { start } = useAuthTransition();
   const navigate = useNavigate();
   const location = useLocation();
   const pageKey = location.state?.backgroundLocation?.pathname ?? location.pathname;
@@ -119,10 +121,11 @@ export default function AppShell() {
 
   function handleLogout() {
     closeAccount(async () => {
-      setLogoutTransition(true);
-      await new Promise((resolve) => window.setTimeout(resolve, 420));
-      await logout();
-      navigate('/auth/login', { replace: true, state: { authTransition: true, authSpaceTransition: 'enter-login', source: 'logout', intent: 'login' } });
+      await start({ destination: '/auth/login', message: '안전하게 로그아웃하고 있습니다.', onCovered: async () => {
+        window.sessionStorage.removeItem('authReturnTo');
+        window.sessionStorage.removeItem('lastProtectedRoute');
+        await logout();
+      } });
     });
   }
 

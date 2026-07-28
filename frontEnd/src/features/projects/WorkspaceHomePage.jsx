@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '../../shared/ui/index.js';
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
 import ProjectRow from './components/ProjectRow.jsx';
+import ProjectDeleteDialog from './components/ProjectDeleteDialog.jsx';
 import ProjectStatusHelp from './components/ProjectStatusHelp.jsx';
 import { useProjects } from './hooks/useProjects.js';
 import { ResourceDownload } from './BusinessPlanResources.jsx';
@@ -38,6 +40,7 @@ export default function WorkspaceHomePage() {
   const { user } = useAuth();
   const location = useLocation();
   const { status, projects, retry } = useProjects();
+  const [deleteTarget, setDeleteTarget] = useState(null);
   if (status === 'loading') return <LoadingState label="워크스페이스를 불러오고 있습니다" />;
   if (status === 'error') return <ErrorState title="워크스페이스를 불러오지 못했습니다" onRetry={retry} />;
   const recent = [...projects]
@@ -50,8 +53,8 @@ export default function WorkspaceHomePage() {
       {showGettingStarted && <GettingStartedRail projects={projects} newest={newest} location={location} />}
       <div className="workspace-home__content">
         <section className="workspace-home__quick" aria-labelledby="workspace-quick-title"><div><h2 id="workspace-quick-title">빠른 시작</h2><p>프로젝트를 만들고 사업계획서 DOCX를 업로드해 검증을 시작하세요.</p></div><div className="workspace-home__quick-actions"><Link to={appRoutes.newProject} state={overlayState(location)}>새 프로젝트 만들기</Link>{BUSINESS_PLAN_RESOURCES.map((resource) => <ResourceDownload key={resource.id} resource={resource} compact />)}</div></section>
-        {recent.length > 0 ? <section className="workspace-home__recent" aria-labelledby="workspace-recent-title"><div className="section-heading"><div><p>Recent projects</p><h2 id="workspace-recent-title">최근 프로젝트</h2></div><Link to={appRoutes.projects}>모든 프로젝트 보기</Link></div><div className="workspace-home__recent-list">{recent.map((project) => <ProjectRow key={project.projectId} project={project} density="compact" showNextAction={false} />)}</div></section> : <EmptyState title="첫 사업 검증 프로젝트를 만들어 보세요" description="프로젝트를 만든 뒤 사업계획서 DOCX를 업로드하면 문서 분석과 구조화를 시작할 수 있습니다." action={<Link className="primary-link" to={appRoutes.newProject} state={overlayState(location)}>프로젝트 만들기</Link>} />}
+        {recent.length > 0 ? <section className="workspace-home__recent" aria-labelledby="workspace-recent-title"><div className="section-heading"><div><p>Recent projects</p><h2 id="workspace-recent-title">최근 프로젝트</h2></div><Link to={appRoutes.projects}>모든 프로젝트 보기</Link></div><div className="workspace-home__recent-list">{recent.map((project) => <ProjectRow key={project.projectId} project={project} density="compact" showNextAction={false} onDelete={() => setDeleteTarget(project)} />)}</div></section> : <EmptyState title="첫 사업 검증 프로젝트를 만들어 보세요" description="프로젝트를 만든 뒤 사업계획서 DOCX를 업로드하면 문서 분석과 구조화를 시작할 수 있습니다." action={<Link className="primary-link" to={appRoutes.newProject} state={overlayState(location)}>프로젝트 만들기</Link>} />}
       </div>
-    </div>
+    </div><ProjectDeleteDialog project={deleteTarget} open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onDeleted={async () => { setDeleteTarget(null); await retry(); }} />
   </div>;
 }

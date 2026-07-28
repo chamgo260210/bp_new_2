@@ -6,7 +6,6 @@ import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
 import {
   Alert,
   Button,
-  Dialog,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -19,8 +18,10 @@ import { createProjectApi } from './api/projectApi.js';
 import { useProjectContext } from './ProjectContext.jsx';
 import { useProjects } from './hooks/useProjects.js';
 import ProjectRow from './components/ProjectRow.jsx';
+import ProjectDeleteDialog from './components/ProjectDeleteDialog.jsx';
 import { PROJECT_AREA_DEFINITIONS, PROJECT_STATUS_VIEW } from './model/projectWorkflowModel.js';
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
+import { getProjectNameError } from './projectNameError.js';
 import './projects.css';
 
 function filterMatches(project, filter) {
@@ -46,16 +47,12 @@ function ProjectStatusHelpRail() {
 }
 
 export function ProjectListPage() {
-  const client = useApiClient();
   const location = useLocation();
   const { status, projects, retry } = useProjects();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('updated');
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleteName, setDeleteName] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
   const [menuOpenProjectId, setMenuOpenProjectId] = useState(null);
   const visible = useMemo(() => projects
     .filter((project) => filterMatches(project, filter)
@@ -105,12 +102,12 @@ export function ProjectListPage() {
           </div>
           <div className="project-row-list" role="list" aria-label="프로젝트 목록">
             <div className="project-row-list__header" aria-hidden="true"><span>Name</span><span>Area</span><span>Status</span><span>Next action</span><span>Updated</span><span /></div>
-            {visible.map((project) => <ProjectRow key={project.projectId} project={project} menuOpen={menuOpenProjectId === project.projectId} onMenuOpenChange={(open) => setMenuOpenProjectId(open ? project.projectId : null)} onDelete={() => { setDeleteTarget(project); setDeleteName(''); setDeleteError(''); }} />)}
+            {visible.map((project) => <ProjectRow key={project.projectId} project={project} menuOpen={menuOpenProjectId === project.projectId} onMenuOpenChange={(open) => setMenuOpenProjectId(open ? project.projectId : null)} onDelete={() => setDeleteTarget(project)} />)}
           </div>
           {!visible.length && <p className="project-search-empty">조건에 맞는 프로젝트가 없습니다.</p>}
         </>
       )}</div></div>
-      <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} title="프로젝트를 삭제할까요?"><p>이 작업은 되돌릴 수 없습니다. 확인을 위해 <strong>{deleteTarget?.name}</strong>을(를) 입력하세요.</p>{deleteError && <Alert tone="danger" title="삭제하지 못했습니다.">{deleteError}</Alert>}<TextInput id="project-row-delete-confirmation" label="프로젝트 이름" value={deleteName} onChange={(event) => setDeleteName(event.target.value)} /><div className="dialog-actions"><Button variant="outline" disabled={deleting} onClick={() => setDeleteTarget(null)}>취소</Button><Button variant="danger" loading={deleting} disabled={!deleteTarget || deleteName !== deleteTarget.name || deleting} onClick={async () => { if (!deleteTarget) return; setDeleting(true); try { await createProjectApi(client).remove(deleteTarget.projectId); setDeleteTarget(null); await retry(); } catch (error) { setDeleteError(getUserErrorMessage(error)); setDeleting(false); } }}>영구 삭제</Button></div></Dialog>
+      <ProjectDeleteDialog project={deleteTarget} open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onDeleted={async () => { setDeleteTarget(null); await retry(); }} />
     </div>
   );
 }
@@ -120,6 +117,7 @@ export function ProjectCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const errorRef = useRef(null);
+  const titleInputRef = useRef(null);
   const [values, setValues] = useState({ title: '', description: '', industryCategory: '' });
   const [errors, setErrors] = useState({});
   const [globalError, setGlobalError] = useState('');
@@ -161,6 +159,12 @@ export function ProjectCreatePage() {
       });
       requestClose(projectRoutes.getStarted(nextProject.id));
     } catch (error) {
+      const titleError = getProjectNameError(error);
+      if (titleError) {
+        setErrors({ title: titleError });
+        requestAnimationFrame(() => titleInputRef.current?.focus());
+        return;
+      }
       setErrors(Object.fromEntries((error.fieldErrors ?? []).map((item) => [item.field, item.message])));
       setGlobalError(getUserErrorMessage(error));
       requestAnimationFrame(() => errorRef.current?.focus());
@@ -177,7 +181,7 @@ export function ProjectCreatePage() {
       <PageHeader eyebrow="새 프로젝트" title="검증할 사업 아이디어를 만드세요" description="지금은 최소 정보만 필요합니다. 세부 자료와 분석 실행은 프로젝트 안에서 직접 시작합니다." />
       {globalError && <div ref={errorRef} tabIndex="-1"><Alert tone="danger" title="프로젝트를 만들지 못했습니다">{globalError}</Alert></div>}
       <form className="project-form" onSubmit={handleSubmit} noValidate>
-        <TextInput id="project-title" label="프로젝트 이름" value={values.title} error={errors.title} maxLength="150" onChange={update('title')} required />
+        <TextInput ref={titleInputRef} id="project-title" label="프로젝트 이름" value={values.title} error={errors.title} maxLength="150" onChange={update('title')} required />
         <TextInput id="project-category" label="사업 분야" description="선택 입력입니다." value={values.industryCategory} error={errors.industryCategory} maxLength="100" onChange={update('industryCategory')} />
         <Textarea id="project-description" label="간단한 설명" description="선택 입력입니다." value={values.description} error={errors.description} maxLength="10000" onChange={update('description')} />
         <div className="project-form__actions">

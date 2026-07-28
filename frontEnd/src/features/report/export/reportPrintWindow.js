@@ -3,7 +3,10 @@ const list = (items = []) => items.length ? `<ul>${items.map((item) => `<li>${es
 
 export function openReportPrintWindow(report) {
   const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-  if (!printWindow) return false;
+  if (!printWindow) {
+    window.alert('인쇄 창을 열 수 없습니다. 브라우저의 팝업 차단 설정을 확인해 주세요.');
+    return false;
+  }
   const project = report.project || {};
   const sections = [
     ['report-summary', '01 Executive Summary', `보고서 상태: ${report.reportStatusLabel}`],
@@ -19,7 +22,13 @@ export function openReportPrintWindow(report) {
   ];
   const toc = sections.map(([id, title]) => `<a href="#${id}"><span>${title}</span><span>→</span></a>`).join('');
   const content = sections.map(([id, title, body]) => `<section id="${id}"><h2>${title}</h2><div>${body}</div></section>`).join('');
-  printWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(project.name)} - 사업 검증 결과 및 개선 제안서</title><style>@page{size:A4;margin:18mm 16mm 20mm}body{margin:0;color:#172b35;font:10.5pt/1.7 Arial,sans-serif}.cover{min-height:245mm;display:grid;align-content:center;gap:14mm;break-after:page}.brand{color:#087f75;font-weight:800;letter-spacing:.13em}.line{width:45mm;border-top:3px solid #0f8878}.cover h1{font-size:29pt;line-height:1.28;margin:0}.meta{display:grid;gap:4mm;margin-top:35mm}.meta div{display:grid;grid-template-columns:30mm 1fr;border-bottom:1px solid #dbe5e2;padding-bottom:2mm}.toc{break-after:page}.toc h2,section h2{font-size:16pt;margin:0 0 7mm}.toc a{display:flex;justify-content:space-between;color:inherit;text-decoration:none;border-bottom:1px dotted #aab8b4;padding:3mm 0}section{break-inside:avoid;margin:0 0 13mm}section h2{border-bottom:2px solid #0f8878;padding-bottom:3mm}ul{padding-left:5mm}.footer{margin-top:14mm;color:#667e81;font-size:8.5pt}@media print{a[href]::after{content:none!important}}</style></head><body><main class="report-document"><header class="cover"><p class="brand">VENTURE VERIFY</p><div class="line"></div><h1>사업 검증 결과 및<br>개선 제안서</h1><p>사업 검증 결과를 의사결정에 활용할 수 있도록 정리한 문서입니다.</p><div class="meta"><div><strong>프로젝트명</strong><span>${escapeHtml(project.name)}</span></div><div><strong>사업 분야</strong><span>${escapeHtml(project.industryCategory || '정보 없음')}</span></div><div><strong>생성일</strong><span>${escapeHtml(report.generatedAtLabel)}</span></div><div><strong>보고서 상태</strong><span>${escapeHtml(report.reportStatusLabel)}</span></div></div><a href="#report-toc">목차 보기 →</a></header><nav id="report-toc" class="toc"><h2>목차</h2>${toc}</nav>${content}<p class="footer">Venture Verify · ${escapeHtml(project.name)} · ${escapeHtml(report.generatedAtLabel)}</p></main></body></html>`);
+  try {
+    printWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(project.name)} - 사업 검증 결과 및 개선 제안서</title><style>@page{size:A4;margin:18mm 16mm 20mm}body{margin:0;color:#172b35;font:10.5pt/1.7 Arial,sans-serif}.cover{min-height:245mm;display:grid;align-content:center;gap:14mm;break-after:page}.brand{color:#087f75;font-weight:800;letter-spacing:.13em}.line{width:45mm;border-top:3px solid #0f8878}.cover h1{font-size:29pt;line-height:1.28;margin:0}.meta{display:grid;gap:4mm;margin-top:35mm}.meta div{display:grid;grid-template-columns:30mm 1fr;border-bottom:1px solid #dbe5e2;padding-bottom:2mm}.toc{break-after:page}.toc h2,section h2{font-size:16pt;margin:0 0 7mm}.toc a{display:flex;justify-content:space-between;color:inherit;text-decoration:none;border-bottom:1px dotted #aab8b4;padding:3mm 0}section{break-inside:avoid;margin:0 0 13mm}section h2{border-bottom:2px solid #0f8878;padding-bottom:3mm}ul{padding-left:5mm}.footer{margin-top:14mm;color:#667e81;font-size:8.5pt}@media print{a[href]::after{content:none!important}}</style></head><body><main class="report-document"><header class="cover"><p class="brand">VENTURE VERIFY</p><div class="line"></div><h1>사업 검증 결과 및<br>개선 제안서</h1><p>사업 검증 결과를 의사결정에 활용할 수 있도록 정리한 문서입니다.</p><div class="meta"><div><strong>프로젝트명</strong><span>${escapeHtml(project.name)}</span></div><div><strong>사업 분야</strong><span>${escapeHtml(project.industryCategory || '정보 없음')}</span></div><div><strong>생성일</strong><span>${escapeHtml(report.generatedAtLabel)}</span></div><div><strong>보고서 상태</strong><span>${escapeHtml(report.reportStatusLabel)}</span></div></div><a href="#report-toc">목차 보기 →</a></header><nav id="report-toc" class="toc"><h2>목차</h2>${toc}</nav>${content}<p class="footer">Venture Verify · ${escapeHtml(project.name)} · ${escapeHtml(report.generatedAtLabel)}</p></main></body></html>`);
+  } catch {
+    printWindow.close();
+    window.alert('인쇄 문서를 준비하지 못했습니다. 다시 시도해 주세요.');
+    return false;
+  }
   printWindow.document.close();
   printWindow.focus();
   window.setTimeout(() => printWindow.print(), 150);

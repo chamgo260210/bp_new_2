@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
 import { Alert, Button, PasswordInput, TextInput } from '../../shared/ui/index.js';
@@ -10,6 +10,7 @@ import LoginRateLimitNotice from './components/LoginRateLimitNotice.jsx';
 import AuthShell from './components/AuthShell.jsx';
 import PasswordRequirements from './components/PasswordRequirements.jsx';
 import useCapsLock from './hooks/useCapsLock.js';
+import { useAuthTransition } from '../../app/transitions/AuthTransitionProvider.jsx';
 import usePasswordChecks from './hooks/usePasswordChecks.js';
 import useLoginRetryCountdown from './hooks/useLoginRetryCountdown.js';
 import './auth.css';
@@ -83,7 +84,7 @@ function AuthPage({ children, mode }) {
 
 export function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const { start } = useAuthTransition();
   const errorRef = useRef(null);
   const timerRef = useRef(null);
   const { isCapsLockOn, handleBlur: handleCapsLockBlur, handleFocus: handleCapsLockFocus, handleKeyDown: handleCapsLockKeyDown, handleKeyUp: handleCapsLockKeyUp } = useCapsLock();
@@ -113,7 +114,7 @@ export function LoginPage() {
       window.sessionStorage.removeItem(warningStorageKey);
       window.dispatchEvent(new Event('auth-login-attempt-warning'));
       setSuccess(true);
-      timerRef.current = window.setTimeout(() => navigate('/app', { replace: true, state: { authSpaceTransition: 'enter-workspace' } }), 380);
+      await start({ destination: '/app', message: '워크스페이스를 준비하고 있습니다.' });
     } catch (error) {
       if (error?.code === 'LOGIN_RATE_LIMITED') {
         startRetryCountdown(error.retryAfterSeconds);

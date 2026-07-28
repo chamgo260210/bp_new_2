@@ -12,6 +12,7 @@ import {
 } from '../../shared/ui/index.js';
 import { useProjectContext } from '../projects/ProjectContext.jsx';
 import { downloadReportMarkdown } from './export/reportMarkdownExporter.js';
+import { openReportPrintWindow } from './export/reportPrintWindow.js';
 import { useIntegratedReport } from './hooks/useIntegratedReport.js';
 import ReportStatusCard from './components/ReportStatusCard.jsx';
 import ReportPrintDocument from './components/ReportPrintDocument.jsx';
@@ -268,7 +269,7 @@ export default function ReportPage() {
         description={report.reportStatusLabel}
         actions={(
           <>
-            <Button variant="outline" onClick={() => window.print()}>인쇄 / PDF 저장</Button>
+            <Button variant="outline" onClick={() => openReportPrintWindow(report)}>인쇄 / PDF 저장</Button>
             <Button onClick={() => downloadReportMarkdown(report)}>Markdown 다운로드</Button>
           </>
         )}

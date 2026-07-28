@@ -4,10 +4,12 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
 import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
-import { Alert, AppIcon, Button, Dialog, ErrorState, LoadingState, SideSheet, TextInput, Textarea } from '../../shared/ui/index.js';
+import { Alert, AppIcon, Button, ErrorState, LoadingState, SideSheet, TextInput, Textarea } from '../../shared/ui/index.js';
 import { createProjectApi } from './api/projectApi.js';
 import { useProjectContext } from './ProjectContext.jsx';
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
+import { getProjectNameError } from './projectNameError.js';
+import ProjectDeleteDialog from './components/ProjectDeleteDialog.jsx';
 import './projects.css';
 
 const EXIT_FALLBACK_MS = 360;
@@ -82,12 +84,10 @@ function ProjectSettingsContent({ project, retry, onFinalClose }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const titleInputRef = useRef(null);
   const [closing, setClosing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [confirmation, setConfirmation] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
-  const deleteInputRef = useRef(null);
   const closeTimer = useRef(null);
 
   const finishClose = useCallback(() => {
@@ -101,11 +101,11 @@ function ProjectSettingsContent({ project, retry, onFinalClose }) {
   }, [closing, finishClose, saving]);
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
-  const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
+  const update = (field) => (event) => { setValues((current) => ({ ...current, [field]: event.target.value })); setFieldErrors((current) => ({ ...current, [field]: undefined })); };
   const save = async (event) => {
     event.preventDefault();
     if (saving || !values.title.trim()) return;
-    setSaving(true); setError(''); setMessage('');
+    setSaving(true); setError(''); setMessage(''); setFieldErrors({});
     try {
       await createProjectApi(client).update(project.projectId, {
         title: values.title.trim(),
@@ -115,50 +115,32 @@ function ProjectSettingsContent({ project, retry, onFinalClose }) {
       await retry();
       setMessage('변경사항을 저장했습니다.');
     } catch (nextError) {
+      const titleError = getProjectNameError(nextError);
+      if (titleError) {
+        setFieldErrors({ title: titleError });
+        requestAnimationFrame(() => titleInputRef.current?.focus());
+        return;
+      }
       setError(getUserErrorMessage(nextError));
     } finally {
       setSaving(false);
     }
   };
 
-  const requestDelete = () => {
-    setConfirmation('');
-    setDeleteError('');
-    setConfirmingDelete(true);
-  };
-  const remove = async () => {
-    if (confirmation !== project.name || deleting) return;
-    setDeleting(true);
-    setDeleteError('');
-    try {
-      await createProjectApi(client).remove(project.projectId);
-      navigate(appRoutes.projects, { replace: true, state: null });
-    } catch (nextError) {
-      setDeleteError(getUserErrorMessage(nextError));
-      setDeleting(false);
-    }
-  };
+  const requestDelete = () => setConfirmingDelete(true);
 
   return <><SideSheet open title="프로젝트 설정" label="프로젝트 설정" phase={closing ? 'exiting' : 'entered'} onExited={finishClose} onClose={requestClose} footer={<><Button variant="outline" size="small" disabled={saving || closing} onClick={requestClose}>취소</Button><Button type="submit" size="small" form="project-settings-form" loading={saving} disabled={saving || closing}>변경사항 저장</Button></>}>
     <div className="project-sheet__heading"><span><AppIcon name="settings" size={20} /></span><div><h2>프로젝트 설정</h2><p>프로젝트 기본 정보와 삭제를 관리합니다.</p></div></div>
     <form id="project-settings-form" className="project-sheet__form" onSubmit={save}>
       {error && <Alert tone="danger" title="저장하지 못했습니다.">{error}</Alert>}
       {message && <Alert tone="success" title="저장됨">{message}</Alert>}
-      <TextInput id="project-settings-title" label="프로젝트 이름" value={values.title} maxLength="150" required onChange={update('title')} />
+      <TextInput ref={titleInputRef} id="project-settings-title" label="프로젝트 이름" value={values.title} error={fieldErrors.title} maxLength="150" required onChange={update('title')} />
       <TextInput id="project-settings-industry" label="사업 분야" value={values.industryCategory} maxLength="100" onChange={update('industryCategory')} />
       <Textarea id="project-settings-description" label="프로젝트 설명" value={values.description} maxLength="10000" onChange={update('description')} />
     </form>
     <section className="project-sheet__danger"><div><span><AppIcon name="trash" /></span><div><h2>프로젝트 삭제</h2><p>프로젝트와 연결된 문서 및 분석 결과에 더 이상 접근할 수 없습니다. 이 작업은 되돌릴 수 없습니다.</p></div></div><Button variant="danger" size="small" onClick={requestDelete}><AppIcon name="trash" />프로젝트 삭제</Button></section>
   </SideSheet>
-  <Dialog open={confirmingDelete} onClose={() => !deleting && setConfirmingDelete(false)} title="프로젝트를 삭제할까요?" initialFocusRef={deleteInputRef}>
-    <div className="project-delete-dialog">
-      <p>이 작업은 되돌릴 수 없습니다. 연결된 문서와 분석 결과도 더 이상 사용할 수 없습니다.</p>
-      <div className="project-delete-dialog__target"><span>삭제할 프로젝트</span><strong>{project.name}</strong></div>
-      <div className="project-delete-dialog__field"><TextInput ref={deleteInputRef} id="delete-project-confirmation" label="확인을 위해 프로젝트 이름을 입력하세요." value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />{confirmation && confirmation !== project.name && <p className="project-delete-dialog__mismatch" role="status">프로젝트 이름이 일치하지 않습니다.</p>}</div>
-      {deleteError && <Alert tone="danger" title="삭제하지 못했습니다.">{deleteError}</Alert>}
-      <div className="project-delete-dialog__footer"><Button variant="outline" disabled={deleting} onClick={() => setConfirmingDelete(false)}>취소</Button><Button variant="danger" loading={deleting} disabled={confirmation !== project.name || deleting} onClick={remove}>영구 삭제</Button></div>
-    </div>
-  </Dialog>
+  <ProjectDeleteDialog project={project} open={confirmingDelete} onClose={() => setConfirmingDelete(false)} onDeleted={() => navigate(appRoutes.projects, { replace: true, state: null })} />
   </>;
 }
 
