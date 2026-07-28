@@ -65,6 +65,20 @@ describe('project pages', () => {
     expect(client.post).not.toHaveBeenCalled();
   });
 
+  it('keeps the project-name input focused through Korean composition', () => {
+    const client = { post: vi.fn() };
+    renderProject(<ProjectCreatePage />, client, '/app/projects/new');
+    const input = document.getElementById('project-title');
+    input.focus();
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: '사' } });
+    fireEvent.compositionUpdate(input, { data: '사' });
+    fireEvent.change(input, { target: { value: '사업' } });
+    fireEvent.compositionEnd(input, { data: '업' });
+    expect(input).toHaveValue('사업');
+    expect(input).toHaveFocus();
+  });
+
   it('creates a project and lets the user choose how to start', async () => {
     const client = { post: vi.fn(async () => ({ data: project })) };
     renderProject(<ProjectCreatePage />, client, '/app/projects/new');

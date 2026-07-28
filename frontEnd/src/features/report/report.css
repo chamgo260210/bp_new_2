@@ -4,6 +4,9 @@
   gap: var(--space-8);
 }
 
+.report-print { display:none; }
+@media print { @page { size:A4; margin:18mm 16mm 20mm; } .app-topbar, .project-shell__header, .report-screen, .integrated-report > :not(.report-print) { display:none !important; } .integrated-report { display:block; } .report-print[hidden] { display:block !important; color:#111; font-family:serif; } .report-print__cover { min-height:220mm; display:grid; align-content:center; gap:1.5rem; break-after:page; } .report-print__cover h1 { font-size:28pt; } .report-print section { break-inside:avoid; margin:0 0 1.5rem; } .report-print h2 { border-bottom:1px solid #333; padding-bottom:.35rem; font-size:15pt; } .report-print dl div { display:grid; grid-template-columns:7rem 1fr; gap:1rem; } .report-print dd { margin:0; } }
+
 .dashboard-summary > h2,
 .project-dashboard section > h2,
 .integrated-report > section > h2 {

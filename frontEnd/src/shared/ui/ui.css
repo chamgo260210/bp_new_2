@@ -1,3 +1,5 @@
+html { scrollbar-gutter: stable; }
+
 .ui-button {
   display: inline-flex;
   align-items: center;
@@ -156,6 +158,15 @@
 }
 
 .ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
   display: inline-flex;
   align-items: center;
   min-height: 1.75rem;
@@ -349,11 +360,12 @@
 
 :root {
   --ease-standard: cubic-bezier(.2, 0, 0, 1);
-  --ease-emphasized: cubic-bezier(.22, 1, .36, 1);
-  --motion-instant: 90ms;
-  --motion-fast: 150ms;
-  --motion-medium: 220ms;
-  --motion-slow: 300ms;
+    --ease-emphasized: cubic-bezier(.16, 1, .3, 1);
+    --ease-exit: cubic-bezier(.4, 0, 1, 1);
+    --motion-instant: 140ms;
+    --motion-fast: 220ms;
+    --motion-medium: 360ms;
+    --motion-slow: 520ms;
 }
 
 .ui-overlay {
@@ -423,9 +435,9 @@
   animation: ui-sheet-in var(--motion-slow) var(--ease-emphasized);
 }
 
-.ui-overlay.is-exiting { animation: ui-overlay-out var(--motion-fast) var(--ease-standard) forwards; }
-.ui-overlay.is-exiting .ui-dialog { animation: ui-dialog-out var(--motion-fast) var(--ease-standard) forwards; }
-.ui-overlay.is-exiting .ui-dialog--sheet { animation: ui-sheet-out var(--motion-medium) var(--ease-standard) forwards; }
+  .ui-overlay[data-phase="exiting"] { animation: ui-overlay-out var(--motion-medium) var(--ease-exit) forwards; }
+  .ui-overlay[data-phase="exiting"] .ui-dialog { animation: ui-dialog-out var(--motion-fast) var(--ease-exit) forwards; }
+  .ui-overlay[data-phase="exiting"] .ui-dialog--sheet { animation: ui-sheet-out var(--motion-medium) var(--ease-exit) forwards; }
 @keyframes ui-overlay-in { from { opacity:0; } to { opacity:1; } }
 @keyframes ui-overlay-out { from { opacity:1; } to { opacity:0; } }
 @keyframes ui-dialog-in { from { opacity:0; transform:translateY(10px) scale(.975); } to { opacity:1; transform:none; } }
@@ -440,7 +452,7 @@
 }
 
 .ui-side-sheet { overflow: auto; padding: var(--space-6); }
-.ui-side-sheet__footer { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-block-start: var(--border-width) solid var(--color-border-default); }
+.ui-side-sheet__footer { display:flex; align-items:center; justify-content:flex-end; gap:.75rem; min-height:4.75rem; padding:1rem 1.5rem; border-block-start:var(--border-width) solid var(--color-border-default); }.ui-side-sheet__footer .ui-button { width:auto; min-width:6rem; min-height:2.625rem; }
 
 .ui-tabs [role="tablist"] {
   display: flex;

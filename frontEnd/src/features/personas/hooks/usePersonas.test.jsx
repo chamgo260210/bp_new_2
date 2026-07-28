@@ -32,4 +32,23 @@ describe('usePersonas', () => {
     await waitFor(() => expect(result.current.status).toBe('ready'));
     expect(result.current.feasibility.assessmentId).toBe(8);
   });
+
+  it('retries one initial request failure before exposing an error', async () => {
+    const networkError = Object.assign(new Error('temporary network error'), { status: 503 });
+    const recommendation = { summary: '추천 결과', items: [], hypotheses: [], validationPlans: [] };
+    const client = {
+      get: vi.fn()
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValueOnce({ data: recommendation }),
+    };
+    useApiClient.mockReturnValue(client);
+
+    const { result } = renderHook(() => usePersonas('10'));
+
+    expect(result.current.status).toBe('loading');
+    await waitFor(() => expect(result.current.status).toBe('result'), { timeout: 2500 });
+    expect(client.get).toHaveBeenCalledTimes(3);
+    expect(result.current.error).toBeNull();
+  });
 });

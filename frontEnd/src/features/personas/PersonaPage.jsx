@@ -138,6 +138,7 @@ export default function PersonaPage() {
     <>
       <PageHeader eyebrow={project.stageLabel} title="데이터 기반 페르소나·고객 검증"
         description="통계 군집을 프로젝트 근거와 비교해 고객 가설과 실제 검증 계획으로 연결합니다." />
+      {state.refreshError && <Alert tone="warning" title="기준 세그먼트 정보를 새로고침하지 못했습니다.">기존 정보를 표시하고 있습니다. <Button variant="outline" size="small" onClick={state.retry}>다시 시도</Button></Alert>}
       {state.status === 'loading' && <LoadingState label="페르소나 기준선과 최신 결과를 확인하고 있습니다" />}
       {state.status === 'ready' && <Ready feasibility={state.feasibility} onStart={state.start} />}
       {(state.status === 'starting' || state.status === 'processing') && (

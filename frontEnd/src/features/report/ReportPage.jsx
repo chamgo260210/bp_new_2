@@ -14,6 +14,7 @@ import { useProjectContext } from '../projects/ProjectContext.jsx';
 import { downloadReportMarkdown } from './export/reportMarkdownExporter.js';
 import { useIntegratedReport } from './hooks/useIntegratedReport.js';
 import ReportStatusCard from './components/ReportStatusCard.jsx';
+import ReportPrintDocument from './components/ReportPrintDocument.jsx';
 import './report.css';
 
 function ReportSection({ id, section, children }) {
@@ -300,6 +301,7 @@ export default function ReportPage() {
       <PersonaSection section={report.persona} />
       <ValidationTasks report={report} />
       <Provenance report={report} />
+      <ReportPrintDocument report={report} />
     </article>
   );
 }

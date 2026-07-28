@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
@@ -19,12 +19,30 @@ import { createProjectApi } from './api/projectApi.js';
 import { useProjectContext } from './ProjectContext.jsx';
 import { useProjects } from './hooks/useProjects.js';
 import ProjectRow from './components/ProjectRow.jsx';
+import { PROJECT_AREA_DEFINITIONS, PROJECT_STATUS_VIEW } from './model/projectWorkflowModel.js';
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
 import './projects.css';
 
 function filterMatches(project, filter) {
   if (filter === 'all') return true;
   return project.status === filter;
+}
+
+function ProjectStatusHelpRail() {
+  const [open, setOpen] = useState(false);
+  const railRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutside = (event) => { if (!railRef.current?.contains(event.target)) setOpen(false); };
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setOpen(false); };
+    window.addEventListener('pointerdown', closeOnOutside);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => { window.removeEventListener('pointerdown', closeOnOutside); window.removeEventListener('keydown', closeOnEscape); };
+  }, [open]);
+  return <aside ref={railRef} className={`project-status-help ${open ? 'is-open' : ''}`} aria-label="프로젝트 상태 안내">
+    <button type="button" className="project-status-help__trigger" aria-expanded={open} aria-controls="project-status-help-content" onClick={() => setOpen((value) => !value)} onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}><span aria-hidden="true">?</span><span>상태 안내</span></button>
+    {open && <div id="project-status-help-content" className="project-status-help__content"><div><h2>Area</h2><p>프로젝트가 위치한 사업 검증 영역입니다.</p><dl>{PROJECT_AREA_DEFINITIONS.map((area) => <div key={area.id}><dt>{area.label}</dt><dd>{({ OVERVIEW: '전체 현황', PLAN: '사업계획서 업로드와 구조화', REVIEW: '법률·규제와 사업성 분석', VALIDATE: 'AI 패널과 시장 반응 검증', REPORT: '통합 결과' })[area.id]}</dd></div>)}</dl></div><div><h2>Status</h2><p>프로젝트 전체 처리 상태입니다.</p><dl>{Object.entries(PROJECT_STATUS_VIEW).map(([status, view]) => <div key={status}><dt>{view.label}</dt><dd>{({ DRAFT: '준비 중인 프로젝트', ACTIVE: '작업을 진행 중인 프로젝트', PAUSED: '일시 중지된 프로젝트', COMPLETED: '검증이 완료된 프로젝트', ARCHIVED: '보관된 프로젝트' })[status]}</dd></div>)}</dl></div></div>}
+  </aside>;
 }
 
 export function ProjectListPage() {
@@ -61,7 +79,7 @@ export function ProjectListPage() {
         description="사업 검증의 입력, 실행, 결과를 프로젝트 단위로 관리합니다."
         actions={<Link className="primary-link" to={appRoutes.newProject} state={{ backgroundLocation: location, returnTo: `${location.pathname}${location.search}` }}>새 프로젝트</Link>}
       />
-      {!projects.length ? (
+      <div className="project-hub__body"><ProjectStatusHelpRail /><div className="project-hub__content">{!projects.length ? (
         <EmptyState
           title="아직 프로젝트가 없습니다"
           description="첫 사업 검증 프로젝트를 만들어 시작하세요."
@@ -86,12 +104,12 @@ export function ProjectListPage() {
             </select>
           </div>
           <div className="project-row-list" role="list" aria-label="프로젝트 목록">
-            <div className="project-row-list__header" aria-hidden="true"><span>Name</span><span>Area</span><span>Status</span><span>Next action</span><span>Updated</span></div>
+            <div className="project-row-list__header" aria-hidden="true"><span>Name</span><span>Area</span><span>Status</span><span>Next action</span><span>Updated</span><span /></div>
             {visible.map((project) => <ProjectRow key={project.projectId} project={project} menuOpen={menuOpenProjectId === project.projectId} onMenuOpenChange={(open) => setMenuOpenProjectId(open ? project.projectId : null)} onDelete={() => { setDeleteTarget(project); setDeleteName(''); setDeleteError(''); }} />)}
           </div>
           {!visible.length && <p className="project-search-empty">조건에 맞는 프로젝트가 없습니다.</p>}
         </>
-      )}
+      )}</div></div>
       <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} title="프로젝트를 삭제할까요?"><p>이 작업은 되돌릴 수 없습니다. 확인을 위해 <strong>{deleteTarget?.name}</strong>을(를) 입력하세요.</p>{deleteError && <Alert tone="danger" title="삭제하지 못했습니다.">{deleteError}</Alert>}<TextInput id="project-row-delete-confirmation" label="프로젝트 이름" value={deleteName} onChange={(event) => setDeleteName(event.target.value)} /><div className="dialog-actions"><Button variant="outline" disabled={deleting} onClick={() => setDeleteTarget(null)}>취소</Button><Button variant="danger" loading={deleting} disabled={!deleteTarget || deleteName !== deleteTarget.name || deleting} onClick={async () => { if (!deleteTarget) return; setDeleting(true); try { await createProjectApi(client).remove(deleteTarget.projectId); setDeleteTarget(null); await retry(); } catch (error) { setDeleteError(getUserErrorMessage(error)); setDeleting(false); } }}>영구 삭제</Button></div></Dialog>
     </div>
   );
@@ -106,6 +124,20 @@ export function ProjectCreatePage() {
   const [errors, setErrors] = useState({});
   const [globalError, setGlobalError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const pendingRouteRef = useRef(null);
+  const closeTimerRef = useRef(null);
+
+  const finishClose = () => {
+    window.clearTimeout(closeTimerRef.current);
+    navigate(pendingRouteRef.current || location.state?.returnTo || appRoutes.projects, { replace: Boolean(pendingRouteRef.current || location.state?.returnTo), state: null });
+  };
+  const requestClose = (nextRoute) => {
+    if (closing || (submitting && !nextRoute)) return;
+    pendingRouteRef.current = nextRoute;
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(finishClose, 360);
+  };
 
   const update = (field) => (event) => {
     setValues((current) => ({ ...current, [field]: event.target.value }));
@@ -127,7 +159,7 @@ export function ProjectCreatePage() {
         description: values.description.trim() || null,
         industryCategory: values.industryCategory.trim() || null,
       });
-      navigate(projectRoutes.getStarted(nextProject.id), { replace: true });
+      requestClose(projectRoutes.getStarted(nextProject.id));
     } catch (error) {
       setErrors(Object.fromEntries((error.fieldErrors ?? []).map((item) => [item.field, item.message])));
       setGlobalError(getUserErrorMessage(error));
@@ -140,7 +172,7 @@ export function ProjectCreatePage() {
   return (
     <>
       {!location.state?.backgroundLocation && <ProjectListPage />}
-      <SideSheet open title="New Project" label="새 프로젝트" onClose={() => navigate(appRoutes.projects)}>
+      <SideSheet open title="New Project" label="새 프로젝트" phase={closing ? 'exiting' : 'entered'} onExited={finishClose} onClose={() => requestClose()}>
     <div className="project-create project-create--sheet">
       <PageHeader eyebrow="새 프로젝트" title="검증할 사업 아이디어를 만드세요" description="지금은 최소 정보만 필요합니다. 세부 자료와 분석 실행은 프로젝트 안에서 직접 시작합니다." />
       {globalError && <div ref={errorRef} tabIndex="-1"><Alert tone="danger" title="프로젝트를 만들지 못했습니다">{globalError}</Alert></div>}
@@ -149,8 +181,8 @@ export function ProjectCreatePage() {
         <TextInput id="project-category" label="사업 분야" description="선택 입력입니다." value={values.industryCategory} error={errors.industryCategory} maxLength="100" onChange={update('industryCategory')} />
         <Textarea id="project-description" label="간단한 설명" description="선택 입력입니다." value={values.description} error={errors.description} maxLength="10000" onChange={update('description')} />
         <div className="project-form__actions">
-          <Button type="submit" loading={submitting} disabled={submitting}>프로젝트 만들기</Button>
-          <Button type="button" variant="outline" disabled={submitting} onClick={() => navigate(appRoutes.projects)}>취소</Button>
+          <Button type="submit" loading={submitting} disabled={submitting || closing}>프로젝트 만들기</Button>
+          <Button type="button" variant="outline" disabled={submitting || closing} onClick={() => requestClose()}>취소</Button>
         </div>
       </form>
     </div>

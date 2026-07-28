@@ -14,24 +14,30 @@ export function Dialog({
   title,
   children,
   variant = 'dialog',
+  phase = 'entered',
+  onExited,
+  initialFocusRef,
 }) {
   const titleId = useId();
   const panelRef = useRef(null);
   const openerRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || phase === 'exiting') return undefined;
     openerRef.current = document.activeElement;
     const panel = panelRef.current;
-    const focusable = panel?.querySelectorAll(FOCUSABLE) ?? [];
-    focusable[0]?.focus();
+    const getFocusable = () => Array.from(panel?.querySelectorAll(FOCUSABLE) ?? []);
+    (initialFocusRef?.current ?? getFocusable()[0])?.focus();
 
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
+      const focusable = getFocusable();
       if (event.key !== 'Tab' || focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -51,21 +57,25 @@ export function Dialog({
       document.body.classList.remove('has-overlay');
       openerRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [initialFocusRef, open, phase]);
 
   if (!open) return null;
   const portal = document.getElementById('modal-root') ?? document.body;
 
   return createPortal(
-    <div className={`ui-overlay ui-overlay--${variant}`} onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
+    <div className={`ui-overlay ui-overlay--${variant}`} data-phase={phase} onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onCloseRef.current();
     }}>
       <section
         ref={panelRef}
         className={`ui-dialog ui-dialog--${variant}`}
+        data-phase={phase}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        onAnimationEnd={(event) => {
+          if (phase === 'exiting' && event.target === event.currentTarget) onExited?.();
+        }}
       >
         <header className="ui-dialog__header">
           <h2 id={titleId}>{title}</h2>
@@ -82,9 +92,9 @@ export function Drawer(props) {
   return <Dialog variant="drawer" {...props} />;
 }
 
-export function SideSheet({ title, onClose, open, children, footer, label = 'Side sheet' }) {
+export function SideSheet({ title, onClose, open, children, footer, label = 'Side sheet', phase, onExited, initialFocusRef }) {
   return (
-    <Dialog open={open} onClose={onClose} title={title} variant="sheet">
+    <Dialog open={open} onClose={onClose} title={title} variant="sheet" phase={phase} onExited={onExited} initialFocusRef={initialFocusRef}>
       <div className="ui-side-sheet" aria-label={label}>{children}</div>
       {footer && <footer className="ui-side-sheet__footer">{footer}</footer>}
     </Dialog>

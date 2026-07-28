@@ -27,7 +27,7 @@ export function safeReportFileName(projectName, date = new Date()) {
     .replace(/^-|-$/g, '')
     .slice(0, 80) || 'project';
   const stamp = date.toISOString().slice(0, 10);
-  return `${sanitized}-analysis-report-${stamp}.md`;
+  return `${sanitized}_사업검증_결과및개선제안서_${stamp}.md`;
 }
 
 export function createReportMarkdown(report) {
@@ -45,7 +45,12 @@ export function createReportMarkdown(report) {
   );
 
   return [
-    `# ${text(report.project.name)} 통합 분석 보고서`,
+    '# 사업 검증 결과 및 개선 제안서',
+    '',
+    '## 프로젝트 정보',
+    '',
+    `- 프로젝트명: ${text(report.project.name)}`,
+    `- 사업 분야: ${text(report.project.industryCategory)}`,
     '',
     `- 생성 기준: ${text(report.generatedAtLabel)}`,
     `- 프로젝트 단계: ${text(report.project.stageLabel)}`,
@@ -53,34 +58,34 @@ export function createReportMarkdown(report) {
     `- 원본 문서 버전: ${text(report.sourceDocumentVersionId)}`,
     `- 구조화 계획 버전: ${text(report.structuredPlanVersion)}`,
     '',
-    '## 사업계획 구조화',
+    '## 1. 사업계획 구조화 결과',
     '',
     text(report.plan.summary),
     '',
     planLines.length ? planLines.join('\n') : '- 아직 구조화 결과가 없습니다.',
     '',
-    '## 법률·규제 사전검토',
+    '## 2. 법률·규제 검토',
     '',
     text(report.legal.summary),
     '',
     legalLines.length ? legalLines.join('\n') : '- 아직 법률 사전검토 결과가 없습니다.',
     report.legal.data?.disclaimer ? `\n> ${text(report.legal.data.disclaimer)}` : '',
     '',
-    '## 사업 타당성',
+    '## 3. 사업 타당성 분석',
     '',
     text(report.feasibility.summary),
     '',
     dimensionLines.length ? dimensionLines.join('\n') : '- 아직 사업 타당성 결과가 없습니다.',
     report.feasibility.data?.disclaimer ? `\n> ${text(report.feasibility.data.disclaimer)}` : '',
     '',
-    '## 페르소나·고객 검증 계획',
+    '## 4. 고객 및 시장 검증',
     '',
     text(report.persona.summary),
     '',
     personaLines.length ? personaLines.join('\n') : '- 아직 페르소나 추천 결과가 없습니다.',
     report.persona.data?.disclaimer ? `\n> ${text(report.persona.data.disclaimer)}` : '',
     '',
-    '## 검증 과제',
+    '## 5. 권장 다음 행동',
     '',
     list(report.validationTasks, (task) => `${task.title} · ${task.method} · ${task.expectedEvidence}`),
     '',

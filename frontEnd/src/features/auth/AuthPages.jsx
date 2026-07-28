@@ -73,7 +73,13 @@ function AuthSuccess({ message, title }) {
 function AuthPage({ children, mode }) {
   const pageTitle = mode === 'signup' ? '회원가입' : '로그인';
   const location = useLocation();
-  return <AuthShell mode={mode}><h1 className="visually-hidden">{pageTitle}</h1>{mode === 'login' && location.state?.signupCompleted && <div className="auth-route-success" role="status">회원가입이 완료되었습니다. 생성한 아이디로 로그인해 주세요.</div>}{mode === 'login' && location.state?.source === 'logout' && <div className="auth-route-success" role="status">안전하게 로그아웃되었습니다. 다시 로그인해 작업을 이어갈 수 있습니다.</div>}<AuthBrandPanel mode={mode} />{children}</AuthShell>;
+  const [spaceTransition, setSpaceTransition] = useState(Boolean(location.state?.authSpaceTransition === 'enter-login'));
+  useEffect(() => {
+    if (location.state?.authSpaceTransition !== 'enter-login') return undefined;
+    const timer = window.setTimeout(() => setSpaceTransition(false), 780);
+    return () => window.clearTimeout(timer);
+  }, [location.state?.authSpaceTransition]);
+  return <AuthShell mode={mode}>{spaceTransition && <div className="auth-space-transition auth-space-transition--login" role="status" aria-live="polite" aria-busy="true"><span aria-hidden="true">V</span><p>안전하게 로그아웃하고 있습니다.</p></div>}<h1 className="visually-hidden">{pageTitle}</h1>{mode === 'login' && location.state?.signupCompleted && <div className="auth-route-success" role="status">회원가입이 완료되었습니다. 생성한 아이디로 로그인해 주세요.</div>}{mode === 'login' && location.state?.source === 'logout' && <div className="auth-route-success" role="status">안전하게 로그아웃되었습니다. 다시 로그인해 작업을 이어갈 수 있습니다.</div>}<AuthBrandPanel mode={mode} />{children}</AuthShell>;
 }
 
 export function LoginPage() {
@@ -109,7 +115,7 @@ export function LoginPage() {
       window.sessionStorage.removeItem(warningStorageKey);
       window.dispatchEvent(new Event('auth-login-attempt-warning'));
       setSuccess(true);
-      timerRef.current = window.setTimeout(() => navigate(safeReturnTo(location.state?.returnTo), { replace: true }), 280);
+      timerRef.current = window.setTimeout(() => navigate(safeReturnTo(location.state?.returnTo), { replace: true, state: { authSpaceTransition: 'enter-workspace' } }), 380);
     } catch (error) {
       if (error?.code === 'LOGIN_RATE_LIMITED') {
         startRetryCountdown(error.retryAfterSeconds);

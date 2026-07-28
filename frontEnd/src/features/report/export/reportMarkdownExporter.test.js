@@ -13,13 +13,13 @@ const report = () => toIntegratedReportViewModel(projectFixture, fullResources()
 describe('report markdown export', () => {
   it('exports every visible report family', () => {
     const markdown = createReportMarkdown(report());
-    for (const heading of ['사업계획 구조화', '법률·규제 사전검토', '사업 타당성', '페르소나·고객 검증 계획', '검증 과제', '출처와 생성 정보']) {
+    for (const heading of ['사업 검증 결과 및 개선 제안서', '사업계획 구조화 결과', '법률·규제 검토', '사업 타당성 분석', '고객 및 시장 검증', '권장 다음 행동', '출처와 생성 정보']) {
       expect(markdown).toContain(heading);
     }
   });
 
   it('uses UTF-8 Korean content', () => {
-    expect(createReportMarkdown(report())).toContain('검증 프로젝트 통합 분석 보고서');
+    expect(createReportMarkdown(report())).toContain('프로젝트명: 검증 프로젝트');
   });
 
   it.each(['accessToken', 'refreshToken', 'storagePath', 'rawResponse', 'rawPrompt', 'auditMetadata'])(
@@ -48,10 +48,10 @@ describe('report markdown export', () => {
   });
 
   it.each([
-    ['A/B 프로젝트', 'A-B-프로젝트-analysis-report-2026-07-24.md'],
-    ['..', 'project-analysis-report-2026-07-24.md'],
-    ['', 'project-analysis-report-2026-07-24.md'],
-    ['A:*?<>|B', 'A-B-analysis-report-2026-07-24.md'],
+    ['A/B 프로젝트', 'A-B-프로젝트_사업검증_결과및개선제안서_2026-07-24.md'],
+    ['..', 'project_사업검증_결과및개선제안서_2026-07-24.md'],
+    ['', 'project_사업검증_결과및개선제안서_2026-07-24.md'],
+    ['A:*?<>|B', 'A-B_사업검증_결과및개선제안서_2026-07-24.md'],
   ])('creates a safe filename for %s', (name, expected) => {
     expect(safeReportFileName(name, new Date('2026-07-24T00:00:00Z'))).toBe(expected);
   });

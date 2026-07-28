@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { createAuthApi } from '../auth/api/authApi.js';
@@ -12,7 +12,7 @@ import { ProfileAvatar } from '../../app/layouts/AppShell.jsx';
 import './settings.css';
 
 function SettingsLayout() {
-  return <section className="account-settings"><PageHeader eyebrow="Account settings" title="계정 설정" description="프로필과 보안 정보를 관리합니다." /><nav aria-label="계정 설정"><Link to={appRoutes.profileSettings}><AppIcon name="user" />Profile</Link><Link to={appRoutes.securitySettings}><AppIcon name="lock" />Security</Link></nav><Outlet /></section>;
+  return <section className="account-settings"><PageHeader eyebrow="Account settings" title="계정 설정" description="프로필과 보안 정보를 관리합니다." /><nav aria-label="계정 설정"><NavLink to={appRoutes.profileSettings}><AppIcon name="user" />Profile</NavLink><NavLink to={appRoutes.securitySettings}><AppIcon name="lock" />Security</NavLink></nav><Outlet /></section>;
 }
 
 export function AccountSettingsLayout() { return <SettingsLayout />; }
