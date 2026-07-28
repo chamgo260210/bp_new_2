@@ -109,12 +109,12 @@ export function LoginPage() {
     if (Object.keys(nextErrors).length) { setErrors(nextErrors); focusFirstError(nextErrors, 'login'); return; }
     setSubmitting(true); setGlobalError('');
     try {
-      await login({ username, password: values.password });
+      const loggedInUser = await login({ username, password: values.password });
       clearRetryCountdown();
       window.sessionStorage.removeItem(warningStorageKey);
       window.dispatchEvent(new Event('auth-login-attempt-warning'));
       setSuccess(true);
-      await start({ destination: '/app', message: '워크스페이스를 준비하고 있습니다.' });
+      await start({ destination: loggedInUser?.role === 'ADMIN' ? '/admin' : '/app', message: '워크스페이스를 준비하고 있습니다.' });
     } catch (error) {
       if (error?.code === 'LOGIN_RATE_LIMITED') {
         startRetryCountdown(error.retryAfterSeconds);

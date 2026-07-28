@@ -30,6 +30,7 @@ function AccountMenu({ user, onLogout, onSettings }) {
       </div>
       <div className="app-account-menu__links">
         <button type="button" role="menuitem" onClick={onSettings}><AppIcon name="settings" />계정 설정</button>
+        {user?.role === 'ADMIN' && <Link to="/admin" role="menuitem"><AppIcon name="settings" />관리자 콘솔</Link>}
       </div>
       <Button variant="outline" size="small" role="menuitem" onClick={onLogout}>로그아웃</Button>
     </div>

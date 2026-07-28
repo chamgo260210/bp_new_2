@@ -11,7 +11,8 @@ public record UserResponse(
     String departmentName,
     String jobTitle,
     String role,
-    String status
+    String status,
+    String accountStatus
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -23,6 +24,7 @@ public record UserResponse(
             user.getDepartmentName(),
             user.getJobTitle(),
             user.getRole().name(),
+            user.getStatus().name(),
             user.getStatus().name()
         );
     }

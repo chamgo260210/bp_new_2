@@ -55,6 +55,12 @@ public class User extends BaseEntity {
     private LocalDateTime lastLoginAt;
     private LocalDateTime passwordChangedAt;
     private LocalDateTime emailVerifiedAt;
+    private LocalDateTime lockedAt;
+    @Column(length = 500)
+    private String lockedReason;
+    private LocalDateTime disabledAt;
+    private LocalDateTime roleUpdatedAt;
+    private Long roleUpdatedBy;
 
     private User(
         String username,
@@ -94,6 +100,25 @@ public class User extends BaseEntity {
     }
 
     public void updatePasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
+    public void updateRole(UserRole role, Long actorUserId, LocalDateTime now) {
+        this.role = role;
+        this.roleUpdatedAt = now;
+        this.roleUpdatedBy = actorUserId;
+    }
+
+    public void updateStatus(UserStatus status, String reason, LocalDateTime now) {
+        this.status = status;
+        if (status == UserStatus.LOCKED) {
+            this.lockedAt = now;
+            this.lockedReason = reason;
+        } else {
+            this.lockedUntil = null;
+            this.lockedAt = null;
+            this.lockedReason = null;
+        }
+        this.disabledAt = status == UserStatus.DISABLED ? now : null;
+    }
 
     public void updateProfile(
         String name,

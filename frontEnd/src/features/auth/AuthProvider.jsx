@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { AUTH_STATUS } from './authSession.js';
+import { resolveUserPermissions } from '../admin/model/adminPermissions.js';
 
 const AuthContext = createContext(null);
 
@@ -37,6 +38,9 @@ export function AuthProvider({
   const value = useMemo(() => ({
     ...snapshot,
     isAuthenticated: snapshot.status === AUTH_STATUS.AUTHENTICATED,
+    isAdmin: snapshot.user?.role === 'ADMIN',
+    hasRole(role) { return snapshot.user?.role === role; },
+    can(permission) { return resolveUserPermissions(snapshot.user).includes(permission); },
     async login(credentials) {
       const user = await session.login(credentials);
       setSnapshot({ status: AUTH_STATUS.AUTHENTICATED, user });

@@ -5,6 +5,7 @@ import ProjectLayout from '../layouts/ProjectLayout.jsx';
 import PublicLayout from '../layouts/PublicLayout.jsx';
 import { LoginPage, SignupPage } from '../../features/auth/AuthPages.jsx';
 import ProtectedRoute from '../../features/auth/ProtectedRoute.jsx';
+import AdminRoute from '../../features/auth/AdminRoute.jsx';
 import PublicOnlyRoute from '../../features/auth/PublicOnlyRoute.jsx';
 import {
   ProjectCreatePage,
@@ -23,6 +24,8 @@ import FeasibilityPage from '../../features/feasibility/FeasibilityPage.jsx';
 import PersonaPage from '../../features/personas/PersonaPage.jsx';
 import ReportPage from '../../features/report/ReportPage.jsx';
 import LandingPage from '../../features/landing/LandingPage.jsx';
+import AdminShell from '../layouts/AdminShell.jsx';
+import { AdminAuditPage, AdminJobsPage, AdminOperationsPage, AdminOverviewPage, AdminProjectsPage, AdminSettingsPage, AdminUsersPage } from '../../features/admin/pages/AdminPages.jsx';
 
 function LegacyProjectRedirect({ suffix = '' }) {
   const { projectId } = useParams();
@@ -102,6 +105,18 @@ export default function AppRouter() {
           <Route path="projects/:projectId/reports/*" element={<LegacyProjectRedirect suffix="/report" />} />
           <Route path="projects/:projectId/marketing" element={<LegacyProjectRedirect suffix="/report" />} />
           <Route path="projects/:projectId/settings" element={<LegacyProjectRedirect suffix="/settings" />} />
+        </Route>
+
+        <Route element={<AdminRoute />}>
+          <Route element={<AdminShell />}>
+            <Route path="admin" element={<AdminOverviewPage />} />
+            <Route path="admin/users" element={<AdminUsersPage />} />
+            <Route path="admin/projects" element={<AdminProjectsPage />} />
+            <Route path="admin/operations" element={<AdminOperationsPage />} />
+            <Route path="admin/jobs" element={<AdminJobsPage />} />
+            <Route path="admin/audit" element={<AdminAuditPage />} />
+            <Route path="admin/settings" element={<AdminSettingsPage />} />
+          </Route>
         </Route>
       </Route>
 

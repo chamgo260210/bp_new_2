@@ -28,7 +28,12 @@ public class DomainAuditService {
         "assessmentId",
         "resultStatus",
         "verdict",
-        "overallRiskLevel"
+        "overallRiskLevel",
+        "reason",
+        "before",
+        "after",
+        "targetUserId",
+        "settingKey"
     );
 
     private final AuditEventRepository repository;
