@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
 import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
@@ -11,7 +11,6 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
-  StatusBadge,
   SideSheet,
   Textarea,
   TextInput,
@@ -19,10 +18,8 @@ import {
 import { createProjectApi } from './api/projectApi.js';
 import { useProjectContext } from './ProjectContext.jsx';
 import { useProjects } from './hooks/useProjects.js';
-import { formatProjectDate } from './model/projectViewModel.js';
-import { PROJECT_AREA_DEFINITIONS } from './model/projectWorkflowModel.js';
+import ProjectRow from './components/ProjectRow.jsx';
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
-import { ProjectActionMenu } from './ProjectSettingsSheet.jsx';
 import './projects.css';
 
 function filterMatches(project, filter) {
@@ -32,6 +29,7 @@ function filterMatches(project, filter) {
 
 export function ProjectListPage() {
   const client = useApiClient();
+  const location = useLocation();
   const { status, projects, retry } = useProjects();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -40,6 +38,7 @@ export function ProjectListPage() {
   const [deleteName, setDeleteName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [menuOpenProjectId, setMenuOpenProjectId] = useState(null);
   const visible = useMemo(() => projects
     .filter((project) => filterMatches(project, filter)
       && `${project.name} ${project.industryCategory}`.toLowerCase().includes(query.toLowerCase()))
@@ -60,7 +59,7 @@ export function ProjectListPage() {
         eyebrow="내 워크스페이스"
         title="프로젝트"
         description="사업 검증의 입력, 실행, 결과를 프로젝트 단위로 관리합니다."
-        actions={<Link className="primary-link" to={appRoutes.newProject}>새 프로젝트</Link>}
+        actions={<Link className="primary-link" to={appRoutes.newProject} state={{ backgroundLocation: location, returnTo: `${location.pathname}${location.search}` }}>새 프로젝트</Link>}
       />
       {!projects.length ? (
         <EmptyState
@@ -88,21 +87,7 @@ export function ProjectListPage() {
           </div>
           <div className="project-row-list" role="list" aria-label="프로젝트 목록">
             <div className="project-row-list__header" aria-hidden="true"><span>Name</span><span>Area</span><span>Status</span><span>Next action</span><span>Updated</span></div>
-            {visible.map((project) => {
-              const areaLabel = PROJECT_AREA_DEFINITIONS.find((area) => area.id === project.area)?.label ?? 'Plan';
-              return (
-                <article key={project.projectId} className="project-row" role="listitem">
-                  <Link className="project-row__main-link" to={projectRoutes.overview(project.projectId)} aria-labelledby={`project-row-title-${project.projectId}`}>
-                    <div className="project-row__project"><span className="project-row__initial" aria-hidden="true">{Array.from(project.name)[0]}</span><div><h2 id={`project-row-title-${project.projectId}`}>{project.name}</h2><p>{project.industryCategory || '사업 분야 미입력'}</p></div></div>
-                    <span>{areaLabel}</span>
-                    <StatusBadge status={project.status} />
-                    <span className="project-row__next">{project.nextAction.label}</span>
-                    <time dateTime={project.updatedAt}>{formatProjectDate(project.updatedAt)}</time>
-                  </Link>
-                  <ProjectActionMenu project={project} onDelete={() => { setDeleteTarget(project); setDeleteName(''); setDeleteError(''); }} />
-                </article>
-              );
-            })}
+            {visible.map((project) => <ProjectRow key={project.projectId} project={project} menuOpen={menuOpenProjectId === project.projectId} onMenuOpenChange={(open) => setMenuOpenProjectId(open ? project.projectId : null)} onDelete={() => { setDeleteTarget(project); setDeleteName(''); setDeleteError(''); }} />)}
           </div>
           {!visible.length && <p className="project-search-empty">조건에 맞는 프로젝트가 없습니다.</p>}
         </>
@@ -115,6 +100,7 @@ export function ProjectListPage() {
 export function ProjectCreatePage() {
   const client = useApiClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const errorRef = useRef(null);
   const [values, setValues] = useState({ title: '', description: '', industryCategory: '' });
   const [errors, setErrors] = useState({});
@@ -153,7 +139,7 @@ export function ProjectCreatePage() {
 
   return (
     <>
-      <ProjectListPage />
+      {!location.state?.backgroundLocation && <ProjectListPage />}
       <SideSheet open title="New Project" label="새 프로젝트" onClose={() => navigate(appRoutes.projects)}>
     <div className="project-create project-create--sheet">
       <PageHeader eyebrow="새 프로젝트" title="검증할 사업 아이디어를 만드세요" description="지금은 최소 정보만 필요합니다. 세부 자료와 분석 실행은 프로젝트 안에서 직접 시작합니다." />

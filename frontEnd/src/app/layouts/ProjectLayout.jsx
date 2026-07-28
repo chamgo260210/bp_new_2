@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 
 import { AppIcon, Breadcrumb, ErrorState, LoadingState, StatusBadge } from '../../shared/ui/index.js';
 import { ProjectProvider, useProjectContext } from '../../features/projects/ProjectContext.jsx';
@@ -53,7 +53,7 @@ function ProjectLayoutContent() {
             <p>{project.industryCategory || '사업 분야 미입력'} · 최근 수정 {new Date(project.updatedAt).toLocaleDateString('ko-KR')}</p>
             <h1>{project.name}</h1>
           </div>
-          <div className="project-shell__actions"><StatusBadge status={project.status} /><NavLink className="project-shell__settings" to={projectRoutes.settings(projectId)}><AppIcon name="settings" />Settings</NavLink></div>
+          <div className="project-shell__actions"><StatusBadge status={project.status} /><Link className="project-shell__settings" to={projectRoutes.settings(projectId)} state={{ backgroundLocation: location, returnTo: `${location.pathname}${location.search}` }} aria-label="프로젝트 설정 열기" title="프로젝트 설정"><AppIcon name="settings" size={20} /></Link></div>
         </div>
       </header>
       <nav className="project-area-nav" aria-label="프로젝트 영역">

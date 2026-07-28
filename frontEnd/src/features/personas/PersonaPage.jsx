@@ -13,6 +13,7 @@ import './personas.css';
 
 function Catalog({ personas }) {
   return (
+    <details className="persona-segment-preview"><summary><strong>기준 세그먼트 미리보기</strong><span>{personas.length}개</span></summary>
     <section aria-labelledby="persona-catalog-title">
       <div className="persona-section-heading">
         <div><p className="persona-kicker">2025 한국미디어패널 기반</p>
@@ -33,7 +34,7 @@ function Catalog({ personas }) {
           </Card>
         ))}
       </div>
-    </section>
+    </section></details>
   );
 }
 

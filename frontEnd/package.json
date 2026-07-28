@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "copy:resources": "node scripts/copy-business-plan-resources.mjs",
+    "predev": "npm run copy:resources",
+    "prebuild": "npm run copy:resources",
+    "pretest": "npm run copy:resources",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

@@ -2,7 +2,7 @@ import { forwardRef, useId, useState } from 'react';
 
 import './ui.css';
 
-export function Button({
+export const Button = forwardRef(function Button({
   children,
   variant = 'primary',
   size = 'medium',
@@ -10,9 +10,10 @@ export function Button({
   disabled = false,
   className = '',
   ...props
-}) {
+}, ref) {
   return (
     <button
+      ref={ref}
       className={`ui-button ui-button--${variant} ui-button--${size} ${className}`}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
@@ -22,7 +23,7 @@ export function Button({
       <span>{children}</span>
     </button>
   );
-}
+});
 
 export function IconButton({ label, children, ...props }) {
   return (
@@ -153,4 +154,3 @@ export function Spinner({ label = '불러오는 중', size = 'medium' }) {
     </span>
   );
 }
-

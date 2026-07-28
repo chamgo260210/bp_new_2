@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider.jsx';
-import { EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge } from '../../shared/ui/index.js';
+import { EmptyState, ErrorState, LoadingState, PageHeader } from '../../shared/ui/index.js';
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
-import { getProjectArea, getProjectNextAction, PROJECT_AREA_DEFINITIONS } from './model/projectWorkflowModel.js';
-import { formatProjectDate } from './model/projectViewModel.js';
+import ProjectRow from './components/ProjectRow.jsx';
 import { useProjects } from './hooks/useProjects.js';
 import { ResourceDownload } from './BusinessPlanResources.jsx';
 import { BUSINESS_PLAN_RESOURCES } from './businessPlanResources.js';
@@ -59,17 +58,7 @@ export default function WorkspaceHomePage() {
         <section className="workspace-home__recent" aria-labelledby="workspace-recent-title">
           <div className="section-heading"><div><p>Recent projects</p><h2 id="workspace-recent-title">최근 프로젝트</h2></div><Link to={appRoutes.projects}>모든 프로젝트 보기</Link></div>
           <div className="workspace-home__recent-list">
-            {recent.map((project) => {
-              const area = PROJECT_AREA_DEFINITIONS.find((item) => item.id === getProjectArea(project));
-              const nextAction = getProjectNextAction(project);
-              return (
-                <article key={project.projectId}>
-                  <div><h3><Link to={projectRoutes.overview(project.projectId)}>{project.name}</Link></h3><p>{area?.label ?? 'Plan'} · 최근 수정 {formatProjectDate(project.updatedAt)}</p></div>
-                  <StatusBadge status={project.status} />
-                  <Link className="workspace-home__continue" to={nextAction.route}>{nextAction.label}</Link>
-                </article>
-              );
-            })}
+            {recent.map((project) => <ProjectRow key={project.projectId} project={project} density="compact" showNextAction={false} />)}
           </div>
         </section>
       ) : (

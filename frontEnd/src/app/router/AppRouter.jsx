@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 
 import AppShell from '../layouts/AppShell.jsx';
 import ProjectLayout from '../layouts/ProjectLayout.jsx';
@@ -15,6 +15,7 @@ import { ProjectOverviewPage } from '../../features/projects/ProjectAreaPages.js
 import WorkspaceHomePage from '../../features/projects/WorkspaceHomePage.jsx';
 import { AccountSettingsLayout, AccountSettingsRedirect, ProfileSettingsPage, SecuritySettingsPage } from '../../features/settings/AccountSettingsPages.jsx';
 import ProjectSettingsSheet from '../../features/projects/ProjectSettingsSheet.jsx';
+import { ProjectProvider } from '../../features/projects/ProjectContext.jsx';
 import { DocumentUploadPage, StructuredPlanPage } from '../../features/documents/DocumentPages.jsx';
 import { AuthPlaceholderPage, NotFoundPage } from '../../pages/FoundationPages.jsx';
 import LegalReviewPage from '../../features/legal-review/LegalReviewPage.jsx';
@@ -28,9 +29,17 @@ function LegacyProjectRedirect({ suffix = '' }) {
   return <Navigate to={`/app/projects/${projectId}${suffix}`} replace />;
 }
 
+function ProjectSettingsOverlay() {
+  const { projectId } = useParams();
+  return <ProjectProvider projectId={projectId}><ProjectSettingsSheet /></ProjectProvider>;
+}
+
 export default function AppRouter() {
+  const location = useLocation();
+  const backgroundLocation = location.state?.backgroundLocation;
   return (
-    <Routes>
+    <>
+    <Routes location={backgroundLocation || location}>
       <Route element={<PublicLayout />}>
         <Route index element={<LandingPage />} />
         <Route element={<PublicOnlyRoute />}>
@@ -55,7 +64,7 @@ export default function AppRouter() {
           <Route path="app/projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<ProjectOverviewPage />} />
             <Route path="get-started" element={<ProjectGetStartedPage />} />
-            <Route path="plan" element={<DocumentUploadPage />} />
+            <Route path="plan" element={<Navigate to="documents" replace />} />
             <Route path="plan/brief" element={<Navigate to="../settings" replace />} />
             <Route path="plan/documents" element={<DocumentUploadPage />} />
             <Route path="plan/structure" element={<StructuredPlanPage />} />
@@ -98,5 +107,12 @@ export default function AppRouter() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    {backgroundLocation && <Routes>
+      <Route element={<ProtectedRoute />}>
+        <Route path="app/projects/new" element={<ProjectCreatePage />} />
+        <Route path="app/projects/:projectId/settings" element={<ProjectSettingsOverlay />} />
+      </Route>
+    </Routes>}
+    </>
   );
 }

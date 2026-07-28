@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../features/auth/AuthProvider.jsx';
 import { appRoutes, projectRoutes } from '../../features/projects/routing/projectRoutes.js';
@@ -64,6 +64,8 @@ export default function AppShell() {
   const accountMenuRef = useRef(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const pageKey = location.state?.backgroundLocation?.pathname ?? location.pathname;
 
   const closeAccount = () => {
     setAccountOpen(false);
@@ -94,14 +96,16 @@ export default function AppShell() {
         <GlobalNavigation />
         <div className="app-topbar__actions">
           <ProjectSearch />
-          <button ref={triggerRef} type="button" className="app-account-trigger" aria-label="계정 메뉴" aria-haspopup="menu" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}>
-            <ProfileAvatar user={user} /><span><strong>{userLabel(user)}</strong><small>개인 계정</small></span><AppIcon name="chevronRight" className="app-account-trigger__chevron" />
-          </button>
-          {accountOpen && <div ref={accountMenuRef}><AccountMenu user={user} onLogout={handleLogout} onClose={closeAccount} /></div>}
+          <div className="app-account">
+            <button ref={triggerRef} type="button" className="app-account-trigger" aria-label="계정 메뉴" aria-haspopup="menu" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}>
+              <ProfileAvatar user={user} /><span><strong>{userLabel(user)}</strong><small>개인 계정</small></span><AppIcon name="chevronRight" className="app-account-trigger__chevron" />
+            </button>
+            {accountOpen && <div ref={accountMenuRef}><AccountMenu user={user} onLogout={handleLogout} onClose={closeAccount} /></div>}
+          </div>
         </div>
         <button type="button" className="app-mobile-menu" aria-label="메뉴 열기" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><AppIcon name="more" /></button>
       </header>
-      <main id="main-content" className="app-main" tabIndex="-1"><Outlet /></main>
+      <main id="main-content" className="app-main" tabIndex="-1"><div key={pageKey} className="app-page-transition"><Outlet /></div></main>
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="메뉴">
         <GlobalNavigation onNavigate={() => setDrawerOpen(false)} />
         <ProjectSearch onChoose={() => setDrawerOpen(false)} />
