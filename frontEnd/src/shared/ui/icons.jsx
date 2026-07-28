@@ -11,6 +11,7 @@ const PATHS = {
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M5 21h14',
   trash: 'M4 7h16m-10 4v6m4-6v6M9 7l1-3h4l1 3m-9 0 1 14h10l1-14',
   chevronRight: 'm9 18 6-6-6-6',
+  chevronLeft: 'm15 18-6-6 6-6',
   close: 'm6 6 12 12M18 6 6 18',
   check: 'm5 12 4.2 4.2L19 6.5',
   clock: 'M12 7v5l3.5 2',

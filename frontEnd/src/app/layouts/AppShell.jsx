@@ -59,6 +59,21 @@ function GlobalNavigation({ onNavigate }) {
   return <nav className="app-global-nav" aria-label="주요 메뉴"><NavLink to={appRoutes.home} end onClick={onNavigate}>Home</NavLink><NavLink to={appRoutes.projects} onClick={onNavigate}>Projects</NavLink></nav>;
 }
 
+function getProjectHelpState(pathname) {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+
+  if (normalizedPath === appRoutes.home) return { context: 'workspace', visible: true };
+  if (normalizedPath === appRoutes.projects) return { context: 'projects', visible: true };
+  if (!/^\/app\/projects\/[^/]+(?:\/.*)?$/.test(normalizedPath)) {
+    return { context: 'workspace', visible: false };
+  }
+  if (/\/plan(?:\/|$)/.test(normalizedPath)) return { context: 'plan', visible: true };
+  if (/\/review(?:\/|$)/.test(normalizedPath)) return { context: 'review', visible: true };
+  if (/\/validate(?:\/|$)/.test(normalizedPath)) return { context: 'validate', visible: true };
+  if (/\/report(?:\/|$)/.test(normalizedPath)) return { context: 'report', visible: true };
+  return { context: 'overview', visible: true };
+}
+
 export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountPhase, setAccountPhase] = useState('unmounted');
@@ -74,6 +89,9 @@ export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const pageKey = location.state?.backgroundLocation?.pathname ?? location.pathname;
+  // Overlay routes keep the guidance for the page beneath the sheet. This
+  // preserves the same Help DOM and context until the overlay is dismissed.
+  const projectHelp = getProjectHelpState(pageKey);
 
   const accountOpen = accountPhase !== 'unmounted';
   const finishAccountExit = useCallback(() => {
@@ -148,7 +166,7 @@ export default function AppShell() {
         <button type="button" className="app-mobile-menu" aria-label="메뉴 열기" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><AppIcon name="more" /></button>
       </header>
       <main id="main-content" className="app-main" tabIndex="-1"><div key={pageKey} className="app-page-transition"><Outlet /></div></main>
-      <ProjectStatusHelp persistent visible={pageKey === appRoutes.home || pageKey === appRoutes.projects} />
+      <ProjectStatusHelp visible={projectHelp.visible} context={projectHelp.context} />
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="메뉴">
         <GlobalNavigation onNavigate={() => setDrawerOpen(false)} />
         <ProjectSearch onChoose={() => setDrawerOpen(false)} />

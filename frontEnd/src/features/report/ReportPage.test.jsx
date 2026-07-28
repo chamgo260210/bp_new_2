@@ -7,6 +7,7 @@ import ReportPage from './ReportPage.jsx';
 import { useIntegratedReport } from './hooks/useIntegratedReport.js';
 import { useProjectContext } from '../projects/ProjectContext.jsx';
 import { downloadReportMarkdown } from './export/reportMarkdownExporter.js';
+import { openReportPrintWindow } from './export/reportPrintWindow.js';
 import { emptyResources, fullResources, projectFixture } from './tests/reportTestFixtures.js';
 
 vi.mock('./hooks/useIntegratedReport.js', () => ({ useIntegratedReport: vi.fn() }));
@@ -15,6 +16,7 @@ vi.mock('./export/reportMarkdownExporter.js', async (original) => {
   const actual = await original();
   return { ...actual, downloadReportMarkdown: vi.fn() };
 });
+vi.mock('./export/reportPrintWindow.js', () => ({ openReportPrintWindow: vi.fn() }));
 
 function renderPage() {
   return render(<MemoryRouter><ReportPage /></MemoryRouter>);
@@ -65,12 +67,10 @@ describe('ReportPage', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
-  it('invokes browser print', () => {
-    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+  it('opens the independent report print document', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: '인쇄 / PDF 저장' }));
-    expect(print).toHaveBeenCalledOnce();
-    print.mockRestore();
+    expect(openReportPrintWindow).toHaveBeenCalledWith(expect.objectContaining({ project: projectFixture }));
   });
 
   it('downloads markdown from the same report view model', () => {

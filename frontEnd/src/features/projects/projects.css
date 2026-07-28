@@ -219,6 +219,63 @@
   .getting-started-rail ol { grid-template-columns: 1fr; }
 }
 
-.project-status-help.is-hidden { opacity: 0; pointer-events: none; }
+.project-status-help.is-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
 .has-overlay .project-status-help { opacity: 1; pointer-events: auto; }
 .has-overlay .project-status-help.is-hidden { opacity: 0; pointer-events: none; }
+
+/* The help host sits outside the page-transition tree. Keep it below modal
+   backdrops, but never unmount or animate its viewport coordinates. */
+.project-status-help { z-index: var(--z-help, 30); }
+.project-status-help__content {
+  inset-inline-start: calc(100% + .75rem);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+}
+.project-status-help__slide { animation: project-help-slide-in var(--motion-medium) var(--ease-emphasized); }
+@keyframes project-help-slide-in {
+  from { opacity: 0; transform: translateX(-.5rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 900px) {
+  .project-status-help__content {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+    inset-block-start: auto;
+    inset-block-end: calc(100% + .75rem);
+    transform: none;
+    transform-origin: bottom right;
+  }
+}
+
+.project-status-help__content {
+  width: min(19rem, calc(100vw - 2rem));
+  max-height: 21.25rem;
+}
+.project-status-help__content header p { color: var(--color-action-primary); font-size: .7rem; letter-spacing: .12em; }
+.project-status-help__content header span { color: var(--color-text-secondary); font-size: .72rem; }
+.project-status-help__slide { min-height: 9.25rem; }
+.project-status-help__slide > p { margin: 0; }
+.project-status-help__note { color: var(--color-text-secondary); font-size: .74rem; }
+.project-status-help__content footer { justify-content: center; gap: .75rem; }
+.project-status-help__content footer > span { min-width: 2.75rem; color: var(--color-text-secondary); font-size: .74rem; text-align: center; }
+.project-status-help__content footer .project-status-help__arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: inherit;
+}
+.project-status-help__slide--next { animation: project-help-slide-next var(--motion-medium) var(--ease-emphasized); }
+.project-status-help__slide--previous { animation: project-help-slide-previous var(--motion-medium) var(--ease-emphasized); }
+@keyframes project-help-slide-next {
+  from { opacity: 0; transform: translateX(.625rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes project-help-slide-previous {
+  from { opacity: 0; transform: translateX(-.625rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
