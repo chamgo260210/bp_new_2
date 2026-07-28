@@ -1,3 +1,5 @@
+import { projectRoutes } from '../routing/projectRoutes.js';
+
 export const PROJECT_AREAS = Object.freeze({
   OVERVIEW: 'OVERVIEW',
   PLAN: 'PLAN',
@@ -62,7 +64,7 @@ const STAGE_VIEW = Object.freeze({
 });
 
 export function getProjectBasePath(projectId) {
-  return `/app/projects/${projectId}`;
+  return projectRoutes.base(projectId);
 }
 
 export function getProjectArea(project) {
@@ -85,7 +87,7 @@ export function getProjectNextAction(project) {
       type: 'COMPLETED',
       label: '통합 보고서를 검토하세요',
       description: '검증 결과와 근거를 보고서에서 다시 확인할 수 있습니다.',
-      route: `${getProjectBasePath(project.projectId)}/report`,
+      route: projectRoutes.report(project.projectId),
       priority: 'NORMAL',
     };
   }

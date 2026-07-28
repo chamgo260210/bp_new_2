@@ -21,6 +21,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -270,6 +271,51 @@ class AuthSecurityIntegrationTests {
                 + rotatedRefresh + "%'",
             Integer.class
         )).isZero();
+    }
+
+    @Test
+    void updatesProfileAndRevokesExistingSessionsAfterPasswordChange() throws Exception {
+        String session = signup();
+        String access = JsonPath.read(session, "$.data.tokens.accessToken");
+        String refresh = JsonPath.read(session, "$.data.tokens.refreshToken");
+
+        mockMvc.perform(patch("/api/v1/users/me")
+                .header("Authorization", "Bearer " + access)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "displayName":"Updated owner",
+                      "email":"updated@example.com",
+                      "organizationName":"Venture Verify",
+                      "departmentName":"Product",
+                      "jobTitle":"Lead"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.displayName").value("Updated owner"))
+            .andExpect(jsonPath("$.data.organizationName").value("Venture Verify"));
+
+        mockMvc.perform(post("/api/v1/users/me/password")
+                .header("Authorization", "Bearer " + access)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "currentPassword":"a safe long password",
+                      "newPassword":"a different safe passphrase"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"%s\"}".formatted(refresh)))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"username":"owneruser","password":"a different safe passphrase"}
+                    """))
+            .andExpect(status().isOk());
     }
 
     @Test

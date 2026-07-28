@@ -63,7 +63,7 @@ describe('application routing', () => {
 
   it('redirects an authenticated user away from public auth routes', async () => {
     renderApp('/auth/login', authenticated);
-    expect(await screen.findByRole('heading', { name: '아직 프로젝트가 없습니다' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '첫 사업 검증 프로젝트를 만들어 보세요' })).toBeInTheDocument();
   });
 
   it('keeps a protected route pending while auth is unknown', () => {
@@ -133,7 +133,7 @@ describe('application routing', () => {
 
   it('uses a single level-one heading in a protected page', async () => {
     renderApp('/dashboard', authenticated);
-    await screen.findByRole('heading', { name: '아직 프로젝트가 없습니다' });
+    await screen.findByRole('heading', { name: '첫 사업 검증 프로젝트를 만들어 보세요' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 

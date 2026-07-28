@@ -17,6 +17,7 @@ function renderAuthPage(path, session) {
         <Routes>
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/signup" element={<SignupPage />} />
+          <Route path="/app" element={<h1>프로젝트 허브</h1>} />
           <Route path="/app/projects" element={<h1>프로젝트 허브</h1>} />
           <Route path="/projects" element={<h1>프로젝트 도착</h1>} />
           <Route path="/projects/:id/overview" element={<h1>원래 화면 도착</h1>} />

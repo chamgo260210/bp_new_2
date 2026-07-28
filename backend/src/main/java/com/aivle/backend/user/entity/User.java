@@ -94,4 +94,18 @@ public class User extends BaseEntity {
     }
 
     public void updatePasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
+    public void updateProfile(
+        String name,
+        String email,
+        String organizationName,
+        String departmentName,
+        String jobTitle
+    ) {
+        this.name = name;
+        this.email = email;
+        this.organizationName = organizationName;
+        this.departmentName = departmentName;
+        this.jobTitle = jobTitle;
+    }
 }

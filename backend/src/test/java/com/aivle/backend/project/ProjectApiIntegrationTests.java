@@ -13,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -98,6 +99,27 @@ class ProjectApiIntegrationTests {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
             .andExpect(jsonPath("$.error.fieldErrors[0].field").value("title"));
+    }
+
+    @Test
+    void softDeletesOwnedProjectAndRemovesItFromTheHub() throws Exception {
+        String accessToken = signup("owner@example.com");
+        String response = mockMvc.perform(post("/api/v1/projects")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Project to remove\"}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+        Number projectId = JsonPath.read(response, "$.data.id");
+
+        mockMvc.perform(delete("/api/v1/projects/{projectId}", projectId)
+                .header("Authorization", "Bearer " + accessToken))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/projects")
+                .header("Authorization", "Bearer " + accessToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").isEmpty());
     }
 
     private String signup(String email) throws Exception {

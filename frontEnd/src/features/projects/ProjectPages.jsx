@@ -6,11 +6,13 @@ import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
 import {
   Alert,
   Button,
+  Dialog,
   EmptyState,
   ErrorState,
   LoadingState,
   PageHeader,
   StatusBadge,
+  SideSheet,
   Textarea,
   TextInput,
 } from '../../shared/ui/index.js';
@@ -19,6 +21,8 @@ import { useProjectContext } from './ProjectContext.jsx';
 import { useProjects } from './hooks/useProjects.js';
 import { formatProjectDate } from './model/projectViewModel.js';
 import { PROJECT_AREA_DEFINITIONS } from './model/projectWorkflowModel.js';
+import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
+import { ProjectActionMenu } from './ProjectSettingsSheet.jsx';
 import './projects.css';
 
 function filterMatches(project, filter) {
@@ -27,10 +31,15 @@ function filterMatches(project, filter) {
 }
 
 export function ProjectListPage() {
+  const client = useApiClient();
   const { status, projects, retry } = useProjects();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('updated');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteName, setDeleteName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const visible = useMemo(() => projects
     .filter((project) => filterMatches(project, filter)
       && `${project.name} ${project.industryCategory}`.toLowerCase().includes(query.toLowerCase()))
@@ -51,13 +60,13 @@ export function ProjectListPage() {
         eyebrow="내 워크스페이스"
         title="프로젝트"
         description="사업 검증의 입력, 실행, 결과를 프로젝트 단위로 관리합니다."
-        actions={<Link className="primary-link" to="/app/projects/new">새 프로젝트</Link>}
+        actions={<Link className="primary-link" to={appRoutes.newProject}>새 프로젝트</Link>}
       />
       {!projects.length ? (
         <EmptyState
           title="아직 프로젝트가 없습니다"
           description="첫 사업 검증 프로젝트를 만들어 시작하세요."
-          action={<Link className="primary-link" to="/app/projects/new">프로젝트 만들기</Link>}
+          action={<Link className="primary-link" to={appRoutes.newProject}>프로젝트 만들기</Link>}
         />
       ) : (
         <>
@@ -83,11 +92,14 @@ export function ProjectListPage() {
               const areaLabel = PROJECT_AREA_DEFINITIONS.find((area) => area.id === project.area)?.label ?? 'Plan';
               return (
                 <article key={project.projectId} className="project-row" role="listitem">
-                  <div><h2><Link to={`/app/projects/${project.projectId}`}>{project.name}</Link></h2><p>{project.industryCategory || '사업 분야 미입력'}</p></div>
-                  <span>{areaLabel}</span>
-                  <StatusBadge status={project.status} />
-                  <Link className="project-row__next" to={project.nextAction.route}>{project.nextAction.label}</Link>
-                  <time dateTime={project.updatedAt}>{formatProjectDate(project.updatedAt)}</time>
+                  <Link className="project-row__main-link" to={projectRoutes.overview(project.projectId)} aria-labelledby={`project-row-title-${project.projectId}`}>
+                    <div className="project-row__project"><span className="project-row__initial" aria-hidden="true">{Array.from(project.name)[0]}</span><div><h2 id={`project-row-title-${project.projectId}`}>{project.name}</h2><p>{project.industryCategory || '사업 분야 미입력'}</p></div></div>
+                    <span>{areaLabel}</span>
+                    <StatusBadge status={project.status} />
+                    <span className="project-row__next">{project.nextAction.label}</span>
+                    <time dateTime={project.updatedAt}>{formatProjectDate(project.updatedAt)}</time>
+                  </Link>
+                  <ProjectActionMenu project={project} onDelete={() => { setDeleteTarget(project); setDeleteName(''); setDeleteError(''); }} />
                 </article>
               );
             })}
@@ -95,6 +107,7 @@ export function ProjectListPage() {
           {!visible.length && <p className="project-search-empty">조건에 맞는 프로젝트가 없습니다.</p>}
         </>
       )}
+      <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} title="프로젝트를 삭제할까요?"><p>이 작업은 되돌릴 수 없습니다. 확인을 위해 <strong>{deleteTarget?.name}</strong>을(를) 입력하세요.</p>{deleteError && <Alert tone="danger" title="삭제하지 못했습니다.">{deleteError}</Alert>}<TextInput id="project-row-delete-confirmation" label="프로젝트 이름" value={deleteName} onChange={(event) => setDeleteName(event.target.value)} /><div className="dialog-actions"><Button variant="outline" disabled={deleting} onClick={() => setDeleteTarget(null)}>취소</Button><Button variant="danger" loading={deleting} disabled={!deleteTarget || deleteName !== deleteTarget.name || deleting} onClick={async () => { if (!deleteTarget) return; setDeleting(true); try { await createProjectApi(client).remove(deleteTarget.projectId); setDeleteTarget(null); await retry(); } catch (error) { setDeleteError(getUserErrorMessage(error)); setDeleting(false); } }}>영구 삭제</Button></div></Dialog>
     </div>
   );
 }
@@ -128,7 +141,7 @@ export function ProjectCreatePage() {
         description: values.description.trim() || null,
         industryCategory: values.industryCategory.trim() || null,
       });
-      navigate(`/app/projects/${nextProject.id}/get-started`, { replace: true });
+      navigate(projectRoutes.getStarted(nextProject.id), { replace: true });
     } catch (error) {
       setErrors(Object.fromEntries((error.fieldErrors ?? []).map((item) => [item.field, item.message])));
       setGlobalError(getUserErrorMessage(error));
@@ -139,7 +152,10 @@ export function ProjectCreatePage() {
   }
 
   return (
-    <div className="project-create">
+    <>
+      <ProjectListPage />
+      <SideSheet open title="New Project" label="새 프로젝트" onClose={() => navigate(appRoutes.projects)}>
+    <div className="project-create project-create--sheet">
       <PageHeader eyebrow="새 프로젝트" title="검증할 사업 아이디어를 만드세요" description="지금은 최소 정보만 필요합니다. 세부 자료와 분석 실행은 프로젝트 안에서 직접 시작합니다." />
       {globalError && <div ref={errorRef} tabIndex="-1"><Alert tone="danger" title="프로젝트를 만들지 못했습니다">{globalError}</Alert></div>}
       <form className="project-form" onSubmit={handleSubmit} noValidate>
@@ -148,10 +164,12 @@ export function ProjectCreatePage() {
         <Textarea id="project-description" label="간단한 설명" description="선택 입력입니다." value={values.description} error={errors.description} maxLength="10000" onChange={update('description')} />
         <div className="project-form__actions">
           <Button type="submit" loading={submitting} disabled={submitting}>프로젝트 만들기</Button>
-          <Button type="button" variant="outline" disabled={submitting} onClick={() => navigate('/app/projects')}>취소</Button>
+          <Button type="button" variant="outline" disabled={submitting} onClick={() => navigate(appRoutes.projects)}>취소</Button>
         </div>
       </form>
     </div>
+      </SideSheet>
+    </>
   );
 }
 

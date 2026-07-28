@@ -46,6 +46,9 @@ export function AuthProvider({
       const user = await session.signup(input);
       return user;
     },
+    updateUser(user) {
+      setSnapshot((current) => ({ ...current, user }));
+    },
     async refresh() {
       setSnapshot((current) => ({ ...current, status: AUTH_STATUS.REFRESHING }));
       const refreshed = await session.refreshAccessToken();

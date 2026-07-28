@@ -65,7 +65,7 @@ describe('auth and project integration flow', () => {
     });
     fireEvent.submit(screen.getByRole('button', { name: '로그인' }).closest('form'));
 
-    expect(await screen.findByRole('heading', { name: '아직 프로젝트가 없습니다' }))
+    expect(await screen.findByRole('heading', { name: '첫 사업 검증 프로젝트를 만들어 보세요' }))
       .toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: '프로젝트 만들기' }));
     fireEvent.change(document.getElementById('project-title'), {
@@ -73,9 +73,9 @@ describe('auth and project integration flow', () => {
     });
     fireEvent.submit(screen.getByRole('button', { name: '프로젝트 만들기' }).closest('form'));
 
-    expect(await screen.findByRole('heading', { name: '어떤 방식으로 시작할까요?' }))
+    expect(await screen.findByRole('heading', { name: '프로젝트가 생성되었습니다' }))
       .toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /프로젝트 열기/ })).toHaveAttribute('href', '/app/projects/21');
+    expect(screen.getByRole('link', { name: /프로젝트만 열기/ })).toHaveAttribute('href', '/app/projects/21');
     expect(client.post).toHaveBeenCalledWith('/projects', expect.objectContaining({
       title: '통합 프로젝트',
     }));

@@ -16,5 +16,8 @@ export function createProjectApi(client) {
       const response = await client.patch(`/projects/${encodeURIComponent(projectId)}`, input);
       return response.data;
     },
+    async remove(projectId) {
+      await client.delete(`/projects/${encodeURIComponent(projectId)}`);
+    },
   };
 }

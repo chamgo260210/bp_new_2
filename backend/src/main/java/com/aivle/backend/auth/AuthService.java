@@ -6,6 +6,8 @@ import com.aivle.backend.auth.dto.AuthResponse;
 import com.aivle.backend.auth.dto.TokenPairResponse;
 import com.aivle.backend.auth.dto.SignupResponse;
 import com.aivle.backend.auth.dto.UserResponse;
+import com.aivle.backend.auth.dto.UpdateProfileRequest;
+import com.aivle.backend.auth.dto.ChangePasswordRequest;
 import com.aivle.backend.auth.dto.UsernamePolicy;
 import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
@@ -229,6 +231,44 @@ public class AuthService {
         return UserResponse.from(user);
     }
 
+    @Transactional
+    public UserResponse updateProfile(Long currentUserId, UpdateProfileRequest request, String requestId) {
+        User user = activeUser(currentUserId);
+        String normalizedEmail = normalizeEmail(request.email());
+        if (normalizedEmail != null && userRepository.existsByEmailIgnoreCase(normalizedEmail)
+            && !normalizedEmail.equalsIgnoreCase(user.getEmail())) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+        user.updateProfile(
+            normalizeDisplayName(request.displayName()),
+            normalizedEmail,
+            normalizeOptional(request.organizationName()),
+            normalizeOptional(request.departmentName()),
+            normalizeOptional(request.jobTitle())
+        );
+        auditService.record(user.getId(), null, AuditEventType.USER_PROFILE_UPDATED, "USER", user.getId(), requestId, Map.of());
+        return UserResponse.from(user);
+    }
+
+    @Transactional
+    public void changePassword(Long currentUserId, ChangePasswordRequest request, String requestId) {
+        User user = activeUser(currentUserId);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+        }
+        validatePassword(request.newPassword(), user.getUsername(), user.getName());
+        user.updatePasswordHash(passwordEncoder.encode(request.newPassword()));
+        LocalDateTime now = LocalDateTime.now(jobClock);
+        refreshTokenRepository.findAllByUserIdAndDeletedAtIsNull(user.getId()).forEach(token -> token.revoke(now));
+        auditService.record(user.getId(), null, AuditEventType.PASSWORD_CHANGED, "USER", user.getId(), requestId, Map.of());
+    }
+
+    private User activeUser(Long userId) {
+        return userRepository.findById(userId)
+            .filter(User::canLogin)
+            .orElseThrow(() -> new BusinessException(ErrorCode.AUTHENTICATION_REQUIRED));
+    }
+
     private JwtTokenService.IssuedTokenPair issueAndStore(User user) {
         JwtTokenService.IssuedTokenPair pair =
             jwtTokenService.issue(user.getId());
@@ -271,6 +311,10 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email == null || email.trim().isEmpty() ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
     private String normalizeUsername(String username) { return username.trim().toLowerCase(Locale.ROOT); }

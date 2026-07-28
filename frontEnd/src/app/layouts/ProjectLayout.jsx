@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 
-import { Breadcrumb, ErrorState, LoadingState, StatusBadge } from '../../shared/ui/index.js';
+import { AppIcon, Breadcrumb, ErrorState, LoadingState, StatusBadge } from '../../shared/ui/index.js';
 import { ProjectProvider, useProjectContext } from '../../features/projects/ProjectContext.jsx';
 import {
   PROJECT_AREAS,
@@ -8,21 +8,20 @@ import {
   getProjectArea,
   getProjectBasePath,
 } from '../../features/projects/model/projectWorkflowModel.js';
+import { appRoutes, projectRoutes } from '../../features/projects/routing/projectRoutes.js';
 
 const SUBNAVIGATION = {
   [PROJECT_AREAS.PLAN]: [
-    ['Summary', 'plan'], ['Business Brief', 'plan/brief'], ['Documents', 'plan/documents'], ['Structured Plan', 'plan/structure'],
+    ['Documents', 'plan/documents'], ['Structured Plan', 'plan/structure'],
   ],
   [PROJECT_AREAS.REVIEW]: [
-    ['Summary', 'review'], ['Legal', 'review/legal'],
-  ],
-  [PROJECT_AREAS.VALIDATE]: [
-    ['Summary', 'validate'], ['Personas', 'validate/personas'],
+    ['Legal', 'review/legal'], ['Feasibility', 'review/market'],
   ],
   [PROJECT_AREAS.REPORT]: [['Integrated Report', 'report']],
 };
 
 function getActiveArea(pathname, basePath) {
+  if (pathname.startsWith(`${basePath}/settings`)) return null;
   const relativePath = pathname.slice(basePath.length).replace(/^\//, '');
   if (relativePath.startsWith('plan')) return PROJECT_AREAS.PLAN;
   if (relativePath.startsWith('review')) return PROJECT_AREAS.REVIEW;
@@ -48,13 +47,13 @@ function ProjectLayoutContent() {
   return (
     <div className="project-shell">
       <header className="project-shell__header">
-        <Breadcrumb items={[{ label: 'Projects', to: '/app/projects' }, { label: project.name }]} />
+        <Breadcrumb items={[{ label: 'Projects', to: appRoutes.projects }, { label: project.name }]} />
         <div className="project-shell__meta">
           <div>
             <p>{project.industryCategory || '사업 분야 미입력'} · 최근 수정 {new Date(project.updatedAt).toLocaleDateString('ko-KR')}</p>
             <h1>{project.name}</h1>
           </div>
-          <StatusBadge status={project.status} />
+          <div className="project-shell__actions"><StatusBadge status={project.status} /><NavLink className="project-shell__settings" to={projectRoutes.settings(projectId)}><AppIcon name="settings" />Settings</NavLink></div>
         </div>
       </header>
       <nav className="project-area-nav" aria-label="프로젝트 영역">

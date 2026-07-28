@@ -8,6 +8,8 @@ import com.aivle.backend.auth.dto.RefreshRequest;
 import com.aivle.backend.auth.dto.SignupRequest;
 import com.aivle.backend.auth.dto.TokenPairResponse;
 import com.aivle.backend.auth.dto.UserResponse;
+import com.aivle.backend.auth.dto.UpdateProfileRequest;
+import com.aivle.backend.auth.dto.ChangePasswordRequest;
 import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.common.security.CurrentUserProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -92,6 +95,28 @@ public class AuthController {
             authService.me(currentUserProvider.currentUserId()),
             requestId
         );
+    }
+
+    @PatchMapping("/users/me")
+    public ApiResponse<UserResponse> updateProfile(
+        @Valid @RequestBody UpdateProfileRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        String requestId = requestId(servletRequest);
+        return ApiResponse.success(
+            authService.updateProfile(currentUserProvider.currentUserId(), request, requestId),
+            requestId
+        );
+    }
+
+    @PostMapping("/users/me/password")
+    public ApiResponse<Void> changePassword(
+        @Valid @RequestBody ChangePasswordRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        String requestId = requestId(servletRequest);
+        authService.changePassword(currentUserProvider.currentUserId(), request, requestId);
+        return ApiResponse.success(null, requestId);
     }
 
     private String requestId(HttpServletRequest request) {
