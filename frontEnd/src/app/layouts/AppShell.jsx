@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../../features/auth/AuthProvider.jsx';
 import { appRoutes, projectRoutes } from '../../features/projects/routing/projectRoutes.js';
 import { useProjects } from '../../features/projects/hooks/useProjects.js';
+import ProjectStatusHelp from '../../features/projects/components/ProjectStatusHelp.jsx';
 import { AppIcon, Button, Drawer, ToastRegion } from '../../shared/ui/index.js';
 import './layouts.css';
 
@@ -144,6 +145,7 @@ export default function AppShell() {
         <button type="button" className="app-mobile-menu" aria-label="메뉴 열기" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><AppIcon name="more" /></button>
       </header>
       <main id="main-content" className="app-main" tabIndex="-1"><div key={pageKey} className="app-page-transition"><Outlet /></div></main>
+      {(pageKey === appRoutes.home || pageKey === appRoutes.projects) && <ProjectStatusHelp persistent />}
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="메뉴">
         <GlobalNavigation onNavigate={() => setDrawerOpen(false)} />
         <ProjectSearch onChoose={() => setDrawerOpen(false)} />

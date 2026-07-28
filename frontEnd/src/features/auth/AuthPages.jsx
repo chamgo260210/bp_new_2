@@ -12,7 +12,6 @@ import PasswordRequirements from './components/PasswordRequirements.jsx';
 import useCapsLock from './hooks/useCapsLock.js';
 import usePasswordChecks from './hooks/usePasswordChecks.js';
 import useLoginRetryCountdown from './hooks/useLoginRetryCountdown.js';
-import { safeReturnTo } from './safeReturnTo.js';
 import './auth.css';
 import './auth-card-heading.css';
 import './auth-enhancements.css';
@@ -71,8 +70,8 @@ function AuthSuccess({ message, title }) {
 }
 
 function AuthPage({ children, mode }) {
-  const pageTitle = mode === 'signup' ? '회원가입' : '로그인';
   const location = useLocation();
+  const pageTitle = mode === 'signup' ? '회원가입' : '로그인';
   const [spaceTransition, setSpaceTransition] = useState(Boolean(location.state?.authSpaceTransition === 'enter-login'));
   useEffect(() => {
     if (location.state?.authSpaceTransition !== 'enter-login') return undefined;
@@ -85,7 +84,6 @@ function AuthPage({ children, mode }) {
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const errorRef = useRef(null);
   const timerRef = useRef(null);
   const { isCapsLockOn, handleBlur: handleCapsLockBlur, handleFocus: handleCapsLockFocus, handleKeyDown: handleCapsLockKeyDown, handleKeyUp: handleCapsLockKeyUp } = useCapsLock();
@@ -115,7 +113,7 @@ export function LoginPage() {
       window.sessionStorage.removeItem(warningStorageKey);
       window.dispatchEvent(new Event('auth-login-attempt-warning'));
       setSuccess(true);
-      timerRef.current = window.setTimeout(() => navigate(safeReturnTo(location.state?.returnTo), { replace: true, state: { authSpaceTransition: 'enter-workspace' } }), 380);
+      timerRef.current = window.setTimeout(() => navigate('/app', { replace: true, state: { authSpaceTransition: 'enter-workspace' } }), 380);
     } catch (error) {
       if (error?.code === 'LOGIN_RATE_LIMITED') {
         startRetryCountdown(error.retryAfterSeconds);

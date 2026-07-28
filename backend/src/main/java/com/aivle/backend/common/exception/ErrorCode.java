@@ -41,6 +41,7 @@ public enum ErrorCode {
     VERSION_CONFLICT(HttpStatus.CONFLICT, "다른 변경과 충돌했습니다.", true),
     USER_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.", false),
     PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다.", false),
+    PROJECT_NAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "같은 이름의 프로젝트가 이미 있습니다.", false),
     PROJECT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 프로젝트에 접근할 권한이 없습니다.", false),
     PROJECT_STAGE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "현재 프로젝트 단계에서 수행할 수 없습니다.", false),
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "파일 크기가 제한을 초과했습니다.", false),

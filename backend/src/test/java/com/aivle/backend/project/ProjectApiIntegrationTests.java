@@ -122,6 +122,41 @@ class ProjectApiIntegrationTests {
             .andExpect(jsonPath("$.data").isEmpty());
     }
 
+    @Test
+    void rejectsNormalizedDuplicateProjectTitlesButAllowsAnotherOwnerAndSoftDeletedTitle() throws Exception {
+        String ownerToken = signup("duplicate-owner@example.com");
+        String otherToken = signup("duplicate-other@example.com");
+        String response = mockMvc.perform(post("/api/v1/projects")
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Project  Alpha\"}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+        Number projectId = JsonPath.read(response, "$.data.id");
+
+        mockMvc.perform(post("/api/v1/projects")
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\" project alpha \"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.error.code").value("PROJECT_NAME_ALREADY_EXISTS"));
+
+        mockMvc.perform(post("/api/v1/projects")
+                .header("Authorization", "Bearer " + otherToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"PROJECT ALPHA\"}"))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/v1/projects/{projectId}", projectId)
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/v1/projects")
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Project Alpha\"}"))
+            .andExpect(status().isCreated());
+    }
+
     private String signup(String email) throws Exception {
         String username = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
         mockMvc.perform(post("/api/v1/auth/signup")

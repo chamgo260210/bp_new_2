@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.text.Normalizer;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class ProjectService {
     @Transactional
     public ProjectDetailResponse create(Long userId, CreateProjectRequest request) {
         User owner = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED));
+        ensureUniqueTitle(userId, request.title(), null);
         return detail(projectRepository.save(Project.create(owner, request.title(), request.description(), request.industryCategory())));
     }
 
@@ -44,6 +46,7 @@ public class ProjectService {
     @Transactional
     public ProjectDetailResponse update(Long userId, Long projectId, UpdateProjectRequest request) {
         Project project = ownedProject(userId, projectId);
+        ensureUniqueTitle(userId, request.title(), projectId);
         project.updateBasicInfo(request.title(), request.description(), request.industryCategory());
         return detail(project);
     }
@@ -58,6 +61,19 @@ public class ProjectService {
     private Project ownedProject(Long userId, Long projectId) {
         return projectRepository.findByIdAndOwnerIdAndDeletedAtIsNull(projectId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+    }
+
+    private void ensureUniqueTitle(Long userId, String title, Long ignoredProjectId) {
+        String normalizedTitle = normalizeTitle(title);
+        boolean duplicated = projectRepository.findAllByOwnerIdAndDeletedAtIsNull(userId).stream()
+                .filter(project -> ignoredProjectId == null || !project.getId().equals(ignoredProjectId))
+                .anyMatch(project -> normalizeTitle(project.getTitle()).equals(normalizedTitle));
+        if (duplicated) throw new BusinessException(ErrorCode.PROJECT_NAME_ALREADY_EXISTS);
+    }
+
+    private String normalizeTitle(String title) {
+        return Normalizer.normalize(title == null ? "" : title.trim().replaceAll("\\s+", " "), Normalizer.Form.NFC)
+                .toLowerCase(java.util.Locale.ROOT);
     }
 
     private ProjectSummaryResponse summary(Project p) {

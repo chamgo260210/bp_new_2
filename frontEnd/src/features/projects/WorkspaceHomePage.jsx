@@ -40,7 +40,9 @@ export default function WorkspaceHomePage() {
   const { status, projects, retry } = useProjects();
   if (status === 'loading') return <LoadingState label="워크스페이스를 불러오고 있습니다" />;
   if (status === 'error') return <ErrorState title="워크스페이스를 불러오지 못했습니다" onRetry={retry} />;
-  const recent = projects.slice(0, 3);
+  const recent = [...projects]
+    .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt))
+    .slice(0, 3);
   const newest = recent[0];
   const showGettingStarted = projects.length === 0 || projects.every((project) => project.stage === 'DOCUMENT');
   return <div className="workspace-home"><ProjectStatusHelp /><PageHeader eyebrow="Personal workspace" title={`안녕하세요, ${displayName(user)}님`} description="사업 검증 프로젝트를 관리하고 다음 분석을 이어가세요." />
