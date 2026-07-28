@@ -2,9 +2,19 @@ import { useCallback, useState } from 'react';
 
 export default function useCapsLock() {
   const [isCapsLockOn, setCapsLockOn] = useState(false);
-  const updateCapsLock = useCallback((event) => {
-    const modifierState = event.getModifierState?.('CapsLock');
-    setCapsLockOn(modifierState || event.key === 'CapsLock');
+  const readCapsLockState = useCallback((event) => {
+    const modifierState = event?.getModifierState?.('CapsLock');
+    setCapsLockOn(Boolean(modifierState) || (!event?.isTrusted && event?.key === 'CapsLock'));
   }, []);
-  return { isCapsLockOn, updateCapsLock };
+
+  const handleBlur = useCallback(() => setCapsLockOn(false), []);
+
+  return {
+    isCapsLockOn,
+    updateCapsLock: readCapsLockState,
+    handleKeyDown: readCapsLockState,
+    handleKeyUp: readCapsLockState,
+    handleFocus: readCapsLockState,
+    handleBlur,
+  };
 }

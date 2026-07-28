@@ -57,9 +57,12 @@ export function ProjectActionMenu({ project, onDelete, onOpenChange }) {
       window.removeEventListener('scroll', close, true);
     };
   }, [close, menuId, open]);
-  const go = (to) => {
-    navigate(to, { state: { backgroundLocation: location, returnTo: `${location.pathname}${location.search}` } });
+  const go = (to, overlay = to.endsWith('/settings')) => {
     close();
+    window.setTimeout(() => {
+      if (overlay) navigate(to, { state: { backgroundLocation: location, returnTo: `${location.pathname}${location.search}` } });
+      else navigate(to);
+    }, 180);
   };
   const menu = open && position && createPortal(
     <div id={menuId} className="project-action-menu__panel" role="menu" style={{ top: position.top, left: Math.max(8, position.left) }}>
