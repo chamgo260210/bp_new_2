@@ -148,7 +148,7 @@ export default function AppShell() {
         <button type="button" className="app-mobile-menu" aria-label="메뉴 열기" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><AppIcon name="more" /></button>
       </header>
       <main id="main-content" className="app-main" tabIndex="-1"><div key={pageKey} className="app-page-transition"><Outlet /></div></main>
-      {(pageKey === appRoutes.home || pageKey === appRoutes.projects) && <ProjectStatusHelp persistent />}
+      <ProjectStatusHelp persistent visible={pageKey === appRoutes.home || pageKey === appRoutes.projects} />
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="메뉴">
         <GlobalNavigation onNavigate={() => setDrawerOpen(false)} />
         <ProjectSearch onChoose={() => setDrawerOpen(false)} />

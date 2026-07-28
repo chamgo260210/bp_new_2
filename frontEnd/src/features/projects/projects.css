@@ -218,3 +218,7 @@
 @media (max-width: 560px) {
   .getting-started-rail ol { grid-template-columns: 1fr; }
 }
+
+.project-status-help.is-hidden { opacity: 0; pointer-events: none; }
+.has-overlay .project-status-help { opacity: 1; pointer-events: auto; }
+.has-overlay .project-status-help.is-hidden { opacity: 0; pointer-events: none; }

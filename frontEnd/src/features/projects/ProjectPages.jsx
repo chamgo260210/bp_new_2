@@ -29,7 +29,7 @@ function filterMatches(project, filter) {
   return project.status === filter;
 }
 
-function ProjectStatusHelpRail() {
+export function ProjectStatusHelpRail() {
   const [open, setOpen] = useState(false);
   const railRef = useRef(null);
   useEffect(() => {
@@ -76,7 +76,7 @@ export function ProjectListPage() {
         description="사업 검증의 입력, 실행, 결과를 프로젝트 단위로 관리합니다."
         actions={<Link className="primary-link" to={appRoutes.newProject} state={{ backgroundLocation: location, returnTo: `${location.pathname}${location.search}` }}>새 프로젝트</Link>}
       />
-      <div className="project-hub__body"><ProjectStatusHelpRail /><div className="project-hub__content">{!projects.length ? (
+      <div className="project-hub__body"><div className="project-hub__content">{!projects.length ? (
         <EmptyState
           title="아직 프로젝트가 없습니다"
           description="첫 사업 검증 프로젝트를 만들어 시작하세요."

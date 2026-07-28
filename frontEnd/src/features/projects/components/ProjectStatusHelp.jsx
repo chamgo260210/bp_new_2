@@ -5,7 +5,7 @@ import { PROJECT_AREA_DEFINITIONS, PROJECT_STATUS_VIEW } from '../model/projectW
 const AREA_DESCRIPTIONS = { OVERVIEW: '프로젝트 전체 현황', PLAN: '사업계획서와 구조화 계획', REVIEW: '법률·규제와 사업 타당성 분석', VALIDATE: 'AI 패널과 시장 반응 검증', REPORT: '통합 분석 결과' };
 const STATUS_DESCRIPTIONS = { DRAFT: '준비 중인 프로젝트', ACTIVE: '작업을 진행 중인 프로젝트', PAUSED: '일시 중단된 프로젝트', COMPLETED: '검증이 완료된 프로젝트', ARCHIVED: '보관된 프로젝트' };
 
-export default function ProjectStatusHelp({ persistent = false }) {
+export default function ProjectStatusHelp({ persistent = false, visible = true }) {
   const [open, setOpen] = useState(false);
   const [slide, setSlide] = useState(0);
   const railRef = useRef(null);
@@ -25,7 +25,7 @@ export default function ProjectStatusHelp({ persistent = false }) {
   }, [open, slides.length]);
   if (!persistent) return null;
   const current = slides[slide];
-  return <aside ref={railRef} className={`project-status-help ${open ? 'is-open' : ''}`} aria-label="프로젝트 상태 안내">
+  return <aside ref={railRef} className={`project-status-help ${open ? 'is-open' : ''} ${visible ? '' : 'is-hidden'}`} aria-hidden={!visible} aria-label="프로젝트 상태 안내">
     <button type="button" className="project-status-help__trigger" aria-expanded={open} aria-controls="project-status-help-content" onClick={() => setOpen((value) => !value)}><span aria-hidden="true">?</span><span>상태 안내</span></button>
     {open && <section id="project-status-help-content" className="project-status-help__content" aria-live="polite"><header><p>프로젝트 안내</p><span>{slide + 1} / {slides.length}</span></header><div className="project-status-help__slide" key={slide}><h2>{current.title}</h2><div>{current.body}</div></div><footer><button type="button" aria-label="이전 안내" disabled={slide === 0} onClick={() => setSlide((value) => value - 1)}>‹</button><button type="button" aria-label="다음 안내" disabled={slide === slides.length - 1} onClick={() => setSlide((value) => value + 1)}>›</button></footer></section>}
   </aside>;

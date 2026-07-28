@@ -6,7 +6,6 @@ import { EmptyState, ErrorState, LoadingState, PageHeader } from '../../shared/u
 import { appRoutes, projectRoutes } from './routing/projectRoutes.js';
 import ProjectRow from './components/ProjectRow.jsx';
 import ProjectDeleteDialog from './components/ProjectDeleteDialog.jsx';
-import ProjectStatusHelp from './components/ProjectStatusHelp.jsx';
 import { useProjects } from './hooks/useProjects.js';
 import { ResourceDownload } from './BusinessPlanResources.jsx';
 import { BUSINESS_PLAN_RESOURCES } from './businessPlanResources.js';
@@ -48,7 +47,7 @@ export default function WorkspaceHomePage() {
     .slice(0, 3);
   const newest = recent[0];
   const showGettingStarted = projects.length === 0 || projects.every((project) => project.stage === 'DOCUMENT');
-  return <div className="workspace-home"><ProjectStatusHelp /><PageHeader eyebrow="Personal workspace" title={`안녕하세요, ${displayName(user)}님`} description="사업 검증 프로젝트를 관리하고 다음 분석을 이어가세요." />
+  return <div className="workspace-home"><PageHeader eyebrow="Personal workspace" title={`안녕하세요, ${displayName(user)}님`} description="사업 검증 프로젝트를 관리하고 다음 분석을 이어가세요." />
     <div className="workspace-home__layout">
       {showGettingStarted && <GettingStartedRail projects={projects} newest={newest} location={location} />}
       <div className="workspace-home__content">
