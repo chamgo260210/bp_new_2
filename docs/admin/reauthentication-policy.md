@@ -6,6 +6,7 @@
 | --- | --- |
 | USER ↔ ADMIN Role 변경 | `USER_ROLE_CHANGE` |
 | ACTIVE/LOCKED → DISABLED | `USER_DISABLE` |
+| 관리자 사용자 삭제 | `USER_DELETE` |
 | 유지보수 모드 활성화 | `MAINTENANCE_MODE_ENABLE` |
 
 잠금·잠금 해제·활성 복귀·세션 종료·유지보수 해제는 현재 비밀번호 재인증 없이
@@ -31,7 +32,7 @@ DB에는 Token 원문이 아닌 SHA-256 Hash, 관리자 ID, Purpose, 발급 당�
 - 만료 여부
 - 기존 소비 여부
 
-Role·Status·설정 변경 Service의 트랜잭션 안에서 Token을 소비하므로 실제 작업이
+Role·Status·사용자 삭제·설정 변경 Service의 트랜잭션 안에서 Token을 소비하므로 실제 작업이
 Rollback되면 소비도 Rollback된다.
 
 ## 오류와 감사

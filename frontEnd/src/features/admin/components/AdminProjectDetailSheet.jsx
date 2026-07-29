@@ -98,9 +98,13 @@ export default function AdminProjectDetailSheet({ projectId, onRequestClose }) {
             <h3>소유자</h3>
             <dl className="admin-detail-list">
               <dt>이름</dt><dd>{project.owner.displayName || '—'}</dd>
-              <dt>Username</dt><dd>@{project.owner.username}</dd>
+              <dt>Username</dt><dd>{project.owner.username ? `@${project.owner.username}` : '—'}</dd>
               <dt>사용자 상세</dt>
-              <dd><Link className="admin-detail-link" to={`/admin/users/${project.owner.id}`}>사용자 상세로 이동</Link></dd>
+              <dd>
+                {project.owner.deleted
+                  ? `탈퇴한 사용자 · User ID: ${project.owner.id}`
+                  : <Link className="admin-detail-link" to={`/admin/users/${project.owner.id}`}>사용자 상세로 이동</Link>}
+              </dd>
             </dl>
           </section>
 

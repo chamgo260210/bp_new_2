@@ -37,4 +37,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u where u.role = :role and u.status = :status and u.deletedAt is null")
     List<User> findByRoleAndStatusForUpdate(@Param("role") com.aivle.backend.common.entity.UserRole role,
                                              @Param("status") com.aivle.backend.common.entity.UserStatus status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.id = :userId")
+    Optional<User> findByIdForDeletionUpdate(@Param("userId") Long userId);
 }

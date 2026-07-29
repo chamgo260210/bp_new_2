@@ -34,9 +34,9 @@ Profile에서는 Header 인증이 활성화되지 않는다. test에서 Role Hea
 
 ## 마지막 관리자와 자기 계정
 
-- 활성 ADMIN이 한 명이면 강등, 잠금, 비활성화를 거부한다.
+- 활성 ADMIN이 한 명이면 강등, 잠금, 비활성화, 삭제를 거부한다.
 - 활성 관리자 목록을 비관적 쓰기 잠금으로 조회해 동시 변경을 직렬화한다.
-- 현재 관리자는 자신의 ADMIN 강등, 잠금, 비활성화, 모든 세션 종료를 수행할 수
+- 현재 관리자는 자신의 ADMIN 강등, 잠금, 비활성화, 삭제, 모든 세션 종료를 수행할 수
   없다.
 - Frontend의 비활성화 표시는 안내일 뿐이며 Backend 검사가 최종 기준이다.
 
@@ -46,3 +46,8 @@ Access Token 검증은 사용자 존재, `deletedAt == null`, ACTIVE 상태,
 `securityVersion` 일치를 확인한다. Refresh Token 회전도 같은 현재 사용자
 상태와 Claim 버전을 확인한다. Role·Status·비밀번호·세션 변경 후에는
 `securityVersion`을 올리고 Refresh Token을 철회한다.
+
+일반 USER의 본인 탈퇴와 관리자의 사용자 삭제는 Soft Delete와 비식별화로 처리한다.
+ADMIN은 일반 계정 설정에서 탈퇴할 수 없으며, 관리자 삭제에는 `USER_DELETE`
+재인증이 필요하다. 자세한 내용은 [계정 삭제 정책](account-deletion-policy.md)을
+참조한다.

@@ -9,6 +9,10 @@ const MESSAGES = {
   SELF_ADMIN_ROLE_CHANGE_NOT_ALLOWED: '자기 자신의 관리자 권한은 변경할 수 없습니다.',
   SELF_ADMIN_ACCOUNT_CHANGE_NOT_ALLOWED: '현재 로그인한 관리자 계정은 잠금 또는 비활성화할 수 없습니다.',
   SELF_SESSION_REVOKE_NOT_ALLOWED: '현재 로그인한 관리자 계정의 세션은 이 화면에서 종료할 수 없습니다.',
+  ACCOUNT_ALREADY_DELETED: '이미 탈퇴 처리된 사용자입니다.',
+  ADMIN_SELF_DELETE_NOT_ALLOWED: '현재 로그인한 관리자 계정은 삭제할 수 없습니다.',
+  LAST_ACTIVE_ADMIN_DELETE_NOT_ALLOWED: '마지막 활성 관리자 계정은 삭제할 수 없습니다.',
+  USER_DELETE_REAUTHENTICATION_REQUIRED: '사용자 삭제를 수행하려면 관리자 재인증이 필요합니다.',
   ADMIN_ACCESS_REQUIRED: '관리자 권한이 필요합니다.',
   ACCESS_DENIED: '관리자 권한이 필요합니다.',
   AUTHENTICATION_REQUIRED: '로그인이 필요합니다.',
@@ -32,5 +36,5 @@ export function isAdminRequestAborted(error) {
 }
 
 export function isAdminReauthenticationError(error) {
-  return ['ADMIN_REAUTHENTICATION_FAILED', 'REAUTHENTICATION_FAILED', 'ADMIN_REAUTHENTICATION_EXPIRED', 'REAUTHENTICATION_EXPIRED', 'ADMIN_REAUTHENTICATION_PURPOSE_MISMATCH', 'ADMIN_ACTION_TOKEN_ALREADY_USED'].includes(error?.code);
+  return ['ADMIN_REAUTHENTICATION_FAILED', 'REAUTHENTICATION_FAILED', 'ADMIN_REAUTHENTICATION_EXPIRED', 'REAUTHENTICATION_EXPIRED', 'ADMIN_REAUTHENTICATION_PURPOSE_MISMATCH', 'ADMIN_ACTION_TOKEN_ALREADY_USED', 'USER_DELETE_REAUTHENTICATION_REQUIRED'].includes(error?.code);
 }

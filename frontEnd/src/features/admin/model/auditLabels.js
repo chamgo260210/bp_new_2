@@ -4,6 +4,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   'USER_ROLE_CHANGED',
   'USER_STATUS_CHANGED',
   'USER_SESSION_REVOKED',
+  'USER_SELF_DELETED',
+  'USER_DELETED_BY_ADMIN',
   'SERVICE_SETTING_CHANGED',
 ];
 
@@ -13,6 +15,8 @@ export const AUDIT_ACTION_LABELS = {
   USER_ROLE_CHANGED: '사용자 권한 변경',
   USER_STATUS_CHANGED: '사용자 상태 변경',
   USER_SESSION_REVOKED: '사용자 세션 종료',
+  USER_SELF_DELETED: '사용자 본인 탈퇴',
+  USER_DELETED_BY_ADMIN: '관리자 사용자 삭제',
   SERVICE_SETTING_CHANGED: '서비스 설정 변경',
   ADMIN_USER_ROLE_CHANGED: '사용자 권한 변경 (기존 기록)',
   ADMIN_USER_STATUS_CHANGED: '사용자 상태 변경 (기존 기록)',

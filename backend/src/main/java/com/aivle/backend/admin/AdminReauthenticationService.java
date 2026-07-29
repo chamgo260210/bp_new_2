@@ -5,6 +5,7 @@ import com.aivle.backend.common.entity.UserStatus;
 import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.user.entity.User;
+import com.aivle.backend.user.repository.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
@@ -24,6 +25,7 @@ public class AdminReauthenticationService {
     private final AdminActionTokenRepository tokens;
     private final Clock clock;
     private final AdminAuditService audits;
+    private final UserRepository users;
 
     @Transactional
     public IssuedToken issue(
@@ -32,8 +34,8 @@ public class AdminReauthenticationService {
         AdminActionPurpose purpose,
         AdminAuditContext context
     ) {
-        requireCurrentAdmin(actor);
-        if (purpose == null || !passwords.matches(password, actor.getPasswordHash())) {
+        User currentActor = currentAdmin(actor);
+        if (purpose == null || !passwords.matches(password, currentActor.getPasswordHash())) {
             BusinessException failure =
                 new BusinessException(ErrorCode.ADMIN_REAUTHENTICATION_FAILED);
             recordFailure(actor, purpose, failure, context);
@@ -44,19 +46,19 @@ public class AdminReauthenticationService {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime expiresAt = now.plusMinutes(5);
         tokens.save(AdminActionToken.issue(
-            actor.getId(),
+            currentActor.getId(),
             purpose.name(),
             hash(raw),
             expiresAt,
-            actor.getSecurityVersion(),
+            currentActor.getSecurityVersion(),
             now
         ));
         audits.recordSuccess(
-            actor.getId(),
+            currentActor.getId(),
             AdminAuditAction.ADMIN_REAUTHENTICATION_SUCCEEDED,
             AdminAuditTargetType.ADMIN_AUTH,
-            actor.getId(),
-            actor.getUsername(),
+            currentActor.getId(),
+            currentActor.getUsername(),
             null,
             Map.of(),
             Map.of("purpose", purpose.name()),
@@ -74,7 +76,7 @@ public class AdminReauthenticationService {
         AdminAuditContext context
     ) {
         try {
-            requireCurrentAdmin(actor);
+            User currentActor = currentAdmin(actor);
             if (raw == null || raw.isBlank()) {
                 throw new BusinessException(ErrorCode.REAUTHENTICATION_REQUIRED);
             }
@@ -90,8 +92,8 @@ public class AdminReauthenticationService {
             if (!token.getExpiresAt().isAfter(now)) {
                 throw new BusinessException(ErrorCode.ADMIN_REAUTHENTICATION_EXPIRED);
             }
-            if (!token.getActorUserId().equals(actor.getId())
-                || !token.getSecurityVersion().equals(actor.getSecurityVersion())) {
+            if (!token.getActorUserId().equals(currentActor.getId())
+                || !token.getSecurityVersion().equals(currentActor.getSecurityVersion())) {
                 throw new BusinessException(ErrorCode.ADMIN_REAUTHENTICATION_FAILED);
             }
             token.consume(now);
@@ -101,13 +103,12 @@ public class AdminReauthenticationService {
         }
     }
 
-    private void requireCurrentAdmin(User actor) {
-        if (actor == null
-            || actor.isDeleted()
-            || actor.getRole() != UserRole.ADMIN
-            || actor.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.ADMIN_ACCESS_REQUIRED);
-        }
+    private User currentAdmin(User actor) {
+        if (actor == null) throw new BusinessException(ErrorCode.ADMIN_ACCESS_REQUIRED);
+        return users.findByIdAndDeletedAtIsNull(actor.getId())
+            .filter(candidate -> candidate.getRole() == UserRole.ADMIN)
+            .filter(candidate -> candidate.getStatus() == UserStatus.ACTIVE)
+            .orElseThrow(() -> new BusinessException(ErrorCode.ADMIN_ACCESS_REQUIRED));
     }
 
     private void recordFailure(

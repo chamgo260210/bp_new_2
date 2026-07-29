@@ -50,25 +50,33 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
 
   async function confirm({ reason, password }) {
     if (!pending || !user) return;
+    const action = pending;
     setBusy(true);
     try {
       let actionToken;
-      if (pending.secure) {
+      if (action.secure) {
         actionToken = (await api.reauthenticateAdmin({
           password,
-          purpose: pending.purpose,
+          purpose: action.purpose,
         })).actionToken;
       }
-      if (pending.type === 'role') {
-        await api.updateRole(user.id, { role: pending.value, reason }, actionToken);
-      } else if (pending.type === 'status') {
-        await api.updateStatus(user.id, { status: pending.value, reason }, actionToken);
+      if (action.type === 'role') {
+        await api.updateRole(user.id, { role: action.value, reason }, actionToken);
+      } else if (action.type === 'status') {
+        await api.updateStatus(user.id, { status: action.value, reason }, actionToken);
+      } else if (action.type === 'delete') {
+        await api.deleteUser(user.id, { reason }, actionToken);
       } else {
         await api.revokeSessions(user.id, { reason });
       }
       setPending(null);
-      refresh();
-      onChanged(`${pending.label} 작업이 완료되었습니다.`);
+      onChanged(`${action.label} 작업이 완료되었습니다.`);
+      if (action.type === 'delete') {
+        setPhase('exiting');
+        closeTimerRef.current = window.setTimeout(finishClose, 350);
+      } else {
+        await refresh();
+      }
     } finally {
       setBusy(false);
     }
@@ -81,6 +89,7 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
     : protectsAdmin
       ? '마지막 활성 관리자에게는 실행할 수 없습니다.'
       : '';
+  const deleteAction = createAction('delete', 'DELETED', '사용자 삭제', true, 'USER_DELETE');
   const actions = [];
   if (user?.accountStatus === 'ACTIVE') {
     actions.push(createAction('status', 'LOCKED', '계정 잠금'));
@@ -103,6 +112,7 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
   function actionBlocked(action) {
     if (!user) return true;
     if (action.type === 'sessions') return isSelf;
+    if (action.type === 'delete') return isSelf || protectsAdmin;
     if (action.type === 'role' && action.value === 'USER') return isSelf || protectsAdmin;
     if (action.type === 'status' && ['LOCKED', 'DISABLED'].includes(action.value)) return isSelf || protectsAdmin;
     return false;
@@ -194,6 +204,23 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
                 ))}
               </div>
             </section>
+
+            <section className="admin-danger-zone">
+              <h3>위험 작업</h3>
+              <p>
+                잠금은 일시적인 로그인 제한이고 비활성화는 다시 활성화할 수 있습니다.
+                삭제는 계정을 탈퇴 상태로 전환하고 직접 식별정보를 비식별화합니다.
+              </p>
+              <Button
+                size="small"
+                variant="danger"
+                disabled={actionBlocked(deleteAction)}
+                title={actionBlocked(deleteAction) ? protectedReason : undefined}
+                onClick={() => setPending(deleteAction)}
+              >
+                사용자 삭제
+              </Button>
+            </section>
           </div>
         )}
       </SideSheet>
@@ -201,9 +228,11 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
         <AdminActionConfirmDialog
           open
           title={pending.label}
-          description={pending.secure
-            ? '이 작업은 관리자 재인증 후 실행되며 대상 사용자의 기존 세션은 종료됩니다.'
-            : '운영 기록에 남길 변경 사유를 입력해 주세요.'}
+          description={pending.type === 'delete'
+            ? '계정을 탈퇴 상태로 전환하고 직접 식별정보를 비식별화합니다. 프로젝트와 감사 기록은 보존됩니다.'
+            : pending.secure
+              ? '이 작업은 관리자 재인증 후 실행되며 대상 사용자의 기존 세션은 종료됩니다.'
+              : '운영 기록에 남길 변경 사유를 입력해 주세요.'}
           targetLabel={`${user.displayName || user.username} (@${user.username})`}
           currentState={`${user.role} / ${user.accountStatus}`}
           nextState={pending.value || '모든 세션 종료'}
@@ -212,6 +241,7 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
           busy={busy}
           onCancel={() => setPending(null)}
           onConfirm={confirm}
+          confirmLabel={pending.type === 'delete' ? '사용자 삭제' : '확인'}
         />
       )}
     </>

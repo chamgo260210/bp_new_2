@@ -6,6 +6,7 @@ import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.user.entity.User;
+import com.aivle.backend.user.service.UserDeletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +46,7 @@ public class AdminController {
     private final AdminOverviewService overviewService;
     private final AdminReauthenticationService reauthentication;
     private final AdminSettingService adminSettings;
+    private final UserDeletionService userDeletionService;
 
     @PostMapping("/reauthenticate")
     public ApiResponse<AdminReauthenticationService.IssuedToken> reauthenticate(@Valid @RequestBody ReauthenticationRequest body, HttpServletRequest request) {
@@ -116,6 +119,32 @@ public class AdminController {
             return ApiResponse.success(null, requestId(request));
         } catch (BusinessException failure) {
             auditFailure(actor, AdminAuditAction.USER_SESSION_REVOKED, AdminAuditTargetType.USER, userId, body.reason(), failure, context);
+            throw failure;
+        }
+    }
+
+    @DeleteMapping("/users/{userId}")
+    public ApiResponse<Void> deleteUser(
+        @PathVariable Long userId,
+        @Valid @RequestBody ReasonRequest body,
+        @RequestHeader(name = "X-Admin-Action-Token", required = false) String actionToken,
+        HttpServletRequest request
+    ) {
+        User actor = access.requireAdmin();
+        AdminAuditContext context = AdminAuditContext.from(request);
+        try {
+            userDeletionService.deleteByAdmin(actor, userId, body.reason(), actionToken, context);
+            return ApiResponse.success(null, requestId(request));
+        } catch (BusinessException failure) {
+            auditFailure(
+                actor,
+                AdminAuditAction.USER_DELETED_BY_ADMIN,
+                AdminAuditTargetType.USER,
+                userId,
+                body.reason(),
+                failure,
+                context
+            );
             throw failure;
         }
     }

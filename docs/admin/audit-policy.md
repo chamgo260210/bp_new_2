@@ -2,7 +2,10 @@
 
 ## 감사 대상
 
-관리자 재인증 성공·실패, 목적 제한 Action Token 검증 실패, 사용자 Role·상태 변경, 사용자 세션 종료, 서비스 설정 변경을 기록한다. 일반 입력 오타와 무관한 Validation 오류 전체를 기록하지 않고 보안·권한·운영 정책 위반을 중심으로 실패를 기록한다.
+관리자 재인증 성공·실패, 목적 제한 Action Token 검증 실패, 사용자 Role·상태 변경,
+사용자 세션 종료, 본인 탈퇴·관리자 사용자 삭제, 서비스 설정 변경을 기록한다. 일반
+입력 오타와 무관한 Validation 오류 전체를 기록하지 않고 보안·권한·운영 정책
+위반을 중심으로 실패를 기록한다.
 
 ## 성공과 실패
 
@@ -12,7 +15,11 @@
 
 ## 저장 필드
 
-수행 관리자, 제한된 Action·Result·Target Type, 대상 ID와 표시명, 변경 사유, 변경 전후 값, 오류 코드, Request ID, IP, User Agent, 발생 시각을 저장한다. Before·After에는 실제로 변경된 필드만 포함하며 Entity 전체 Snapshot을 저장하지 않는다.
+수행 사용자, 제한된 Action·Result·Target Type, 대상 ID와 표시명, 변경 사유, 변경
+전후 값, 오류 코드, Request ID, IP, User Agent, 발생 시각을 저장한다. Before·After에는
+실제로 변경된 필드만 포함하며 Entity 전체 Snapshot을 저장하지 않는다. 계정 삭제는
+User ID와 계정 상태 변경만 저장하고 탈퇴 전 username·email·조직 정보는 저장하지
+않는다.
 
 ## 민감정보 제외
 

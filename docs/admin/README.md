@@ -13,6 +13,7 @@
 - Users·Projects·Audit 검색, 페이지네이션, 상세 SideSheet
 - 구조화된 성공·실패 관리자 감사
 - 설정 변경자와 변경 시각을 포함한 Settings 운영 화면
+- 일반 USER 본인 탈퇴와 `USER_DELETE` 재인증 기반 관리자 Soft Delete
 
 ## 현재 미연동
 
@@ -37,6 +38,7 @@ Profile, Viewport, 키보드 조작을 확인해야 한다.
 - [세션 철회](session-revocation-policy.md)
 - [서비스 정책 Matrix](service-policy-matrix.md)
 - [감사 정책](audit-policy.md)
+- [계정 삭제 정책](account-deletion-policy.md)
 - [AI 연동 예정 계약](ai-integration-contract.md)
 - [수동 E2E 체크리스트](manual-e2e-checklist.md)
 

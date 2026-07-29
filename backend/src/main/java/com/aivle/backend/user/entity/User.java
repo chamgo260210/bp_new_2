@@ -140,4 +140,16 @@ public class User extends BaseEntity {
         this.departmentName = departmentName;
         this.jobTitle = jobTitle;
     }
+
+    public void anonymizeAndDelete(String anonymousUsername, String reason, LocalDateTime now) {
+        this.username = anonymousUsername;
+        this.email = null;
+        this.name = "탈퇴한 사용자";
+        this.organizationName = null;
+        this.departmentName = null;
+        this.jobTitle = null;
+        updateStatus(UserStatus.DISABLED, reason, now);
+        advanceSecurityVersion();
+        softDelete(now);
+    }
 }

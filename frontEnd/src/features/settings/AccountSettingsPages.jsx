@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Outlet } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { createAuthApi } from '../auth/api/authApi.js';
@@ -11,6 +11,8 @@ import { appRoutes } from '../projects/routing/projectRoutes.js';
 import { ProfileAvatar } from '../../app/layouts/AppShell.jsx';
 import { useServicePolicy } from '../service-policy/useServicePolicy.js';
 import { getWriteRestriction, isServicePolicyError } from '../service-policy/servicePolicyRestrictions.js';
+import { useAuthTransition } from '../../app/transitions/AuthTransitionProvider.jsx';
+import AccountDeletionDialog from './AccountDeletionDialog.jsx';
 import './settings.css';
 
 function SettingsLayout() {
@@ -46,9 +48,11 @@ export function SecuritySettingsPage() {
   const servicePolicy = useServicePolicy();
   const restriction = getWriteRestriction(servicePolicy);
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { start: startAuthTransition } = useAuthTransition();
   const [values, setValues] = useState({ currentPassword: '', newPassword: '', confirmation: '' });
   const [saving, setSaving] = useState(false); const [error, setError] = useState('');
+  const [deletionOpen, setDeletionOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const checks = usePasswordChecks(values.newPassword, values.confirmation, user?.username, user?.displayName);
   const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
   const rules = [
@@ -58,6 +62,91 @@ export function SecuritySettingsPage() {
     ['흔히 쓰는 비밀번호나 연속 패턴이 아님', checks.isNotCommonOrSimilar],
     ['새 비밀번호 확인과 일치', checks.confirmationMatches],
   ];
-  const save = async (event) => { event.preventDefault(); if (saving || restriction.blocked) return; if (!checks.isValid || !checks.confirmationMatches) { setError('새 비밀번호 조건을 모두 충족해 주세요.'); return; } setSaving(true); setError(''); try { await createAuthApi(client).changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword }); await logout(); navigate('/auth/login', { replace: true, state: { authTransition: true, source: 'password-change', intent: 'login', logoutNotice: true } }); } catch (nextError) { if (isServicePolicyError(nextError)) void servicePolicy.refresh().catch(() => undefined); setError(getUserErrorMessage(nextError)); } finally { setSaving(false); } };
-  return <form className="settings-form" onSubmit={save}>{error && <Alert tone="danger" title="비밀번호를 변경하지 못했습니다">{error}</Alert>}{restriction.blocked && <Alert tone={restriction.code === 'POLICY_UNAVAILABLE' ? 'danger' : 'warning'} title="비밀번호를 변경할 수 없습니다"><p>{restriction.message}</p>{restriction.code === 'POLICY_UNAVAILABLE' && <Button type="button" variant="outline" size="small" onClick={() => void servicePolicy.refresh().catch(() => undefined)}>다시 시도</Button>}</Alert>}<TextInput id="current-password" label="현재 비밀번호" type="password" autoComplete="current-password" value={values.currentPassword} onChange={update('currentPassword')} disabled={restriction.blocked} required /><TextInput id="new-password" label="새 비밀번호" type="password" autoComplete="new-password" value={values.newPassword} onChange={update('newPassword')} disabled={restriction.blocked} required /><TextInput id="confirm-password" label="새 비밀번호 확인" type="password" autoComplete="new-password" value={values.confirmation} onChange={update('confirmation')} disabled={restriction.blocked} required /><ul className="password-check-list">{rules.map(([label, valid]) => <li key={label} data-valid={valid}>{label}</li>)}</ul><Button type="submit" disabled={saving || restriction.blocked} loading={saving}>비밀번호 변경 후 다시 로그인</Button></form>;
+  const save = async (event) => {
+    event.preventDefault();
+    if (saving || restriction.blocked) return;
+    if (!checks.isValid || !checks.confirmationMatches) {
+      setError('새 비밀번호 조건을 모두 충족해 주세요.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await createAuthApi(client).changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+      await startAuthTransition({
+        destination: '/auth/login',
+        message: '비밀번호를 변경했습니다. 다시 로그인해 주세요.',
+        onCovered: () => logout().catch(() => undefined),
+      });
+    } catch (nextError) {
+      if (isServicePolicyError(nextError)) void servicePolicy.refresh().catch(() => undefined);
+      setError(getUserErrorMessage(nextError));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const deleteAccount = async (input) => {
+    setDeleting(true);
+    try {
+      await createAuthApi(client).deleteAccount(input);
+      setDeletionOpen(false);
+      await startAuthTransition({
+        destination: '/auth/login',
+        message: '회원 탈퇴가 완료되었습니다.',
+        onCovered: () => logout().catch(() => undefined),
+      });
+    } catch (nextError) {
+      if (isServicePolicyError(nextError)) void servicePolicy.refresh().catch(() => undefined);
+      throw nextError;
+    } finally {
+      setDeleting(false);
+    }
+  };
+  return (
+    <>
+      <form className="settings-form" onSubmit={save}>
+        {error && <Alert tone="danger" title="비밀번호를 변경하지 못했습니다">{error}</Alert>}
+        {restriction.blocked && (
+          <Alert tone={restriction.code === 'POLICY_UNAVAILABLE' ? 'danger' : 'warning'} title="비밀번호를 변경할 수 없습니다">
+            <p>{restriction.message}</p>
+            {restriction.code === 'POLICY_UNAVAILABLE' && <Button type="button" variant="outline" size="small" onClick={() => void servicePolicy.refresh().catch(() => undefined)}>다시 시도</Button>}
+          </Alert>
+        )}
+        <TextInput id="current-password" label="현재 비밀번호" type="password" autoComplete="current-password" value={values.currentPassword} onChange={update('currentPassword')} disabled={restriction.blocked} required />
+        <TextInput id="new-password" label="새 비밀번호" type="password" autoComplete="new-password" value={values.newPassword} onChange={update('newPassword')} disabled={restriction.blocked} required />
+        <TextInput id="confirm-password" label="새 비밀번호 확인" type="password" autoComplete="new-password" value={values.confirmation} onChange={update('confirmation')} disabled={restriction.blocked} required />
+        <ul className="password-check-list">{rules.map(([label, valid]) => <li key={label} data-valid={valid}>{label}</li>)}</ul>
+        <Button type="submit" disabled={saving || restriction.blocked} loading={saving}>비밀번호 변경 후 다시 로그인</Button>
+      </form>
+      <section className="settings-danger-zone" aria-labelledby="account-deletion-title">
+        <div>
+          <span className="settings-danger-zone__eyebrow">Danger zone</span>
+          <h2 id="account-deletion-title">회원 탈퇴</h2>
+          <p>계정 접근과 모든 세션이 즉시 종료되고 직접 식별정보가 비식별화됩니다.</p>
+          <p>프로젝트와 기존 분석 결과는 운영·감사·보존 정책에 따라 유지됩니다.</p>
+        </div>
+        {user?.role === 'ADMIN' ? (
+          <p className="settings-danger-zone__notice">관리자 계정은 다른 관리자가 관리자 콘솔에서 처리해야 합니다.</p>
+        ) : (
+          <Button
+            variant="danger"
+            disabled={restriction.blocked}
+            title={restriction.blocked ? restriction.message : undefined}
+            onClick={() => setDeletionOpen(true)}
+          >
+            회원 탈퇴
+          </Button>
+        )}
+      </section>
+      <AccountDeletionDialog
+        open={deletionOpen}
+        busy={deleting}
+        onCancel={() => setDeletionOpen(false)}
+        onConfirm={deleteAccount}
+      />
+    </>
+  );
 }

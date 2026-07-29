@@ -47,7 +47,6 @@ public class AdminProjectService {
     @Transactional(readOnly = true)
     public ProjectDetail detail(Long projectId) {
         Project project = projects.findByIdAndDeletedAtIsNull(projectId)
-            .filter(value -> value.getOwner().getDeletedAt() == null)
             .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
         return new ProjectDetail(
             project.getId(),
@@ -116,7 +115,10 @@ public class AdminProjectService {
     }
 
     private OwnerSummary owner(User owner) {
-        return new OwnerSummary(owner.getId(), owner.getUsername(), owner.getName());
+        if (owner.isDeleted()) {
+            return new OwnerSummary(owner.getId(), null, "탈퇴한 사용자", true);
+        }
+        return new OwnerSummary(owner.getId(), owner.getUsername(), owner.getName(), false);
     }
 
     private DocumentSummary document(Long projectId) {
@@ -191,7 +193,7 @@ public class AdminProjectService {
         LocalDate createdTo
     ) { }
 
-    public record OwnerSummary(Long id, String username, String displayName) { }
+    public record OwnerSummary(Long id, String username, String displayName, boolean deleted) { }
 
     public record ProjectListItem(
         Long id,

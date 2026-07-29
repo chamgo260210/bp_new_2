@@ -167,3 +167,15 @@
     gap: .15rem;
   }
 }
+
+.admin-user-detail .admin-danger-zone {
+  padding: 1rem;
+  border: 1px solid var(--color-status-danger, #c23b3b);
+  border-radius: var(--radius-md, .7rem);
+  background: var(--color-surface-muted, #f6f8f8);
+}
+
+.admin-danger-zone p {
+  color: var(--color-text-muted, #60777a);
+  line-height: 1.55;
+}
