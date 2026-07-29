@@ -1,0 +1,12 @@
+package com.aivle.backend.admin;
+import com.aivle.backend.common.exception.*;
+import com.aivle.backend.user.entity.User;
+import java.nio.charset.StandardCharsets; import java.security.MessageDigest; import java.time.*; import java.util.HexFormat; import java.util.UUID;
+import lombok.RequiredArgsConstructor; import org.springframework.security.crypto.password.PasswordEncoder; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
+@Service @RequiredArgsConstructor public class AdminReauthenticationService {
+ private final PasswordEncoder passwords; private final AdminActionTokenRepository tokens; private final Clock jobClock;
+ @Transactional public IssuedToken issue(User actor,String password,String purpose){if(!passwords.matches(password,actor.getPasswordHash()))throw new BusinessException(ErrorCode.REAUTHENTICATION_FAILED); if(!valid(purpose))throw new BusinessException(ErrorCode.INVALID_REQUEST); String raw=UUID.randomUUID()+"."+UUID.randomUUID(); LocalDateTime now=LocalDateTime.now(jobClock); tokens.save(AdminActionToken.issue(actor.getId(),purpose,hash(raw),now.plusMinutes(5),actor.getSecurityVersion(),now)); return new IssuedToken(raw,now.plusMinutes(5));}
+ @Transactional public void requireAndConsume(User actor,String raw,String purpose){if(raw==null||raw.isBlank())throw new BusinessException(ErrorCode.REAUTHENTICATION_REQUIRED); AdminActionToken token=tokens.findByTokenHash(hash(raw)).orElseThrow(()->new BusinessException(ErrorCode.REAUTHENTICATION_FAILED)); if(!token.usableAt(LocalDateTime.now(jobClock),actor.getId(),purpose,actor.getSecurityVersion()))throw new BusinessException(ErrorCode.REAUTHENTICATION_EXPIRED); token.consume(LocalDateTime.now(jobClock));}
+ private boolean valid(String purpose){return "USER_ROLE_CHANGE".equals(purpose)||"USER_DISABLE".equals(purpose)||"MAINTENANCE_MODE".equals(purpose);} private String hash(String raw){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);}}
+ public record IssuedToken(String actionToken,LocalDateTime expiresAt){}
+}

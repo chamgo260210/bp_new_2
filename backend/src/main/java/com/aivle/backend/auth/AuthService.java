@@ -179,7 +179,11 @@ public class AuthService {
         if (!stored.isUsableAt(now)
             || !stored.getTokenJti().equals(jwt.getId())
             || !stored.getUser().getId().toString().equals(jwt.getSubject())
-            || !stored.getUser().canLogin()) {
+            || !stored.getUser().canLogin()
+            || stored.getUser().isDeleted()
+            || jwt.getClaim("securityVersion") == null
+            || stored.getUser().getSecurityVersion().longValue()
+                != ((Number) jwt.getClaim("securityVersion")).longValue()) {
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 
