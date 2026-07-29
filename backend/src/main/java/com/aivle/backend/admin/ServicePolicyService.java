@@ -28,6 +28,9 @@ public class ServicePolicyService {
 
     @Transactional(readOnly = true)
     public boolean isMaintenanceMode() { return enabled(ServiceSettingKey.MAINTENANCE_MODE); }
+    public boolean isClusterPersonaEnabled() {
+        return enabled(ServiceSettingKey.CLUSTER_PERSONA_ENABLED);
+    }
 
     @Transactional(readOnly = true)
     public ServicePolicySnapshot snapshot() {
@@ -38,7 +41,8 @@ public class ServicePolicyService {
         return new ServicePolicySnapshot(
             enabled(ServiceSettingKey.REGISTRATION_ENABLED, valuesByKey),
             enabled(ServiceSettingKey.DOCUMENT_PROCESSING_ENABLED, valuesByKey),
-            enabled(ServiceSettingKey.MAINTENANCE_MODE, valuesByKey)
+            enabled(ServiceSettingKey.MAINTENANCE_MODE, valuesByKey),
+            enabled(ServiceSettingKey.CLUSTER_PERSONA_ENABLED, valuesByKey)
         );
     }
 
@@ -73,6 +77,7 @@ public class ServicePolicyService {
     public record ServicePolicySnapshot(
         boolean registrationEnabled,
         boolean documentProcessingEnabled,
-        boolean maintenanceMode
+        boolean maintenanceMode,
+        boolean clusterPersonaEnabled
     ) { }
 }

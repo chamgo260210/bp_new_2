@@ -23,6 +23,12 @@ CI와 실제 브라우저 E2E는 별도 수행한다. 각 시나리오는 실제
 | 유지보수 해제 | Maintenance ON | 사유 제출 | 재인증 없이 쓰기 복구 |  |  |  |
 | 회원가입 중지 | Registration OFF | Signup 진입·제출 | 안내와 실제 disabled |  |  |  |
 | 문서 처리 중지 | Document Processing OFF | 업로드·분석 시도 | CTA disabled, 기존 조회 유지 |  |  |  |
+| Persona 전역 활성 | 허용 Persona 1개 이상 | Settings에서 기능 활성화 | Public Policy와 사용자 Section 반영 |  |  |  |
+| Persona 최소·최대 정책 | 기능 ON 또는 6개 허용 | 마지막 숨김·7번째 표시 시도 | 정책 오류, 기존 상태 유지 |  |  |  |
+| Persona 표시 순서 | 허용 Persona 2개 이상 | 위로·아래로 변경 | 서버 재조회 후 사용자 순서 반영 |  |  |  |
+| 추천·선택 Badge | 추천 결과와 허용 목록 | 추천 외 Persona 선택 | 추천과 선택 Badge가 서로 유지 |  |  |  |
+| Persona 선택 유지 | 선택된 Persona | 관리자가 해당 Persona 숨김 | 선택 기록 보존, 사용 중지 안내 |  |  |  |
+| Persona 모바일 카드 | 허용 Persona 4개 이상 | 390×844에서 펼치기·가로 이동 | Scroll Snap, 키보드 선택 가능 |  |  |  |
 | Users 검색 | 사용자 데이터 | 한글 IME 입력·필터·페이지 이동·뒤로가기 | Debounce, URL 복원 |  |  |  |
 | Projects 필터 | 프로젝트 데이터 | 날짜 경계와 필터·정렬 적용 | 서버 페이지 결과와 일치 |  |  |  |
 | 프로젝트 상세 URL | Project ID | 상세 URL 직접 접근 | 목록 배경과 Sheet |  |  |  |

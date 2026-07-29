@@ -6,39 +6,14 @@ import {
   Alert, Button, Card, Dialog, ErrorState, LoadingState, PageHeader, Progress, StatusBadge,
 } from '../../shared/ui/index.js';
 import { usePersonas } from './hooks/usePersonas.js';
+import useAvailablePersonas from './hooks/useAvailablePersonas.js';
+import AvailablePersonaSection from './AvailablePersonaSection.jsx';
 import { useServicePolicy } from '../service-policy/useServicePolicy.js';
 import { getWriteRestriction } from '../service-policy/servicePolicyRestrictions.js';
 import {
   CONFIDENCE_LABELS, LEVEL_LABELS, listItemText, parseJsonArray,
 } from './model/personaViewModel.js';
 import './personas.css';
-
-function Catalog({ personas }) {
-  return (
-    <details className="persona-segment-preview"><summary><strong>기준 세그먼트 미리보기</strong><span>{personas.length}개</span></summary>
-    <section aria-labelledby="persona-catalog-title">
-      <div className="persona-section-heading">
-        <div><p className="persona-kicker">2025 한국미디어패널 기반</p>
-          <h2 id="persona-catalog-title">기준 페르소나 카탈로그</h2></div>
-        <span>{personas.length}개 군집</span>
-      </div>
-      <p className="persona-catalog__intro">프로젝트 패널 구성에 참고할 추천 세그먼트만 먼저 보여드립니다.</p>
-      <div className="persona-catalog persona-catalog--compact">
-        {personas.slice(0, 4).map((persona) => (
-          <Card key={persona.personaCode} className="persona-catalog-card">
-            <p className="persona-code">{persona.personaCode}</p>
-            <h3>{persona.displayName}</h3><p>{persona.description}</p>
-            <dl>
-              <div><dt>연령·성별</dt><dd>{persona.ageGroup} · {persona.gender}</dd></div>
-              <div><dt>세그먼트 내 가중 비중</dt><dd>{persona.weightedShare == null
-                ? '공개 근거 없음' : `${(Number(persona.weightedShare) * 100).toFixed(1)}%`}</dd></div>
-            </dl>
-          </Card>
-        ))}
-      </div>
-    </section></details>
-  );
-}
 
 function Ready({ feasibility, onStart, restriction, onRefreshPolicy }) {
   const [confirming, setConfirming] = useState(false);
@@ -144,6 +119,11 @@ export default function PersonaPage() {
   const state = usePersonas(projectId);
   const servicePolicy = useServicePolicy();
   const restriction = getWriteRestriction({ ...servicePolicy, documentProcessing: true });
+  const clusterEnabled =
+    !servicePolicy.loading
+    && !servicePolicy.error
+    && servicePolicy.policy.clusterPersonaEnabled;
+  const availablePersonas = useAvailablePersonas(projectId, clusterEnabled);
   return (
     <>
       <PageHeader eyebrow={project.stageLabel} title="데이터 기반 페르소나·고객 검증"
@@ -173,7 +153,19 @@ export default function PersonaPage() {
         description={state.job?.message ?? '작업 상태를 확인한 뒤 다시 시도해 주세요.'} onRetry={state.retry} />}
       {state.status === 'error' && <ErrorState title="페르소나 상태를 불러오지 못했습니다"
         description={state.error?.message ?? '연결을 확인한 뒤 다시 시도해 주세요.'} onRetry={state.retry} />}
-      {state.catalog.length > 0 && <Catalog personas={state.catalog} />}
+      {servicePolicy.error && (
+        <Alert tone="warning" title="추가 페르소나 운영 상태를 확인하지 못했습니다.">
+          기존 추천 결과는 계속 확인할 수 있지만 추가 페르소나는 선택할 수 없습니다.
+          <Button size="small" variant="outline" onClick={() => void servicePolicy.refresh().catch(() => undefined)}>다시 시도</Button>
+        </Alert>
+      )}
+      {clusterEnabled && (
+        <AvailablePersonaSection
+          state={availablePersonas}
+          blocked={restriction.blocked}
+          blockedReason={restriction.message}
+        />
+      )}
     </>
   );
 }

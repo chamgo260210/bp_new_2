@@ -5,6 +5,7 @@ import { useServicePolicy } from '../../service-policy/useServicePolicy.js';
 import { getAdminErrorMessage } from '../api/adminErrorResolver.js';
 import AdminActionConfirmDialog from '../components/AdminActionConfirmDialog.jsx';
 import AdminSettingSection from '../components/AdminSettingSection.jsx';
+import AdminClusterPersonaSettings from '../components/AdminClusterPersonaSettings.jsx';
 import useAdminSettings from '../hooks/useAdminSettings.js';
 import '../admin.css';
 
@@ -20,6 +21,12 @@ const SECTION_DEFINITIONS = [
     title: '문서 및 분석',
     description: '새 문서와 분석 작업의 시작 가능 여부를 관리합니다.',
     keys: ['DOCUMENT_PROCESSING_ENABLED'],
+  },
+  {
+    id: 'personas',
+    title: 'Persona 운영',
+    description: '프로젝트 사용자가 선택할 수 있는 공통 군집 Persona를 관리합니다.',
+    keys: ['CLUSTER_PERSONA_ENABLED'],
   },
   {
     id: 'operations',
@@ -41,6 +48,11 @@ function changeDescription(key, nextValue) {
       ? '새 문서 업로드와 분석 시작을 다시 허용합니다.'
       : '새 문서 업로드와 새 분석 시작이 중지됩니다. 기존 문서와 분석 결과 조회는 유지됩니다.';
   }
+  if (key === 'CLUSTER_PERSONA_ENABLED') {
+    return nextValue
+      ? '관리자가 허용한 군집 페르소나를 프로젝트의 선택 후보로 표시합니다.'
+      : '추가 군집 페르소나 Section을 숨깁니다. 기존 추천 결과와 저장된 선택 기록은 유지됩니다.';
+  }
   return nextValue
     ? '일반 사용자의 프로젝트 변경, 문서 처리, 분석 시작과 계정 변경이 중지됩니다. 기존 데이터 조회와 관리자 콘솔 접근은 유지됩니다.'
     : '일반 사용자의 변경 작업을 다시 허용합니다.';
@@ -48,6 +60,7 @@ function changeDescription(key, nextValue) {
 
 function stateLabel(key, value) {
   if (key === 'MAINTENANCE_MODE') return value ? '점검 중' : '정상 운영';
+  if (key === 'CLUSTER_PERSONA_ENABLED') return value ? '사용 중' : '숨김';
   return value ? '허용 중' : '중지됨';
 }
 
@@ -119,6 +132,7 @@ export default function AdminSettingsPage() {
               onChange={beginChange}
             />
           ))}
+          <AdminClusterPersonaSettings onChanged={setNotice} />
         </div>
       )}
 

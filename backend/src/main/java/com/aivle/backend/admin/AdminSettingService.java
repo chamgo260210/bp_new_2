@@ -4,6 +4,9 @@ import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.user.entity.User;
 import com.aivle.backend.user.repository.UserRepository;
+import com.aivle.backend.persona.catalog.repository.ClusterPersonaPolicyRepository;
+import com.aivle.backend.persona.catalog.repository.BaselinePersonaRepository;
+import com.aivle.backend.persona.catalog.BaselinePersonaCatalog;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -24,6 +27,8 @@ public class AdminSettingService {
     private final AdminReauthenticationService reauthentication;
     private final AdminAuditService audits;
     private final Clock clock;
+    private final ClusterPersonaPolicyRepository clusterPersonaPolicies;
+    private final BaselinePersonaRepository baselinePersonas;
 
     @Transactional(readOnly = true)
     public List<SettingResponse> list() {
@@ -80,6 +85,13 @@ public class AdminSettingService {
         }
 
         try {
+            if (key == ServiceSettingKey.CLUSTER_PERSONA_ENABLED
+                && nextValue) {
+                baselinePersonas.lockActiveCatalog(BaselinePersonaCatalog.VERSION);
+                if (clusterPersonaPolicies.countByEnabledTrue() == 0) {
+                    throw new BusinessException(ErrorCode.CLUSTER_PERSONA_SELECTION_REQUIRED);
+                }
+            }
             if (key == ServiceSettingKey.MAINTENANCE_MODE && nextValue) {
                 reauthentication.requireAndConsume(
                     actor,
@@ -98,8 +110,7 @@ public class AdminSettingService {
             }
             settings.save(setting);
             audits.recordSuccess(
-                actor.getId(),
-                AdminAuditAction.SERVICE_SETTING_CHANGED,
+                actor.getId(), auditAction(key),
                 AdminAuditTargetType.SERVICE_SETTING,
                 null,
                 key.name(),
@@ -112,8 +123,7 @@ public class AdminSettingService {
             return response(key, setting, Map.of(actor.getId(), actor));
         } catch (BusinessException failure) {
             audits.recordFailureSafely(
-                actor.getId(),
-                AdminAuditAction.SERVICE_SETTING_CHANGED,
+                actor.getId(), auditAction(key),
                 AdminAuditTargetType.SERVICE_SETTING,
                 null,
                 key.name(),
@@ -135,6 +145,12 @@ public class AdminSettingService {
         } catch (IllegalArgumentException exception) {
             throw new BusinessException(ErrorCode.SERVICE_SETTING_INVALID);
         }
+    }
+
+    private AdminAuditAction auditAction(ServiceSettingKey key) {
+        return key == ServiceSettingKey.CLUSTER_PERSONA_ENABLED
+            ? AdminAuditAction.CLUSTER_PERSONA_POLICY_CHANGED
+            : AdminAuditAction.SERVICE_SETTING_CHANGED;
     }
 
     private boolean parseBoolean(String value) {

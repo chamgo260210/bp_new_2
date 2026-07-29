@@ -14,6 +14,7 @@
 - 구조화된 성공·실패 관리자 감사
 - 설정 변경자와 변경 시각을 포함한 Settings 운영 화면
 - 일반 USER 본인 탈퇴와 `USER_DELETE` 재인증 기반 관리자 Soft Delete
+- 실제 기준 카탈로그 기반 군집 Persona 허용 목록과 프로젝트별 선택
 
 ## 현재 미연동
 
@@ -39,6 +40,7 @@ Profile, Viewport, 키보드 조작을 확인해야 한다.
 - [서비스 정책 Matrix](service-policy-matrix.md)
 - [감사 정책](audit-policy.md)
 - [계정 삭제 정책](account-deletion-policy.md)
+- [군집 Persona 정책](cluster-persona-policy.md)
 - [AI 연동 예정 계약](ai-integration-contract.md)
 - [수동 E2E 체크리스트](manual-e2e-checklist.md)
 
@@ -52,6 +54,7 @@ Profile, Viewport, 키보드 조작을 확인해야 한다.
 | V14 | 비활성화 사유 |
 | V15 | 구조화된 관리자 감사 필드 |
 | V16 | Legacy 서비스 설정 Key를 canonical Key로 통합 |
+| V17 | 군집 Persona 노출 정책과 프로젝트별 선택 |
 
 적용된 Migration은 수정하지 않는다. 운영 DB 적용 후 변경이 필요하면 다음
 Version을 추가한다.

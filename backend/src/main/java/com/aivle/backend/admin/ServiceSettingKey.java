@@ -11,6 +11,11 @@ public enum ServiceSettingKey {
         "문서 처리",
         "새 문서 업로드와 분석 작업 시작 허용 여부"
     ),
+    CLUSTER_PERSONA_ENABLED(
+        "false",
+        "군집 페르소나",
+        "관리자가 허용한 군집 페르소나를 프로젝트 선택 후보로 제공합니다"
+    ),
     MAINTENANCE_MODE(
         "false",
         "유지보수 모드",

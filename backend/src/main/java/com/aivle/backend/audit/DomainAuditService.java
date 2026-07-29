@@ -33,7 +33,8 @@ public class DomainAuditService {
         "before",
         "after",
         "targetUserId",
-        "settingKey"
+        "settingKey",
+        "personaId"
     );
 
     private final AuditEventRepository repository;

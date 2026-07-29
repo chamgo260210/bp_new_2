@@ -4,6 +4,7 @@ public enum AdminAuditTargetType {
     USER,
     PROJECT,
     SERVICE_SETTING,
+    PERSONA,
     ADMIN_AUTH,
     OTHER
 }

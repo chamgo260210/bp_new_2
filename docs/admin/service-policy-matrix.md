@@ -27,6 +27,9 @@ canonical Key만 조회한다.
 | 사업성 분석 시작 | `POST /api/v1/projects/{id}/feasibility-assessments` | 필요 | 허용 | `MAINTENANCE_MODE_ENABLED` | 설정이 켜진 경우 허용 | `DOCUMENT_PROCESSING_DISABLED` |
 | Persona 추천 시작 | `POST /api/v1/projects/{id}/persona-recommendations` | 필요 | 허용 | `MAINTENANCE_MODE_ENABLED` | 설정이 켜진 경우 허용 | `DOCUMENT_PROCESSING_DISABLED` |
 | 기존 분석·Persona·Job 결과 조회 | 각 `GET` 조회 API | 필요 | 허용 | 허용 | 허용 | 허용 |
+| 허용 군집 Persona 조회 | `GET /api/v1/projects/{id}/personas/available` | 필요 | `CLUSTER_PERSONA_ENABLED`에 따름 | 조회 허용 | 허용 | 영향 없음 |
+| 프로젝트 Persona 선택 | `PUT /api/v1/projects/{id}/personas/selection` | 필요 | 전역 기능·허용 목록에 따름 | `MAINTENANCE_MODE_ENABLED` | 허용 | 영향 없음 |
+| 군집 Persona 운영 | `GET/PATCH/PUT /api/v1/admin/personas/**` | ADMIN 필요 | 허용 | 해당 없음 | 허용 | 영향 없음 |
 | 관리자 운영 API | `/api/v1/admin/**` | ADMIN 필요 | 허용 | 해당 없음 | 허용 | 관리·설정 변경 허용 |
 | Health Check | `GET /actuator/health` | 불필요 | 허용 | 허용 | 허용 | 영향 없음 |
 
@@ -41,3 +44,7 @@ canonical Key만 조회한다.
 ## 운영 결정
 
 유지보수 중 일반 사용자의 비밀번호 변경도 일반 쓰기 중단 원칙에 따라 차단한다. 보안 사고로 긴급 변경이 필요한 경우 관리자가 유지보수 모드를 해제하거나 계정 세션을 철회한 뒤 처리한다. 관리자 콘솔과 관리자 설정 변경은 유지보수 모드 해제를 위해 항상 접근 가능해야 한다.
+
+군집 Persona 선택은 프로젝트 쓰기 작업으로 취급한다. 전역 기능이 꺼졌거나 허용
+목록에서 제거된 Persona는 새로 선택할 수 없으며, 기존 선택 기록은 자동 변경하지
+않는다.

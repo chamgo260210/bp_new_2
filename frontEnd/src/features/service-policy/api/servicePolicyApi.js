@@ -2,6 +2,7 @@ const CONSERVATIVE_POLICY = Object.freeze({
   registrationEnabled: false,
   documentProcessingEnabled: false,
   maintenanceMode: false,
+  clusterPersonaEnabled: false,
 });
 
 function normalizePolicy(payload) {
@@ -10,6 +11,7 @@ function normalizePolicy(payload) {
     registrationEnabled: data?.registrationEnabled === true,
     documentProcessingEnabled: data?.documentProcessingEnabled === true,
     maintenanceMode: data?.maintenanceMode === true,
+    clusterPersonaEnabled: data?.clusterPersonaEnabled === true,
   };
 }
 
