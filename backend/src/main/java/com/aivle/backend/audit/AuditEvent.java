@@ -26,6 +26,7 @@ public class AuditEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "actor_user_id")
     private Long actorUserId;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_user_id", insertable = false, updatable = false)

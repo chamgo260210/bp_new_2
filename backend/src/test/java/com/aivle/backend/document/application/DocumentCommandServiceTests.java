@@ -1,5 +1,6 @@
 package com.aivle.backend.document.application;
 
+import com.aivle.backend.admin.ServicePolicyService;
 import com.aivle.backend.common.entity.DocumentType;
 import com.aivle.backend.common.entity.JobStatus;
 import com.aivle.backend.common.exception.BusinessException;
@@ -30,6 +31,7 @@ class DocumentCommandServiceTests {
     @Mock IdempotencyKeyPolicy keyPolicy;
     @Mock DocumentRequestFingerprint fingerprint;
     @Mock DocumentUploadTransactionService transactionService;
+    @Mock ServicePolicyService servicePolicyService;
 
     private DocumentCommandService service;
     private final ValidatedUpload validated = new ValidatedUpload(
@@ -47,8 +49,16 @@ class DocumentCommandServiceTests {
     @BeforeEach
     void setUp() {
         service = new DocumentCommandService(
-            policy, storage, keyGenerator, keyPolicy, fingerprint, transactionService
+            policy,
+            storage,
+            keyGenerator,
+            keyPolicy,
+            fingerprint,
+            transactionService,
+            servicePolicyService
         );
+        doNothing().when(servicePolicyService).requireWriteAvailableForUser(anyLong());
+        doNothing().when(servicePolicyService).requireDocumentProcessingEnabled();
     }
 
     @Test

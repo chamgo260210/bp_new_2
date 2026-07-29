@@ -8,9 +8,12 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HexFormat;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,15 +23,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 class Phase3MigrationTests {
     @Autowired JdbcClient jdbcClient;
+    @Autowired DataSource dataSource;
 
     @Test
-    void freshH2SchemaAppliesV1ThroughV10AndValidatesNewTables() {
+    void freshH2SchemaAppliesThroughV17AndValidatesOperationalTables() throws Exception {
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version is not null
             order by installed_rank desc
             limit 1
-            """).query(String.class).single()).isEqualTo("10");
+            """).query(String.class).single()).isEqualTo("17");
+        assertThat(jdbcClient.sql("""
+            select version from flyway_schema_history
+            where success = true and version in ('13', '14', '15', '16', '17')
+            order by installed_rank
+            """).query(String.class).list())
+            .containsExactly("13", "14", "15", "16", "17");
         assertThat(columnExists("users", "username")).isTrue();
         assertThat(columnExists("users", "organization_name")).isTrue();
         assertThat(columnExists("users", "department_name")).isTrue();
@@ -52,6 +62,34 @@ class Phase3MigrationTests {
         assertThat(tableExists("customer_hypotheses")).isTrue();
         assertThat(tableExists("customer_validation_plans")).isTrue();
         assertThat(tableExists("persona_validation_task_links")).isTrue();
+        assertThat(tableExists("admin_action_tokens")).isTrue();
+        assertThat(columnExists("users", "disabled_reason")).isTrue();
+        assertThat(columnExists("audit_events", "before_json")).isTrue();
+        assertThat(columnExists("audit_events", "after_json")).isTrue();
+        assertThat(tableExists("cluster_persona_policies")).isTrue();
+        assertThat(tableExists("project_persona_selections")).isTrue();
+        assertThat(importedKeyExists(
+            "cluster_persona_policies",
+            "baseline_persona_id",
+            "baseline_personas"
+        )).isTrue();
+        assertThat(importedKeyExists(
+            "project_persona_selections",
+            "project_id",
+            "projects"
+        )).isTrue();
+        assertThat(importedKeyExists(
+            "project_persona_selections",
+            "baseline_persona_id",
+            "baseline_personas"
+        )).isTrue();
+        assertThat(uniqueIndexExists(
+            "project_persona_selections",
+            "project_id"
+        )).isTrue();
+        assertThat(countRows("baseline_personas")).isEqualTo(56);
+        assertThat(countRows("cluster_persona_policies")).isZero();
+        assertThat(countRows("project_persona_selections")).isZero();
     }
 
     @Test
@@ -104,6 +142,55 @@ class Phase3MigrationTests {
             .param("column", column)
             .query(Integer.class)
             .single() == 1;
+    }
+
+    private int countRows(String table) {
+        return jdbcClient.sql("select count(*) from " + table)
+            .query(Integer.class)
+            .single();
+    }
+
+    private boolean importedKeyExists(
+        String table,
+        String foreignKeyColumn,
+        String primaryKeyTable
+    ) throws SQLException {
+        try (
+            var connection = dataSource.getConnection();
+            ResultSet keys = connection.getMetaData().getImportedKeys(
+                connection.getCatalog(),
+                connection.getSchema(),
+                table
+            )
+        ) {
+            while (keys.next()) {
+                if (foreignKeyColumn.equalsIgnoreCase(keys.getString("FKCOLUMN_NAME"))
+                    && primaryKeyTable.equalsIgnoreCase(keys.getString("PKTABLE_NAME"))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    private boolean uniqueIndexExists(String table, String column) throws SQLException {
+        try (
+            var connection = dataSource.getConnection();
+            ResultSet indexes = connection.getMetaData().getIndexInfo(
+                connection.getCatalog(),
+                connection.getSchema(),
+                table,
+                true,
+                false
+            )
+        ) {
+            while (indexes.next()) {
+                if (column.equalsIgnoreCase(indexes.getString("COLUMN_NAME"))) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     private String classpathHash(String path) throws Exception {
