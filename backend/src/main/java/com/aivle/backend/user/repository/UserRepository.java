@@ -11,10 +11,12 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
+    Optional<User> findByIdAndDeletedAtIsNull(Long id);
     boolean existsByUsername(String username);
     Optional<User> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
     long countByRoleAndStatusAndDeletedAtIsNull(com.aivle.backend.common.entity.UserRole role, com.aivle.backend.common.entity.UserStatus status);
+    long countByDeletedAtIsNull();
 
     @Query("""
         select u from User u where u.deletedAt is null

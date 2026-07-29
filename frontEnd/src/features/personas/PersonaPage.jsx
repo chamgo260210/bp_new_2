@@ -6,6 +6,8 @@ import {
   Alert, Button, Card, Dialog, ErrorState, LoadingState, PageHeader, Progress, StatusBadge,
 } from '../../shared/ui/index.js';
 import { usePersonas } from './hooks/usePersonas.js';
+import { useServicePolicy } from '../service-policy/useServicePolicy.js';
+import { getWriteRestriction } from '../service-policy/servicePolicyRestrictions.js';
 import {
   CONFIDENCE_LABELS, LEVEL_LABELS, listItemText, parseJsonArray,
 } from './model/personaViewModel.js';
@@ -38,7 +40,7 @@ function Catalog({ personas }) {
   );
 }
 
-function Ready({ feasibility, onStart }) {
+function Ready({ feasibility, onStart, restriction, onRefreshPolicy }) {
   const [confirming, setConfirming] = useState(false);
   return (
     <>
@@ -51,13 +53,19 @@ function Ready({ feasibility, onStart }) {
           <div><dt>확정 계획</dt><dd>#{feasibility?.structuredPlanId}</dd></div>
           <div><dt>검증 과제</dt><dd>{feasibility?.validationTasks?.length ?? 0}개</dd></div>
         </dl>
-        <Button onClick={() => setConfirming(true)}>페르소나 추천 시작</Button>
+        {restriction.blocked && (
+          <Alert tone={restriction.code === 'POLICY_UNAVAILABLE' ? 'danger' : 'warning'} title="새 추천 작업을 시작할 수 없습니다">
+            {restriction.message}
+            {restriction.code === 'POLICY_UNAVAILABLE' && <Button type="button" variant="outline" size="small" onClick={onRefreshPolicy}>다시 시도</Button>}
+          </Alert>
+        )}
+        <Button disabled={restriction.blocked} onClick={() => setConfirming(true)}>페르소나 추천 시작</Button>
       </Card>
       <Dialog open={confirming} onClose={() => setConfirming(false)} title="고객 가설 추천을 시작할까요?">
         <p>결과는 AI 추론과 통계 군집의 비교이며 구매 의향, 시장 규모, 실제 인터뷰 응답을 의미하지 않습니다. 조사 전에는 가설로만 사용해야 합니다.</p>
         <div className="persona-actions">
           <Button variant="outline" onClick={() => setConfirming(false)}>취소</Button>
-          <Button onClick={() => { setConfirming(false); onStart(); }}>확인하고 시작</Button>
+          <Button disabled={restriction.blocked} onClick={() => { setConfirming(false); onStart(); }}>확인하고 시작</Button>
         </div>
       </Dialog>
     </>
@@ -134,13 +142,22 @@ export default function PersonaPage() {
   const { projectId } = useParams();
   const { project } = useProjectContext();
   const state = usePersonas(projectId);
+  const servicePolicy = useServicePolicy();
+  const restriction = getWriteRestriction({ ...servicePolicy, documentProcessing: true });
   return (
     <>
       <PageHeader eyebrow={project.stageLabel} title="데이터 기반 페르소나·고객 검증"
         description="통계 군집을 프로젝트 근거와 비교해 고객 가설과 실제 검증 계획으로 연결합니다." />
       {state.refreshError && <Alert tone="warning" title="기준 세그먼트 정보를 새로고침하지 못했습니다.">기존 정보를 표시하고 있습니다. <Button variant="outline" size="small" onClick={state.retry}>다시 시도</Button></Alert>}
       {state.status === 'loading' && <LoadingState label="페르소나 기준선과 최신 결과를 확인하고 있습니다" />}
-      {state.status === 'ready' && <Ready feasibility={state.feasibility} onStart={state.start} />}
+      {state.status === 'ready' && (
+        <Ready
+          feasibility={state.feasibility}
+          onStart={state.start}
+          restriction={restriction}
+          onRefreshPolicy={() => void servicePolicy.refresh().catch(() => undefined)}
+        />
+      )}
       {(state.status === 'starting' || state.status === 'processing') && (
         <Card aria-live="polite"><StatusBadge status={state.job?.status ?? 'QUEUED'} />
           <h2>페르소나 추천과 고객 검증 계획을 구성하고 있습니다</h2>

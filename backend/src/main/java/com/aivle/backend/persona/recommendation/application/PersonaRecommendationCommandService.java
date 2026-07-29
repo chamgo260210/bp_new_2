@@ -1,5 +1,6 @@
 package com.aivle.backend.persona.recommendation.application;
 
+import com.aivle.backend.admin.ServicePolicyService;
 import com.aivle.backend.analysis.feasibility.repository.FeasibilityAssessmentRepository;
 import com.aivle.backend.audit.*;
 import com.aivle.backend.common.entity.*;
@@ -32,9 +33,12 @@ public class PersonaRecommendationCommandService {
     private final AnalysisJobRepository jobs;
     private final ApplicationEventPublisher events;
     private final DomainAuditService audit;
+    private final ServicePolicyService servicePolicy;
 
     @Transactional
     public PersonaStartResponse start(Long userId, Long projectId) {
+        servicePolicy.requireWriteAvailableForUser(userId);
+        servicePolicy.requireDocumentProcessingEnabled();
         var project = projects.findByIdAndOwnerIdAndDeletedAtIsNull(projectId, userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
         var plan = plans

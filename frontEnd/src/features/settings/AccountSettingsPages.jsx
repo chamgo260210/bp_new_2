@@ -9,6 +9,8 @@ import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
 import { Alert, AppIcon, Button, PageHeader, TextInput } from '../../shared/ui/index.js';
 import { appRoutes } from '../projects/routing/projectRoutes.js';
 import { ProfileAvatar } from '../../app/layouts/AppShell.jsx';
+import { useServicePolicy } from '../service-policy/useServicePolicy.js';
+import { getWriteRestriction, isServicePolicyError } from '../service-policy/servicePolicyRestrictions.js';
 import './settings.css';
 
 function SettingsLayout() {
@@ -20,6 +22,8 @@ export function AccountSettingsRedirect() { return <Navigate to={appRoutes.profi
 
 export function ProfileSettingsPage() {
   const client = useApiClient();
+  const servicePolicy = useServicePolicy();
+  const restriction = getWriteRestriction(servicePolicy);
   const { user, updateUser } = useAuth();
   const initial = useMemo(() => ({ displayName: user?.displayName || '', email: user?.email || '', organizationName: user?.organizationName || '', departmentName: user?.departmentName || '', jobTitle: user?.jobTitle || '' }), [user]);
   const [values, setValues] = useState(initial);
@@ -29,16 +33,18 @@ export function ProfileSettingsPage() {
   const changed = JSON.stringify(values) !== JSON.stringify(initial);
   const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
   const save = async (event) => {
-    event.preventDefault(); if (!changed || saving) return;
+    event.preventDefault(); if (!changed || saving || restriction.blocked) return;
     setSaving(true); setError(''); setMessage('');
     try { const next = await createAuthApi(client).updateProfile(values); updateUser(next); setMessage('프로필 변경사항을 저장했습니다.'); }
-    catch (nextError) { setError(getUserErrorMessage(nextError)); } finally { setSaving(false); }
+    catch (nextError) { if (isServicePolicyError(nextError)) void servicePolicy.refresh().catch(() => undefined); setError(getUserErrorMessage(nextError)); } finally { setSaving(false); }
   };
-  return <form className="settings-form" onSubmit={save}><div className="profile-settings__avatar"><ProfileAvatar user={user} size="large" /><div><strong>프로필 이미지</strong><p>이미지 업로드는 아직 지원하지 않습니다.</p></div></div>{error && <Alert tone="danger" title="프로필을 저장하지 못했습니다">{error}</Alert>}{message && <Alert tone="success" title="저장됨">{message}</Alert>}<TextInput id="settings-name" label="표시 이름" value={values.displayName} onChange={update('displayName')} required maxLength="50" /><TextInput id="settings-username" label="아이디" value={user?.username || ''} readOnly description="아이디는 변경할 수 없습니다." /><TextInput id="settings-email" label="선택 이메일" value={values.email} onChange={update('email')} type="email" maxLength="254" /><TextInput id="settings-organization" label="소속·조직" value={values.organizationName} onChange={update('organizationName')} maxLength="120" /><TextInput id="settings-department" label="부서·팀" value={values.departmentName} onChange={update('departmentName')} maxLength="120" /><TextInput id="settings-job-title" label="직급·역할" value={values.jobTitle} onChange={update('jobTitle')} maxLength="120" /><Button type="submit" disabled={!changed || saving} loading={saving}>변경사항 저장</Button></form>;
+  return <form className="settings-form" onSubmit={save}><div className="profile-settings__avatar"><ProfileAvatar user={user} size="large" /><div><strong>프로필 이미지</strong><p>이미지 업로드는 아직 지원하지 않습니다.</p></div></div>{error && <Alert tone="danger" title="프로필을 저장하지 못했습니다">{error}</Alert>}{message && <Alert tone="success" title="저장됨">{message}</Alert>}{restriction.blocked && <Alert tone={restriction.code === 'POLICY_UNAVAILABLE' ? 'danger' : 'warning'} title="프로필을 변경할 수 없습니다"><p>{restriction.message}</p>{restriction.code === 'POLICY_UNAVAILABLE' && <Button type="button" variant="outline" size="small" onClick={() => void servicePolicy.refresh().catch(() => undefined)}>다시 시도</Button>}</Alert>}<TextInput id="settings-name" label="표시 이름" value={values.displayName} onChange={update('displayName')} disabled={restriction.blocked} required maxLength="50" /><TextInput id="settings-username" label="아이디" value={user?.username || ''} readOnly description="아이디는 변경할 수 없습니다." /><TextInput id="settings-email" label="선택 이메일" value={values.email} onChange={update('email')} disabled={restriction.blocked} type="email" maxLength="254" /><TextInput id="settings-organization" label="소속·조직" value={values.organizationName} onChange={update('organizationName')} disabled={restriction.blocked} maxLength="120" /><TextInput id="settings-department" label="부서·팀" value={values.departmentName} onChange={update('departmentName')} disabled={restriction.blocked} maxLength="120" /><TextInput id="settings-job-title" label="직급·역할" value={values.jobTitle} onChange={update('jobTitle')} disabled={restriction.blocked} maxLength="120" /><Button type="submit" disabled={!changed || saving || restriction.blocked} loading={saving}>변경사항 저장</Button></form>;
 }
 
 export function SecuritySettingsPage() {
   const client = useApiClient();
+  const servicePolicy = useServicePolicy();
+  const restriction = getWriteRestriction(servicePolicy);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [values, setValues] = useState({ currentPassword: '', newPassword: '', confirmation: '' });
@@ -52,6 +58,6 @@ export function SecuritySettingsPage() {
     ['흔히 쓰는 비밀번호나 연속 패턴이 아님', checks.isNotCommonOrSimilar],
     ['새 비밀번호 확인과 일치', checks.confirmationMatches],
   ];
-  const save = async (event) => { event.preventDefault(); if (saving) return; if (!checks.isValid || !checks.confirmationMatches) { setError('새 비밀번호 조건을 모두 충족해 주세요.'); return; } setSaving(true); setError(''); try { await createAuthApi(client).changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword }); await logout(); navigate('/auth/login', { replace: true, state: { authTransition: true, source: 'password-change', intent: 'login', logoutNotice: true } }); } catch (nextError) { setError(getUserErrorMessage(nextError)); } finally { setSaving(false); } };
-  return <form className="settings-form" onSubmit={save}>{error && <Alert tone="danger" title="비밀번호를 변경하지 못했습니다">{error}</Alert>}<TextInput id="current-password" label="현재 비밀번호" type="password" autoComplete="current-password" value={values.currentPassword} onChange={update('currentPassword')} required /><TextInput id="new-password" label="새 비밀번호" type="password" autoComplete="new-password" value={values.newPassword} onChange={update('newPassword')} required /><TextInput id="confirm-password" label="새 비밀번호 확인" type="password" autoComplete="new-password" value={values.confirmation} onChange={update('confirmation')} required /><ul className="password-check-list">{rules.map(([label, valid]) => <li key={label} data-valid={valid}>{label}</li>)}</ul><Button type="submit" disabled={saving} loading={saving}>비밀번호 변경 후 다시 로그인</Button></form>;
+  const save = async (event) => { event.preventDefault(); if (saving || restriction.blocked) return; if (!checks.isValid || !checks.confirmationMatches) { setError('새 비밀번호 조건을 모두 충족해 주세요.'); return; } setSaving(true); setError(''); try { await createAuthApi(client).changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword }); await logout(); navigate('/auth/login', { replace: true, state: { authTransition: true, source: 'password-change', intent: 'login', logoutNotice: true } }); } catch (nextError) { if (isServicePolicyError(nextError)) void servicePolicy.refresh().catch(() => undefined); setError(getUserErrorMessage(nextError)); } finally { setSaving(false); } };
+  return <form className="settings-form" onSubmit={save}>{error && <Alert tone="danger" title="비밀번호를 변경하지 못했습니다">{error}</Alert>}{restriction.blocked && <Alert tone={restriction.code === 'POLICY_UNAVAILABLE' ? 'danger' : 'warning'} title="비밀번호를 변경할 수 없습니다"><p>{restriction.message}</p>{restriction.code === 'POLICY_UNAVAILABLE' && <Button type="button" variant="outline" size="small" onClick={() => void servicePolicy.refresh().catch(() => undefined)}>다시 시도</Button>}</Alert>}<TextInput id="current-password" label="현재 비밀번호" type="password" autoComplete="current-password" value={values.currentPassword} onChange={update('currentPassword')} disabled={restriction.blocked} required /><TextInput id="new-password" label="새 비밀번호" type="password" autoComplete="new-password" value={values.newPassword} onChange={update('newPassword')} disabled={restriction.blocked} required /><TextInput id="confirm-password" label="새 비밀번호 확인" type="password" autoComplete="new-password" value={values.confirmation} onChange={update('confirmation')} disabled={restriction.blocked} required /><ul className="password-check-list">{rules.map(([label, valid]) => <li key={label} data-valid={valid}>{label}</li>)}</ul><Button type="submit" disabled={saving || restriction.blocked} loading={saving}>비밀번호 변경 후 다시 로그인</Button></form>;
 }

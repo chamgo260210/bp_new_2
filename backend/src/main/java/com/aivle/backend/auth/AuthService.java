@@ -240,6 +240,7 @@ public class AuthService {
 
     @Transactional
     public UserResponse updateProfile(Long currentUserId, UpdateProfileRequest request, String requestId) {
+        servicePolicy.requireWriteAvailableForUser(currentUserId);
         User user = activeUser(currentUserId);
         String normalizedEmail = normalizeEmail(request.email());
         if (normalizedEmail != null && userRepository.existsByEmailIgnoreCase(normalizedEmail)
@@ -259,6 +260,7 @@ public class AuthService {
 
     @Transactional
     public void changePassword(Long currentUserId, ChangePasswordRequest request, String requestId) {
+        servicePolicy.requireWriteAvailableForUser(currentUserId);
         User user = activeUser(currentUserId);
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);

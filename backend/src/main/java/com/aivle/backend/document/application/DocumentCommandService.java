@@ -1,5 +1,6 @@
 package com.aivle.backend.document.application;
 
+import com.aivle.backend.admin.ServicePolicyService;
 import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.file.storage.FileStorage;
@@ -25,8 +26,11 @@ public class DocumentCommandService {
     private final IdempotencyKeyPolicy idempotencyKeyPolicy;
     private final DocumentRequestFingerprint fingerprintCalculator;
     private final DocumentUploadTransactionService transactionService;
+    private final ServicePolicyService servicePolicy;
 
     public DocumentUploadResult upload(DocumentUploadCommand command) {
+        servicePolicy.requireWriteAvailableForUser(command.userId());
+        servicePolicy.requireDocumentProcessingEnabled();
         transactionService.authorizeUpload(
             command.projectId(),
             command.userId(),

@@ -26,8 +26,8 @@ public class AdminOverviewService {
             + users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.LOCKED);
         long activeProjects = projects.countByStatusInAndDeletedAtIsNull(List.of(ProjectStatus.DRAFT, ProjectStatus.ACTIVE, ProjectStatus.PAUSED));
         return new AdminController.OverviewResponse(
-            new AdminController.UserMetrics(users.count(), active, locked),
-            new AdminController.ProjectMetrics(projects.count(), activeProjects, projects.countByStatusAndDeletedAtIsNull(ProjectStatus.COMPLETED)),
+            new AdminController.UserMetrics(users.countByDeletedAtIsNull(), active, locked),
+            new AdminController.ProjectMetrics(projects.countByDeletedAtIsNull(), activeProjects, projects.countByStatusAndDeletedAtIsNull(ProjectStatus.COMPLETED)),
             new AdminController.JobMetrics(0, 0, 0, false), LocalDateTime.now(jobClock));
     }
 }

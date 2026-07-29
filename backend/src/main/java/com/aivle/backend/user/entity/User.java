@@ -59,6 +59,8 @@ public class User extends BaseEntity {
     @Column(length = 500)
     private String lockedReason;
     private LocalDateTime disabledAt;
+    @Column(length = 500)
+    private String disabledReason;
     private LocalDateTime roleUpdatedAt;
     private Long roleUpdatedBy;
     @Column(nullable = false)
@@ -122,6 +124,7 @@ public class User extends BaseEntity {
             this.lockedReason = null;
         }
         this.disabledAt = status == UserStatus.DISABLED ? now : null;
+        this.disabledReason = status == UserStatus.DISABLED ? reason : null;
     }
 
     public void updateProfile(

@@ -279,3 +279,7 @@
   from { opacity: 0; transform: translateX(-.625rem); }
   to { opacity: 1; transform: translateX(0); }
 }
+.is-policy-disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}

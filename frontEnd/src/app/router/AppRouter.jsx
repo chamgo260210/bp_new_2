@@ -25,7 +25,9 @@ import PersonaPage from '../../features/personas/PersonaPage.jsx';
 import ReportPage from '../../features/report/ReportPage.jsx';
 import LandingPage from '../../features/landing/LandingPage.jsx';
 import AdminShell from '../layouts/AdminShell.jsx';
-import { AdminAuditPage, AdminJobsPage, AdminOperationsPage, AdminOverviewPage, AdminProjectsPage, AdminSettingsPage, AdminUsersPage } from '../../features/admin/pages/AdminPages.jsx';
+import { AdminAuditPage, AdminJobsPage, AdminOperationsPage, AdminOverviewPage, AdminSettingsPage } from '../../features/admin/pages/AdminPages.jsx';
+import AdminUsersPage, { AdminUserDetailOverlay } from '../../features/admin/pages/AdminUsersPage.jsx';
+import AdminProjectsPage, { AdminProjectDetailOverlay } from '../../features/admin/pages/AdminProjectsPage.jsx';
 
 function LegacyProjectRedirect({ suffix = '' }) {
   const { projectId } = useParams();
@@ -111,7 +113,9 @@ export default function AppRouter() {
           <Route element={<AdminShell />}>
             <Route path="admin" element={<AdminOverviewPage />} />
             <Route path="admin/users" element={<AdminUsersPage />} />
+            <Route path="admin/users/:userId" element={<AdminUsersPage />} />
             <Route path="admin/projects" element={<AdminProjectsPage />} />
+            <Route path="admin/projects/:projectId" element={<AdminProjectsPage />} />
             <Route path="admin/operations" element={<AdminOperationsPage />} />
             <Route path="admin/jobs" element={<AdminJobsPage />} />
             <Route path="admin/audit" element={<AdminAuditPage />} />
@@ -126,6 +130,10 @@ export default function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route path="app/projects/new" element={<ProjectCreatePage />} />
         <Route path="app/projects/:projectId/settings" element={<ProjectSettingsOverlay />} />
+        <Route element={<AdminRoute />}>
+          <Route path="admin/users/:userId" element={<AdminUserDetailOverlay />} />
+          <Route path="admin/projects/:projectId" element={<AdminProjectDetailOverlay />} />
+        </Route>
       </Route>
     </Routes>}
     </>

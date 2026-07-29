@@ -31,11 +31,15 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public Page<AdminUserResponse> list(String keyword, UserRole role, UserStatus status, Pageable pageable) {
         String normalized = keyword == null || keyword.isBlank() ? null : keyword.trim();
-        return users.searchAdminUsers(normalized, role, status, pageable).map(this::response);
+        long activeAdminCount = users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE);
+        return users.searchAdminUsers(normalized, role, status, pageable)
+            .map(user -> response(user, activeAdminCount));
     }
 
     @Transactional(readOnly = true)
-    public AdminUserResponse detail(Long userId) { return response(find(userId)); }
+    public AdminUserResponse detail(Long userId) {
+        return response(find(userId), users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE));
+    }
 
     @Transactional
     public AdminUserResponse changeStatus(User actor, Long userId, UserStatus status, String reason, String requestId) {
@@ -92,14 +96,21 @@ public class AdminUserService {
         refreshTokens.findAllByUserIdAndDeletedAtIsNull(userId).forEach(token -> token.revoke(now));
     }
     private java.util.List<User> activeAdminsForUpdate() { return users.findByRoleAndStatusForUpdate(UserRole.ADMIN, UserStatus.ACTIVE); }
-    private User find(Long userId) { return users.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND)); }
+    private User find(Long userId) { return users.findByIdAndDeletedAtIsNull(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND)); }
     private AdminUserResponse response(User user) {
+        return response(user, users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE));
+    }
+    private AdminUserResponse response(User user, long activeAdminCount) {
         return new AdminUserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getName(), user.getRole().name(),
             user.getStatus().name(), projects.countByOwnerIdAndDeletedAtIsNull(user.getId()), user.getLastLoginAt(), user.getCreatedAt(),
-            user.getLockedAt(), user.getLockedReason(), user.getDisabledAt());
+            user.getOrganizationName(), user.getDepartmentName(), user.getJobTitle(), user.getSecurityVersion(),
+            user.getLockedAt(), user.getLockedReason(), user.getDisabledAt(), user.getDisabledReason(),
+            user.getRole() == UserRole.ADMIN && user.getStatus() == UserStatus.ACTIVE && activeAdminCount <= 1);
     }
 
     public record AdminUserResponse(Long id, String username, String email, String displayName, String role, String accountStatus,
-                                    long projectCount, LocalDateTime lastLoginAt, LocalDateTime createdAt, LocalDateTime lockedAt,
-                                    String lockedReason, LocalDateTime disabledAt) { }
+                                    long projectCount, LocalDateTime lastLoginAt, LocalDateTime createdAt,
+                                    String organizationName, String departmentName, String jobTitle, Long securityVersion,
+                                    LocalDateTime lockedAt, String lockedReason, LocalDateTime disabledAt,
+                                    String disabledReason, boolean lastActiveAdmin) { }
 }
