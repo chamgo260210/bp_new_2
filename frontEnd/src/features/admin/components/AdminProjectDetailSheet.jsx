@@ -65,6 +65,13 @@ export default function AdminProjectDetailSheet({ projectId, onRequestClose }) {
       label="관리자 프로젝트 상세"
       describedBy={descriptionId}
     >
+      <nav className="admin-breadcrumb" aria-label="현재 위치">
+        <Link to="/admin">Admin</Link>
+        <span aria-hidden="true"> / </span>
+        <Link to="/admin/projects">Projects</Link>
+        <span aria-hidden="true"> / </span>
+        <span aria-current="page">프로젝트 상세</span>
+      </nav>
       <p id={descriptionId} className="admin-sheet-description">
         프로젝트의 운영 상태를 읽기 전용으로 확인합니다.
       </p>

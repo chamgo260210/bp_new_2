@@ -1,20 +1,14 @@
 package com.aivle.backend.admin;
 
-import com.aivle.backend.audit.AuditEvent;
-import com.aivle.backend.audit.AuditEventRepository;
-import com.aivle.backend.audit.AuditEventType;
-import com.aivle.backend.audit.DomainAuditService;
 import com.aivle.backend.common.entity.UserRole;
 import com.aivle.backend.common.entity.UserStatus;
 import com.aivle.backend.common.exception.BusinessException;
 import com.aivle.backend.common.exception.ErrorCode;
 import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.user.entity.User;
-import com.aivle.backend.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,7 +30,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -44,18 +37,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminController {
     private final AdminAccessService access;
     private final AdminUserService adminUsers;
-    private final UserRepository users;
     private final AdminProjectService adminProjects;
-    private final AuditEventRepository auditEvents;
-    private final ServiceSettingRepository settings;
-    private final DomainAuditService audits;
-    private final Clock jobClock;
+    private final AdminAuditQueryService auditQuery;
+    private final AdminAuditService audits;
     private final AdminOverviewService overviewService;
     private final AdminReauthenticationService reauthentication;
+    private final AdminSettingService adminSettings;
 
     @PostMapping("/reauthenticate")
     public ApiResponse<AdminReauthenticationService.IssuedToken> reauthenticate(@Valid @RequestBody ReauthenticationRequest body, HttpServletRequest request) {
-        return ApiResponse.success(reauthentication.issue(access.requireAdmin(), body.password(), body.purpose()), requestId(request));
+        return ApiResponse.success(reauthentication.issue(access.requireAdmin(), body.password(), body.purpose(), AdminAuditContext.from(request)), requestId(request));
     }
 
     @GetMapping("/overview")
@@ -87,21 +78,41 @@ public class AdminController {
     @PatchMapping("/users/{userId}/status")
     public ApiResponse<AdminUserService.AdminUserResponse> updateStatus(@PathVariable Long userId, @Valid @RequestBody StatusRequest body, @RequestHeader(name = "X-Admin-Action-Token", required = false) String actionToken, HttpServletRequest request) {
         User actor = access.requireAdmin();
-        if (parseStatus(body.status()) == UserStatus.DISABLED) reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.USER_DISABLE);
-        return ApiResponse.success(adminUsers.changeStatus(actor, userId, parseStatus(body.status()), body.reason(), requestId(request)), requestId(request));
+        AdminAuditContext context = AdminAuditContext.from(request);
+        try {
+            UserStatus nextStatus = parseStatus(body.status());
+            if (nextStatus == UserStatus.DISABLED) reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.USER_DISABLE, context);
+            return ApiResponse.success(adminUsers.changeStatus(actor, userId, nextStatus, body.reason(), context), requestId(request));
+        } catch (BusinessException failure) {
+            auditFailure(actor, AdminAuditAction.USER_STATUS_CHANGED, AdminAuditTargetType.USER, userId, body.reason(), failure, context);
+            throw failure;
+        }
     }
 
     @PatchMapping("/users/{userId}/role")
     public ApiResponse<AdminUserService.AdminUserResponse> updateRole(@PathVariable Long userId, @Valid @RequestBody RoleRequest body, @RequestHeader(name = "X-Admin-Action-Token", required = false) String actionToken, HttpServletRequest request) {
         User actor = access.requireAdmin();
-        reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.USER_ROLE_CHANGE);
-        return ApiResponse.success(adminUsers.changeRole(actor, userId, parseRole(body.role()), body.reason(), requestId(request)), requestId(request));
+        AdminAuditContext context = AdminAuditContext.from(request);
+        try {
+            reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.USER_ROLE_CHANGE, context);
+            return ApiResponse.success(adminUsers.changeRole(actor, userId, parseRole(body.role()), body.reason(), context), requestId(request));
+        } catch (BusinessException failure) {
+            auditFailure(actor, AdminAuditAction.USER_ROLE_CHANGED, AdminAuditTargetType.USER, userId, body.reason(), failure, context);
+            throw failure;
+        }
     }
 
     @PostMapping("/users/{userId}/sessions/revoke")
     public ApiResponse<Void> revokeSessions(@PathVariable Long userId, @Valid @RequestBody ReasonRequest body, HttpServletRequest request) {
-        adminUsers.revokeSessions(access.requireAdmin(), userId, body.reason(), requestId(request));
-        return ApiResponse.success(null, requestId(request));
+        User actor = access.requireAdmin();
+        AdminAuditContext context = AdminAuditContext.from(request);
+        try {
+            adminUsers.revokeSessions(actor, userId, body.reason(), context);
+            return ApiResponse.success(null, requestId(request));
+        } catch (BusinessException failure) {
+            auditFailure(actor, AdminAuditAction.USER_SESSION_REVOKED, AdminAuditTargetType.USER, userId, body.reason(), failure, context);
+            throw failure;
+        }
     }
 
     @GetMapping("/projects")
@@ -137,37 +148,50 @@ public class AdminController {
     }
 
     @GetMapping("/audit")
-    public ApiResponse<Page<AuditResponse>> audit(@RequestParam(required = false) String action, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size, HttpServletRequest request) {
+    public ApiResponse<Page<AdminAuditQueryService.AuditListItem>> audit(
+        @RequestParam(required = false) String actor,
+        @RequestParam(required = false) String action,
+        @RequestParam(required = false) String result,
+        @RequestParam(required = false) String targetType,
+        @RequestParam(required = false) String requestId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate occurredFrom,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate occurredTo,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "50") int size,
+        @RequestParam(defaultValue = "occurredAt,desc") String sort,
+        HttpServletRequest request
+    ) {
         access.requireAdmin();
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
-        Page<AuditEvent> events = action == null || action.isBlank()
-            ? auditEvents.findAllByOrderByOccurredAtDesc(pageable)
-            : auditEvents.findAllByEventTypeContainingIgnoreCaseOrderByOccurredAtDesc(action.trim(), pageable);
-        return ApiResponse.success(events.map(this::auditResponse), requestId(request));
+        if (occurredFrom != null && occurredTo != null && occurredFrom.isAfter(occurredTo)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        var filter = new AdminAuditQueryService.AuditQuery(
+            actor, parseAuditAction(action), parseAuditResult(result), parseAuditTargetType(targetType),
+            requestId, occurredFrom, occurredTo
+        );
+        return ApiResponse.success(auditQuery.list(filter, auditPageable(page, size, sort)), requestId(request));
+    }
+
+    @GetMapping("/audit/{auditId}")
+    public ApiResponse<AdminAuditQueryService.AuditDetail> auditDetail(@PathVariable Long auditId, HttpServletRequest request) {
+        access.requireAdmin();
+        return ApiResponse.success(auditQuery.detail(auditId), requestId(request));
     }
 
     @GetMapping("/settings")
-    public ApiResponse<List<SettingResponse>> settings(HttpServletRequest request) {
+    public ApiResponse<List<AdminSettingService.SettingResponse>> settings(HttpServletRequest request) {
         access.requireAdmin();
-        return ApiResponse.success(java.util.Arrays.stream(ServiceSettingKey.values()).map(key -> settings.findById(key.name())
-            .map(this::settingResponse).orElse(new SettingResponse(key.name(), key.defaultValue(), null, null))).toList(), requestId(request));
+        return ApiResponse.success(adminSettings.list(), requestId(request));
     }
 
     @PatchMapping("/settings/{key}")
-    public ApiResponse<SettingResponse> updateSetting(@PathVariable String key, @Valid @RequestBody SettingRequest body, @RequestHeader(name = "X-Admin-Action-Token", required = false) String actionToken, HttpServletRequest request) {
+    public ApiResponse<AdminSettingService.SettingResponse> updateSetting(@PathVariable String key, @Valid @RequestBody SettingRequest body, @RequestHeader(name = "X-Admin-Action-Token", required = false) String actionToken, HttpServletRequest request) {
         User actor = access.requireAdmin();
-        ServiceSettingKey settingKey;
-        try { settingKey = ServiceSettingKey.valueOf(key); } catch (IllegalArgumentException exception) { throw new BusinessException(ErrorCode.SERVICE_SETTING_INVALID); }
-        if (!("true".equals(body.value()) || "false".equals(body.value()))) throw new BusinessException(ErrorCode.SERVICE_SETTING_INVALID);
-        if (settingKey == ServiceSettingKey.MAINTENANCE_MODE && "true".equals(body.value())) reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.MAINTENANCE_MODE_ENABLE);
-        LocalDateTime now = LocalDateTime.now(jobClock);
-        ServiceSetting setting = settings.findById(settingKey.name()).orElseGet(() -> new ServiceSetting(settingKey.name(), body.value(), actor.getId(), now));
-        String before = setting.getSettingValue();
-        setting.update(body.value(), actor.getId(), now);
-        settings.save(setting);
-        audits.record(actor.getId(), null, AuditEventType.ADMIN_SETTING_UPDATED, "SERVICE_SETTING", null, requestId(request),
-            Map.of("settingKey", settingKey.name(), "before", before, "after", body.value(), "reason", body.reason()));
-        return ApiResponse.success(settingResponse(setting), requestId(request));
+        AdminAuditContext context = AdminAuditContext.from(request);
+        return ApiResponse.success(
+            adminSettings.update(actor, key, body.value(), body.reason(), actionToken, context),
+            requestId(request)
+        );
     }
 
     @GetMapping("/ai/services")
@@ -199,14 +223,39 @@ public class AdminController {
             : Sort.Direction.DESC;
         return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(direction, property));
     }
+    private Pageable auditPageable(int page, int size, String sort) {
+        String[] parts = sort.split(",", 2);
+        boolean supported = switch (parts[0]) {
+            case "occurredAt", "actorUsername", "action", "result" -> true;
+            default -> false;
+        };
+        String property = switch (supported ? parts[0] : "occurredAt") {
+            case "actorUsername" -> "actor.username";
+            case "action" -> "eventType";
+            default -> supported ? parts[0] : "occurredAt";
+        };
+        Sort.Direction direction = supported && parts.length > 1 && "asc".equalsIgnoreCase(parts[1])
+            ? Sort.Direction.ASC
+            : Sort.Direction.DESC;
+        return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(direction, property));
+    }
     private UserRole parseRole(String value) { if (value == null || value.isBlank()) return null; try { return UserRole.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
     private UserStatus parseStatus(String value) { if (value == null || value.isBlank()) return null; try { return UserStatus.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
     private ProjectArea parseArea(String value) { if (value == null || value.isBlank()) return null; try { return ProjectArea.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
     private com.aivle.backend.common.entity.ProjectStatus parseProjectStatus(String value) { if (value == null || value.isBlank()) return null; try { return com.aivle.backend.common.entity.ProjectStatus.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
     private com.aivle.backend.common.entity.ProjectStage parseProjectStage(String value) { if (value == null || value.isBlank()) return null; try { return com.aivle.backend.common.entity.ProjectStage.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
-    private AuditResponse auditResponse(AuditEvent a) { return new AuditResponse(a.getId(), a.getActorUserId(), a.getEventType(), a.getAggregateType(), a.getAggregateId(), a.getRequestId(), a.getMetadataJson(), a.getOccurredAt()); }
-    private SettingResponse settingResponse(ServiceSetting s) { return new SettingResponse(s.getSettingKey(), s.getSettingValue(), s.getUpdatedBy(), s.getUpdatedAt()); }
+    private AdminAuditAction parseAuditAction(String value) { if (value == null || value.isBlank()) return null; try { return AdminAuditAction.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
+    private AdminAuditResult parseAuditResult(String value) { if (value == null || value.isBlank()) return null; try { return AdminAuditResult.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
+    private AdminAuditTargetType parseAuditTargetType(String value) { if (value == null || value.isBlank()) return null; try { return AdminAuditTargetType.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { throw new BusinessException(ErrorCode.INVALID_REQUEST); } }
     private String requestId(HttpServletRequest request) { return request.getHeader("X-Request-Id"); }
+    private void auditFailure(User actor, AdminAuditAction action, AdminAuditTargetType targetType, Long targetId,
+                              String reason, BusinessException failure, AdminAuditContext context) {
+        audits.recordFailureSafely(
+            actor.getId(), action, targetType, targetId,
+            targetId == null ? targetType.name() : targetId.toString(),
+            reason, failure.getErrorCode().name(), context, Map.of()
+        );
+    }
 
     public record StatusRequest(String status, @NotBlank(message = "reason is required") String reason) { }
     public record RoleRequest(String role, @NotBlank(message = "reason is required") String reason) { }
@@ -217,7 +266,5 @@ public class AdminController {
     public record ProjectMetrics(long total, long active, long completed) { }
     public record JobMetrics(long pending, long running, long failed, boolean available) { }
     public record OverviewResponse(UserMetrics users, ProjectMetrics projects, JobMetrics jobs, LocalDateTime generatedAt) { }
-    public record AuditResponse(Long id, Long actorUserId, String action, String aggregateType, Long aggregateId, String requestId, String metadata, LocalDateTime occurredAt) { }
-    public record SettingResponse(String key, String value, Long updatedBy, LocalDateTime updatedAt) { }
     public record AvailabilityResponse(boolean available, List<Object> items) { }
 }

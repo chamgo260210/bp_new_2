@@ -14,8 +14,12 @@ const MESSAGES = {
   AUTHENTICATION_REQUIRED: '로그인이 필요합니다.',
   USER_NOT_FOUND: '사용자를 찾을 수 없습니다.',
   PROJECT_NOT_FOUND: '프로젝트를 찾을 수 없습니다.',
+  AUDIT_EVENT_NOT_FOUND: '감사 기록을 찾을 수 없습니다.',
   INVALID_REQUEST: '검색 조건을 확인해 주세요.',
   USER_ALREADY_LOCKED: '이미 잠긴 사용자입니다.',
+  SERVICE_SETTING_INVALID: '서비스 설정 값이 올바르지 않습니다.',
+  SERVICE_SETTING_ALREADY_APPLIED: '이미 적용된 설정입니다. 최신 상태를 다시 확인해 주세요.',
+  SERVICE_SETTING_NOT_FOUND: '서비스 설정을 찾을 수 없습니다.',
 };
 
 export function getAdminErrorMessage(error) {

@@ -4,6 +4,8 @@ const LABELS = {
   DISABLED: '비활성',
   USER: 'USER',
   ADMIN: 'ADMIN',
+  SUCCESS: '성공',
+  FAILED: '실패',
 };
 
 export default function AdminStatusBadge({ value }) {

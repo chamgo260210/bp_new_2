@@ -1,7 +1,5 @@
 package com.aivle.backend.admin;
 
-import com.aivle.backend.audit.AuditEventType;
-import com.aivle.backend.audit.DomainAuditService;
 import com.aivle.backend.auth.RefreshTokenRepository;
 import com.aivle.backend.common.entity.UserRole;
 import com.aivle.backend.common.entity.UserStatus;
@@ -25,7 +23,7 @@ public class AdminUserService {
     private final UserRepository users;
     private final ProjectRepository projects;
     private final RefreshTokenRepository refreshTokens;
-    private final DomainAuditService audits;
+    private final AdminAuditService audits;
     private final Clock jobClock;
 
     @Transactional(readOnly = true)
@@ -42,7 +40,7 @@ public class AdminUserService {
     }
 
     @Transactional
-    public AdminUserResponse changeStatus(User actor, Long userId, UserStatus status, String reason, String requestId) {
+    public AdminUserResponse changeStatus(User actor, Long userId, UserStatus status, String reason, AdminAuditContext context) {
         User target = find(userId);
         if (actor.getId().equals(target.getId()) && status != UserStatus.ACTIVE) throw new BusinessException(ErrorCode.SELF_ADMIN_ACCOUNT_CHANGE_NOT_ALLOWED);
         if (target.getStatus() == status) {
@@ -57,13 +55,17 @@ public class AdminUserService {
         target.updateStatus(status, reason.trim(), LocalDateTime.now(jobClock));
         target.advanceSecurityVersion();
         revoke(target.getId());
-        audits.record(actor.getId(), null, AuditEventType.ADMIN_USER_STATUS_CHANGED, "USER", target.getId(), requestId,
-            Map.of("before", before.name(), "after", status.name(), "reason", reason.trim(), "targetUserId", target.getId().toString()));
+        audits.recordSuccess(
+            actor.getId(), AdminAuditAction.USER_STATUS_CHANGED, AdminAuditTargetType.USER,
+            target.getId(), target.getUsername(), reason.trim(),
+            Map.of("status", before.name()), Map.of("status", status.name()),
+            context, Map.of()
+        );
         return response(target);
     }
 
     @Transactional
-    public AdminUserResponse changeRole(User actor, Long userId, UserRole role, String reason, String requestId) {
+    public AdminUserResponse changeRole(User actor, Long userId, UserRole role, String reason, AdminAuditContext context) {
         User target = find(userId);
         if (actor.getId().equals(target.getId()) && target.getRole() == UserRole.ADMIN && role != UserRole.ADMIN) {
             throw new BusinessException(ErrorCode.SELF_ADMIN_ROLE_CHANGE_NOT_ALLOWED);
@@ -76,19 +78,26 @@ public class AdminUserService {
         target.updateRole(role, actor.getId(), LocalDateTime.now(jobClock));
         target.advanceSecurityVersion();
         revoke(target.getId());
-        audits.record(actor.getId(), null, AuditEventType.ADMIN_USER_ROLE_CHANGED, "USER", target.getId(), requestId,
-            Map.of("before", before.name(), "after", role.name(), "reason", reason.trim(), "targetUserId", target.getId().toString()));
+        audits.recordSuccess(
+            actor.getId(), AdminAuditAction.USER_ROLE_CHANGED, AdminAuditTargetType.USER,
+            target.getId(), target.getUsername(), reason.trim(),
+            Map.of("role", before.name()), Map.of("role", role.name()),
+            context, Map.of()
+        );
         return response(target);
     }
 
     @Transactional
-    public void revokeSessions(User actor, Long userId, String reason, String requestId) {
+    public void revokeSessions(User actor, Long userId, String reason, AdminAuditContext context) {
         if (actor.getId().equals(userId)) throw new BusinessException(ErrorCode.SELF_SESSION_REVOKE_NOT_ALLOWED);
-        find(userId);
-        users.findById(userId).ifPresent(User::advanceSecurityVersion);
+        User target = find(userId);
+        target.advanceSecurityVersion();
         revoke(userId);
-        audits.record(actor.getId(), null, AuditEventType.ADMIN_USER_SESSIONS_REVOKED, "USER", userId, requestId,
-            Map.of("reason", reason.trim(), "targetUserId", userId.toString()));
+        audits.recordSuccess(
+            actor.getId(), AdminAuditAction.USER_SESSION_REVOKED, AdminAuditTargetType.USER,
+            userId, target.getUsername(), reason.trim(),
+            Map.of(), Map.of("sessions", "REVOKED"), context, Map.of()
+        );
     }
 
     private void revoke(Long userId) {

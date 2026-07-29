@@ -15,6 +15,7 @@ export default function AdminActionConfirmDialog({
   onCancel,
   onConfirm,
   busy = false,
+  confirmLabel = '확인',
 }) {
   const [reason, setReason] = useState('');
   const [password, setPassword] = useState('');
@@ -110,7 +111,7 @@ export default function AdminActionConfirmDialog({
       {submitError && <p className="admin-error" role="alert" tabIndex="-1">{submitError}</p>}
       <div className="admin-actions admin-confirm-actions">
         <Button variant="outline" disabled={submitting} onClick={close}>취소</Button>
-        <Button loading={submitting} disabled={submitting} onClick={submit}>확인</Button>
+        <Button loading={submitting} disabled={submitting} onClick={submit}>{confirmLabel}</Button>
       </div>
     </Dialog>
   );

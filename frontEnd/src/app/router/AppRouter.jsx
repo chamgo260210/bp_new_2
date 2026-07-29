@@ -25,9 +25,11 @@ import PersonaPage from '../../features/personas/PersonaPage.jsx';
 import ReportPage from '../../features/report/ReportPage.jsx';
 import LandingPage from '../../features/landing/LandingPage.jsx';
 import AdminShell from '../layouts/AdminShell.jsx';
-import { AdminAuditPage, AdminJobsPage, AdminOperationsPage, AdminOverviewPage, AdminSettingsPage } from '../../features/admin/pages/AdminPages.jsx';
+import { AdminJobsPage, AdminOperationsPage, AdminOverviewPage } from '../../features/admin/pages/AdminPages.jsx';
+import AdminSettingsPage from '../../features/admin/pages/AdminSettingsPage.jsx';
 import AdminUsersPage, { AdminUserDetailOverlay } from '../../features/admin/pages/AdminUsersPage.jsx';
 import AdminProjectsPage, { AdminProjectDetailOverlay } from '../../features/admin/pages/AdminProjectsPage.jsx';
+import AdminAuditPage, { AdminAuditDetailOverlay } from '../../features/admin/pages/AdminAuditPage.jsx';
 
 function LegacyProjectRedirect({ suffix = '' }) {
   const { projectId } = useParams();
@@ -119,6 +121,7 @@ export default function AppRouter() {
             <Route path="admin/operations" element={<AdminOperationsPage />} />
             <Route path="admin/jobs" element={<AdminJobsPage />} />
             <Route path="admin/audit" element={<AdminAuditPage />} />
+            <Route path="admin/audit/:auditId" element={<AdminAuditPage />} />
             <Route path="admin/settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>
@@ -133,6 +136,7 @@ export default function AppRouter() {
         <Route element={<AdminRoute />}>
           <Route path="admin/users/:userId" element={<AdminUserDetailOverlay />} />
           <Route path="admin/projects/:projectId" element={<AdminProjectDetailOverlay />} />
+          <Route path="admin/audit/:auditId" element={<AdminAuditDetailOverlay />} />
         </Route>
       </Route>
     </Routes>}

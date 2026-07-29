@@ -119,8 +119,15 @@ export default function AdminUserDetailSheet({ userId, onRequestClose, onChanged
         title={user ? `${user.displayName || user.username} 사용자 상세` : '사용자 상세'}
         label="관리자 사용자 상세"
         describedBy={descriptionId}
-      >
-        <p id={descriptionId} className="admin-sheet-description">
+    >
+      <nav className="admin-breadcrumb" aria-label="현재 위치">
+        <Link to="/admin">Admin</Link>
+        <span aria-hidden="true"> / </span>
+        <Link to="/admin/users">Users</Link>
+        <span aria-hidden="true"> / </span>
+        <span aria-current="page">사용자 상세</span>
+      </nav>
+      <p id={descriptionId} className="admin-sheet-description">
           계정 정보와 현재 허용되는 운영 작업을 확인합니다.
         </p>
         {loading && <p className="admin-sheet-state" role="status">사용자 정보를 불러오는 중입니다.</p>}
