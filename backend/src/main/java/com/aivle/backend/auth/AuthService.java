@@ -231,7 +231,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public UserResponse me(Long currentUserId) {
-        User user = userRepository.findById(currentUserId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(currentUserId)
             .filter(User::canLogin)
             .orElseThrow(() ->
                 new BusinessException(ErrorCode.AUTHENTICATION_REQUIRED));
@@ -274,7 +274,7 @@ public class AuthService {
     }
 
     private User activeUser(Long userId) {
-        return userRepository.findById(userId)
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
             .filter(User::canLogin)
             .orElseThrow(() -> new BusinessException(ErrorCode.AUTHENTICATION_REQUIRED));
     }

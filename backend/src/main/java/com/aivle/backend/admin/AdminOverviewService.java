@@ -24,10 +24,35 @@ public class AdminOverviewService {
             + users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE);
         long locked = users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.USER, UserStatus.LOCKED)
             + users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.LOCKED);
-        long activeProjects = projects.countByStatusInAndDeletedAtIsNull(List.of(ProjectStatus.DRAFT, ProjectStatus.ACTIVE, ProjectStatus.PAUSED));
+        long inProgressProjects = projects.countAdminVisibleByStatusIn(
+            List.of(ProjectStatus.DRAFT, ProjectStatus.ACTIVE)
+        );
+        long pausedProjects = projects.countAdminVisibleByStatus(ProjectStatus.PAUSED);
         return new AdminController.OverviewResponse(
-            new AdminController.UserMetrics(users.countByDeletedAtIsNull(), active, locked),
-            new AdminController.ProjectMetrics(projects.countByDeletedAtIsNull(), activeProjects, projects.countByStatusAndDeletedAtIsNull(ProjectStatus.COMPLETED)),
-            new AdminController.JobMetrics(0, 0, 0, false), LocalDateTime.now(jobClock));
+            new AdminController.UserMetrics(
+                users.countByDeletedAtIsNull(),
+                active,
+                locked,
+                users.countByStatusAndDeletedAtIsNull(UserStatus.DISABLED),
+                users.countByRoleAndDeletedAtIsNull(UserRole.ADMIN)
+            ),
+            new AdminController.ProjectMetrics(
+                projects.countAdminVisible(),
+                inProgressProjects,
+                pausedProjects,
+                projects.countAdminVisibleByStatus(ProjectStatus.COMPLETED),
+                projects.countAdminVisibleCreatedSince(
+                    LocalDateTime.now(jobClock).minusDays(7)
+                )
+            ),
+            new AdminController.JobMetrics(
+                false,
+                "AI_SERVER_NOT_CONNECTED",
+                null,
+                null,
+                null
+            ),
+            LocalDateTime.now(jobClock)
+        );
     }
 }

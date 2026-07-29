@@ -2,6 +2,10 @@
 
 이 문서는 현재 구현된 API와 화면에 적용된 운영 정책만 정리한다. `MAINTENANCE_MODE`는 인증된 사용자의 상태 변경을 중단하는 상위 정책이며, `DOCUMENT_PROCESSING_ENABLED`는 문서 업로드와 문서 기반 신규 분석 시작을 별도로 통제한다.
 
+V16 Migration은 Legacy camelCase Key를 대문자 canonical Key로 통합한다. 두 형식이
+동시에 존재하면 canonical 값을 우선하고 Legacy 행을 제거하므로 런타임에서는
+canonical Key만 조회한다.
+
 | Endpoint 또는 기능 | Method | 로그인 | Maintenance OFF | Maintenance ON USER | Maintenance ON ADMIN | Document Processing OFF |
 | --- | --- | --- | --- | --- | --- | --- |
 | 공개 서비스 정책 조회 | `GET /api/v1/service-policy` | 불필요 | 허용 | 허용 | 허용 | Boolean 상태만 조회 |

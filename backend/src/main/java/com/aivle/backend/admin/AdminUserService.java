@@ -24,6 +24,7 @@ public class AdminUserService {
     private final ProjectRepository projects;
     private final RefreshTokenRepository refreshTokens;
     private final AdminAuditService audits;
+    private final AdminReauthenticationService reauthentication;
     private final Clock jobClock;
 
     @Transactional(readOnly = true)
@@ -40,7 +41,13 @@ public class AdminUserService {
     }
 
     @Transactional
-    public AdminUserResponse changeStatus(User actor, Long userId, UserStatus status, String reason, AdminAuditContext context) {
+    public AdminUserResponse changeStatus(User actor, Long userId, UserStatus status, String reason,
+                                          String actionToken, AdminAuditContext context) {
+        if (status == UserStatus.DISABLED) {
+            reauthentication.requireAndConsume(
+                actor, actionToken, AdminActionPurpose.USER_DISABLE, context
+            );
+        }
         User target = find(userId);
         if (actor.getId().equals(target.getId()) && status != UserStatus.ACTIVE) throw new BusinessException(ErrorCode.SELF_ADMIN_ACCOUNT_CHANGE_NOT_ALLOWED);
         if (target.getStatus() == status) {
@@ -65,7 +72,11 @@ public class AdminUserService {
     }
 
     @Transactional
-    public AdminUserResponse changeRole(User actor, Long userId, UserRole role, String reason, AdminAuditContext context) {
+    public AdminUserResponse changeRole(User actor, Long userId, UserRole role, String reason,
+                                        String actionToken, AdminAuditContext context) {
+        reauthentication.requireAndConsume(
+            actor, actionToken, AdminActionPurpose.USER_ROLE_CHANGE, context
+        );
         User target = find(userId);
         if (actor.getId().equals(target.getId()) && target.getRole() == UserRole.ADMIN && role != UserRole.ADMIN) {
             throw new BusinessException(ErrorCode.SELF_ADMIN_ROLE_CHANGE_NOT_ALLOWED);

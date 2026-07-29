@@ -16,6 +16,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
     long countByRoleAndStatusAndDeletedAtIsNull(com.aivle.backend.common.entity.UserRole role, com.aivle.backend.common.entity.UserStatus status);
+    long countByRoleAndDeletedAtIsNull(com.aivle.backend.common.entity.UserRole role);
+    long countByStatusAndDeletedAtIsNull(com.aivle.backend.common.entity.UserStatus status);
     long countByDeletedAtIsNull();
 
     @Query("""

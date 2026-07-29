@@ -9,6 +9,7 @@ import com.aivle.backend.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -81,8 +82,10 @@ public class AdminController {
         AdminAuditContext context = AdminAuditContext.from(request);
         try {
             UserStatus nextStatus = parseStatus(body.status());
-            if (nextStatus == UserStatus.DISABLED) reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.USER_DISABLE, context);
-            return ApiResponse.success(adminUsers.changeStatus(actor, userId, nextStatus, body.reason(), context), requestId(request));
+            return ApiResponse.success(
+                adminUsers.changeStatus(actor, userId, nextStatus, body.reason(), actionToken, context),
+                requestId(request)
+            );
         } catch (BusinessException failure) {
             auditFailure(actor, AdminAuditAction.USER_STATUS_CHANGED, AdminAuditTargetType.USER, userId, body.reason(), failure, context);
             throw failure;
@@ -94,8 +97,10 @@ public class AdminController {
         User actor = access.requireAdmin();
         AdminAuditContext context = AdminAuditContext.from(request);
         try {
-            reauthentication.requireAndConsume(actor, actionToken, AdminActionPurpose.USER_ROLE_CHANGE, context);
-            return ApiResponse.success(adminUsers.changeRole(actor, userId, parseRole(body.role()), body.reason(), context), requestId(request));
+            return ApiResponse.success(
+                adminUsers.changeRole(actor, userId, parseRole(body.role()), body.reason(), actionToken, context),
+                requestId(request)
+            );
         } catch (BusinessException failure) {
             auditFailure(actor, AdminAuditAction.USER_ROLE_CHANGED, AdminAuditTargetType.USER, userId, body.reason(), failure, context);
             throw failure;
@@ -195,9 +200,22 @@ public class AdminController {
     }
 
     @GetMapping("/ai/services")
-    public ApiResponse<AvailabilityResponse> aiServices(HttpServletRequest request) { access.requireAdmin(); return ApiResponse.success(new AvailabilityResponse(false, List.of()), requestId(request)); }
+    public ApiResponse<AvailabilityResponse> aiServices(HttpServletRequest request) {
+        access.requireAdmin();
+        return ApiResponse.success(
+            new AvailabilityResponse(false, "AI_SERVER_NOT_CONNECTED", List.of()),
+            requestId(request)
+        );
+    }
+
     @GetMapping("/jobs")
-    public ApiResponse<AvailabilityResponse> jobs(HttpServletRequest request) { access.requireAdmin(); return ApiResponse.success(new AvailabilityResponse(false, List.of()), requestId(request)); }
+    public ApiResponse<AvailabilityResponse> jobs(HttpServletRequest request) {
+        access.requireAdmin();
+        return ApiResponse.success(
+            new AvailabilityResponse(false, "AI_SERVER_NOT_CONNECTED", List.of()),
+            requestId(request)
+        );
+    }
 
     private Pageable pageable(int page, int size, String sort) {
         String[] parts = sort.split(",", 2);
@@ -261,10 +279,10 @@ public class AdminController {
     public record RoleRequest(String role, @NotBlank(message = "reason is required") String reason) { }
     public record ReasonRequest(@NotBlank(message = "reason is required") String reason) { }
     public record SettingRequest(String value, @NotBlank(message = "reason is required") String reason) { }
-    public record ReauthenticationRequest(@NotBlank String password, AdminActionPurpose purpose) { }
-    public record UserMetrics(long total, long active, long locked) { }
-    public record ProjectMetrics(long total, long active, long completed) { }
-    public record JobMetrics(long pending, long running, long failed, boolean available) { }
+    public record ReauthenticationRequest(@NotBlank String password, @NotNull AdminActionPurpose purpose) { }
+    public record UserMetrics(long total, long active, long locked, long disabled, long admins) { }
+    public record ProjectMetrics(long total, long inProgress, long paused, long completed, long createdLast7Days) { }
+    public record JobMetrics(boolean available, String reason, Long pending, Long running, Long failed) { }
     public record OverviewResponse(UserMetrics users, ProjectMetrics projects, JobMetrics jobs, LocalDateTime generatedAt) { }
-    public record AvailabilityResponse(boolean available, List<Object> items) { }
+    public record AvailabilityResponse(boolean available, String reason, List<Object> items) { }
 }

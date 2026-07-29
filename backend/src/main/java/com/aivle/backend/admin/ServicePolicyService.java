@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,10 +31,9 @@ public class ServicePolicyService {
 
     @Transactional(readOnly = true)
     public ServicePolicySnapshot snapshot() {
-        LinkedHashSet<String> keys = Arrays.stream(ServiceSettingKey.values())
-            .flatMap(key -> java.util.stream.Stream.of(key.name(), key.legacyKey()))
-            .collect(Collectors.toCollection(LinkedHashSet::new));
-        Map<String, ServiceSetting> valuesByKey = settings.findAllById(keys).stream()
+        Map<String, ServiceSetting> valuesByKey = settings.findAllById(
+            Arrays.stream(ServiceSettingKey.values()).map(Enum::name).toList()
+        ).stream()
             .collect(Collectors.toMap(ServiceSetting::getSettingKey, Function.identity()));
         return new ServicePolicySnapshot(
             enabled(ServiceSettingKey.REGISTRATION_ENABLED, valuesByKey),
@@ -63,16 +61,12 @@ public class ServicePolicyService {
 
     private boolean enabled(ServiceSettingKey key) {
         String value = settings.findById(key.name()).map(ServiceSetting::getSettingValue)
-            .or(() -> settings.findById(key.legacyKey()).map(ServiceSetting::getSettingValue))
             .orElse(key.defaultValue());
         return Boolean.parseBoolean(value);
     }
 
     private boolean enabled(ServiceSettingKey key, Map<String, ServiceSetting> valuesByKey) {
         ServiceSetting setting = valuesByKey.get(key.name());
-        if (setting == null) {
-            setting = valuesByKey.get(key.legacyKey());
-        }
         return Boolean.parseBoolean(setting == null ? key.defaultValue() : setting.getSettingValue());
     }
 
