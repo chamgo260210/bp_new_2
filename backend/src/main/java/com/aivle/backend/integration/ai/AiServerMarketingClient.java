@@ -1,31 +1,19 @@
 package com.aivle.backend.integration.ai;
 
+import com.aivle.backend.integration.ai.dto.MarketingBannerResult;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
-/**
- * Preserves the AIdev multipart marketing Mock integration baseline.
- *
- * <p>Direct RestTemplate construction, untyped Map responses, and byte-array
- * relay are intentionally retained for this phase. They are explicit follow-up
- * targets when the common AI Task client is introduced.</p>
- */
 @Component
 public class AiServerMarketingClient {
 
@@ -35,29 +23,19 @@ public class AiServerMarketingClient {
         StandardCharsets.UTF_8
     );
 
-    private final RestTemplate restTemplate;
-    private final String generateBannerUrl;
+    private final RestClient restClient;
+    private final AiServerClientSupport support;
 
-    @Autowired
     public AiServerMarketingClient(
-        @Value("${app.ai-server.base-url:http://127.0.0.1:8000}")
-        String baseUrl
+        @Qualifier("aiServerRestClient")
+        RestClient restClient,
+        AiServerClientSupport support
     ) {
-        this(
-            new RestTemplate(),
-            baseUrl + "/api/v1/marketing/banners/generate"
-        );
+        this.restClient = restClient;
+        this.support = support;
     }
 
-    AiServerMarketingClient(
-        RestTemplate restTemplate,
-        String generateBannerUrl
-    ) {
-        this.restTemplate = restTemplate;
-        this.generateBannerUrl = generateBannerUrl;
-    }
-
-    public Map<String, Object> generateBanner(
+    public MarketingBannerResult generateBanner(
         String promotionName,
         String mainBanner,
         String supportingCopy,
@@ -66,9 +44,30 @@ public class AiServerMarketingClient {
         String emphasisKeywords,
         MultipartFile image
     ) throws IOException {
+        return generateBanner(
+            promotionName,
+            mainBanner,
+            supportingCopy,
+            mood,
+            bannerFormat,
+            emphasisKeywords,
+            image,
+            null
+        );
+    }
+
+    public MarketingBannerResult generateBanner(
+        String promotionName,
+        String mainBanner,
+        String supportingCopy,
+        String mood,
+        String bannerFormat,
+        String emphasisKeywords,
+        MultipartFile image,
+        String candidateRequestId
+    ) throws IOException {
         MultiValueMap<String, Object> multipartBody =
             new LinkedMultiValueMap<>();
-
         multipartBody.add(
             "promotion_name",
             createTextPart(promotionName)
@@ -98,31 +97,21 @@ public class AiServerMarketingClient {
             createImagePart(image)
         );
 
-        HttpHeaders requestHeaders = new HttpHeaders();
-        requestHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-        HttpEntity<MultiValueMap<String, Object>> requestEntity =
-            new HttpEntity<>(
-                multipartBody,
-                requestHeaders
-            );
-
-        ResponseEntity<Map<String, Object>> response =
-            restTemplate.exchange(
-                generateBannerUrl,
-                HttpMethod.POST,
-                requestEntity,
-                new ParameterizedTypeReference<>() {
-                }
-            );
-
-        Map<String, Object> responseBody = response.getBody();
-        if (responseBody == null) {
-            throw new IllegalStateException(
-                "AI 서버에서 배너 생성 결과를 받지 못했습니다."
-            );
-        }
-        return responseBody;
+        String requestId = support.resolveRequestId(
+            candidateRequestId
+        );
+        return support.execute(
+            requestId,
+            () -> restClient.post()
+                .uri("/api/v1/marketing/banners/generate")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .headers(headers ->
+                    support.addHeaders(headers, requestId)
+                )
+                .body(multipartBody)
+                .retrieve()
+                .body(MarketingBannerResult.class)
+        );
     }
 
     private HttpEntity<String> createTextPart(String value) {

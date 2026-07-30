@@ -1,7 +1,7 @@
 package com.aivle.backend.integration.ai;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.aivle.backend.integration.ai.dto.AiServerHealthResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -9,38 +9,45 @@ import org.springframework.web.client.RestClient;
 public class AiServerHealthClient {
 
     private final RestClient restClient;
+    private final AiServerClientSupport support;
 
-    @Autowired
     public AiServerHealthClient(
-        @Value("${app.ai-server.base-url:http://127.0.0.1:8000}")
-        String baseUrl
+        @Qualifier("aiServerRestClient")
+        RestClient restClient,
+        AiServerClientSupport support
     ) {
-        this(RestClient.builder()
-            .baseUrl(baseUrl)
-            .build());
-    }
-
-    AiServerHealthClient(RestClient restClient) {
         this.restClient = restClient;
+        this.support = support;
     }
 
     public AiServerHealthResponse checkHealth() {
-        AiServerHealthResponse response = restClient.get()
-            .uri("/health")
-            .retrieve()
-            .body(AiServerHealthResponse.class);
-
-        if (response == null) {
-            throw new IllegalStateException(
-                "AI 서버에서 응답을 받지 못했습니다."
-            );
-        }
-        return response;
+        return checkHealth(null);
     }
 
-    public record AiServerHealthResponse(
-        String status,
-        String service
+    public AiServerHealthResponse checkHealth(String requestId) {
+        return getHealth("/health", requestId);
+    }
+
+    public AiServerHealthResponse checkReady(String requestId) {
+        return getHealth("/health/ready", requestId);
+    }
+
+    private AiServerHealthResponse getHealth(
+        String path,
+        String candidateRequestId
     ) {
+        String requestId = support.resolveRequestId(
+            candidateRequestId
+        );
+        return support.execute(
+            requestId,
+            () -> restClient.get()
+                .uri(path)
+                .headers(headers ->
+                    support.addHeaders(headers, requestId)
+                )
+                .retrieve()
+                .body(AiServerHealthResponse.class)
+        );
     }
 }

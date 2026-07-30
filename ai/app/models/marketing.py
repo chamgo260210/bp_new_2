@@ -54,3 +54,7 @@ class MarketingBannerRequest(BaseModel):
             ):
                 cleaned_keywords.append(cleaned_keyword)
         return cleaned_keywords
+
+
+class MarketingBannerInput(MarketingBannerRequest):
+    """Normalized request data returned as part of the Mock result."""

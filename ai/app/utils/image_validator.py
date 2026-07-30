@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import UploadFile, status
+
+from app.api.errors import ApiHttpException
 
 
 ALLOWED_IMAGE_TYPES = {
@@ -25,15 +27,17 @@ async def read_and_validate_image(image: UploadFile) -> bytes:
     content_type = image.content_type or ""
 
     if extension not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
+        raise ApiHttpException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="PNG, JPG, JPEG, WEBP 이미지만 업로드할 수 있습니다.",
+            code="UNSUPPORTED_IMAGE_TYPE",
+            message="PNG, JPG, JPEG, WEBP 이미지만 업로드할 수 있습니다.",
         )
 
     if content_type not in ALLOWED_IMAGE_TYPES[extension]:
-        raise HTTPException(
+        raise ApiHttpException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="이미지 확장자와 Content-Type이 일치하지 않습니다.",
+            code="UNSUPPORTED_IMAGE_TYPE",
+            message="이미지 확장자와 Content-Type이 일치하지 않습니다.",
         )
 
     image_data = bytearray()
@@ -41,15 +45,17 @@ async def read_and_validate_image(image: UploadFile) -> bytes:
         image_data.extend(chunk)
         if len(image_data) > MAX_IMAGE_SIZE:
             await image.seek(0)
-            raise HTTPException(
+            raise ApiHttpException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="이미지 크기는 최대 10MB까지 허용됩니다.",
+                code="IMAGE_TOO_LARGE",
+                message="이미지 크기는 최대 10MB까지 허용됩니다.",
             )
 
     await image.seek(0)
     if not image_data:
-        raise HTTPException(
+        raise ApiHttpException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="빈 이미지 파일은 업로드할 수 없습니다.",
+            code="EMPTY_IMAGE",
+            message="빈 이미지 파일은 업로드할 수 없습니다.",
         )
     return bytes(image_data)

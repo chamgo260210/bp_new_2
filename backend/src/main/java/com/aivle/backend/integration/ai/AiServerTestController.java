@@ -1,13 +1,15 @@
 package com.aivle.backend.integration.ai;
 
 import java.io.IOException;
-import java.util.Map;
 
+import com.aivle.backend.integration.ai.dto.AiServerHealthResponse;
+import com.aivle.backend.integration.ai.dto.MarketingBannerResult;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,15 +35,21 @@ public class AiServerTestController {
     }
 
     @GetMapping("/health")
-    public AiServerHealthClient.AiServerHealthResponse checkHealth() {
-        return aiServerHealthClient.checkHealth();
+    public AiServerHealthResponse checkHealth(
+        @RequestHeader(
+            value = AiServerClientSupport.REQUEST_ID_HEADER,
+            required = false
+        )
+        String requestId
+    ) {
+        return aiServerHealthClient.checkReady(requestId);
     }
 
     @PostMapping(
         value = "/marketing/banners/generate",
         consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
-    public Map<String, Object> generateBanner(
+    public MarketingBannerResult generateBanner(
         @RequestParam("promotion_name")
         String promotionName,
         @RequestParam("main_banner")
@@ -58,7 +66,13 @@ public class AiServerTestController {
         )
         String emphasisKeywords,
         @RequestPart("image")
-        MultipartFile image
+        MultipartFile image,
+
+        @RequestHeader(
+            value = AiServerClientSupport.REQUEST_ID_HEADER,
+            required = false
+        )
+        String requestId
     ) throws IOException {
         return aiServerMarketingClient.generateBanner(
             promotionName,
@@ -67,7 +81,8 @@ public class AiServerTestController {
             mood,
             bannerFormat,
             emphasisKeywords,
-            image
+            image,
+            requestId
         );
     }
 }

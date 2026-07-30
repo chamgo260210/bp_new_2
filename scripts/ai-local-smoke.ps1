@@ -1,0 +1,229 @@
+[CmdletBinding()]
+param(
+    [int]$AiPort = 8000,
+    [int]$SpringPort = 8080,
+    [int]$StartupTimeoutSeconds = 120
+)
+
+$ErrorActionPreference = "Stop"
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$aiRoot = Join-Path $repoRoot "ai"
+$backendRoot = Join-Path $repoRoot "backend"
+$python = Join-Path $aiRoot ".venv\Scripts\python.exe"
+$gradle = Join-Path $backendRoot "gradlew.bat"
+$runtimeRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+    "aivle-ai-smoke-" + [guid]::NewGuid().ToString("N")
+)
+$aiOut = Join-Path $runtimeRoot "ai.stdout.log"
+$aiErr = Join-Path $runtimeRoot "ai.stderr.log"
+$springOut = Join-Path $runtimeRoot "spring.stdout.log"
+$springErr = Join-Path $runtimeRoot "spring.stderr.log"
+$sampleImage = Join-Path $runtimeRoot "smoke.png"
+$generatedMock = $null
+$aiProcess = $null
+$springProcess = $null
+
+function Test-PortInUse {
+    param([int]$Port)
+
+    $client = [System.Net.Sockets.TcpClient]::new()
+    try {
+        $pending = $client.BeginConnect("127.0.0.1", $Port, $null, $null)
+        if (-not $pending.AsyncWaitHandle.WaitOne(250)) {
+            return $false
+        }
+        $client.EndConnect($pending)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Dispose()
+    }
+}
+
+function Wait-Http {
+    param(
+        [string]$Url,
+        [int]$TimeoutSeconds,
+        [hashtable]$Headers = @{}
+    )
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -UseBasicParsing -Uri $Url `
+                -Headers $Headers -TimeoutSec 2
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+                return
+            }
+        } catch {
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    throw "Timed out waiting for $Url"
+}
+
+function Stop-ProcessTree {
+    param([System.Diagnostics.Process]$Process)
+
+    if ($null -eq $Process -or $Process.HasExited) {
+        return
+    }
+    & taskkill.exe /PID $Process.Id /T /F *> $null
+}
+
+if (-not (Test-Path -LiteralPath $python)) {
+    throw "Missing AI virtual environment: $python"
+}
+if (-not (Test-Path -LiteralPath $gradle)) {
+    throw "Missing Gradle wrapper: $gradle"
+}
+if (Test-PortInUse $AiPort) {
+    throw "Port $AiPort is already in use."
+}
+if (Test-PortInUse $SpringPort) {
+    throw "Port $SpringPort is already in use."
+}
+
+New-Item -ItemType Directory -Path $runtimeRoot | Out-Null
+[System.IO.File]::WriteAllBytes(
+    $sampleImage,
+    [byte[]](137, 80, 78, 71, 13, 10, 26, 10, 65, 73, 100, 101, 118)
+)
+
+try {
+    $aiProcess = Start-Process -FilePath $python `
+        -ArgumentList @(
+            "-m", "uvicorn", "main:app",
+            "--host", "127.0.0.1",
+            "--port", "$AiPort"
+        ) `
+        -WorkingDirectory $aiRoot `
+        -RedirectStandardOutput $aiOut `
+        -RedirectStandardError $aiErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Wait-Http "http://127.0.0.1:$AiPort/health/ready" 30
+
+    $env:AI_SERVER_BASE_URL = "http://127.0.0.1:$AiPort"
+    $env:JWT_SECRET = (
+        [guid]::NewGuid().ToString("N") +
+        [guid]::NewGuid().ToString("N")
+    )
+    $env:SPRING_DATASOURCE_URL = (
+        "jdbc:h2:mem:ai_smoke;MODE=PostgreSQL;" +
+        "DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+    )
+    $env:FILE_STORAGE_ROOT = Join-Path $runtimeRoot "files"
+    $env:SPRING_PROFILES_ACTIVE = "local,dev-header-auth"
+    $env:SERVER_PORT = "$SpringPort"
+
+    $springProcess = Start-Process -FilePath $gradle `
+        -ArgumentList "bootRun" `
+        -WorkingDirectory $backendRoot `
+        -RedirectStandardOutput $springOut `
+        -RedirectStandardError $springErr `
+        -WindowStyle Hidden `
+        -PassThru
+    $startupHeaders = @{
+        "X-User-Id" = "1"
+        "X-User-Role" = "USER"
+        "X-Request-Id" = "smoke-startup"
+    }
+    Wait-Http (
+        "http://127.0.0.1:$SpringPort" +
+        "/api/v1/test/ai-server/health"
+    ) $StartupTimeoutSeconds $startupHeaders
+
+    $requestId = "smoke-" + [guid]::NewGuid().ToString("N")
+    $commonHeaders = @{
+        "X-User-Id" = "1"
+        "X-User-Role" = "USER"
+        "X-Request-Id" = $requestId
+    }
+    $health = Invoke-RestMethod `
+        -Uri "http://127.0.0.1:$SpringPort/api/v1/test/ai-server/health" `
+        -Headers $commonHeaders `
+        -TimeoutSec 10
+    if ($health.status -ne "ready" -or $health.request_id -ne $requestId) {
+        throw "Spring health relay did not preserve the request ID."
+    }
+
+    $mood = -join [char[]](
+        0xC2E0, 0xB8B0, 0xAC10, 0x20, 0xC788, 0xB294
+    )
+    $bannerFormat = -join [char[]](
+        0xAC00, 0xB85C, 0xD615, 0x20, 0xBC30, 0xB108
+    )
+    $curlArguments = @(
+        "--silent", "--show-error", "--fail-with-body",
+        "-H", "X-User-Id: 1",
+        "-H", "X-User-Role: USER",
+        "-H", "X-Request-Id: $requestId",
+        "-F", "promotion_name=Smoke promotion",
+        "-F", "main_banner=Smoke banner",
+        "-F", "supporting_copy=Smoke copy",
+        "-F", "mood=$mood",
+        "-F", "banner_format=$bannerFormat",
+        "-F", "emphasis_keywords=smoke,contract,smoke",
+        "-F", "image=@$sampleImage;type=image/png;filename=smoke.png",
+        "http://127.0.0.1:$SpringPort/api/v1/test/ai-server/marketing/banners/generate"
+    )
+    $marketingText = & curl.exe @curlArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw (
+            "Marketing relay failed with curl exit code " +
+            "$LASTEXITCODE. Body: $marketingText"
+        )
+    }
+    $marketing = $marketingText | ConvertFrom-Json
+    if ($marketing.request_id -ne $requestId) {
+        throw "Marketing relay did not preserve the request ID."
+    }
+    if (-not $marketing.banner.mock) {
+        throw "Marketing relay did not return a Mock banner."
+    }
+
+    $generatedMock = Join-Path $aiRoot (
+        "outputs\banner_" + $marketing.banner.banner_id + ".png"
+    )
+    if (-not (Test-Path -LiteralPath $generatedMock)) {
+        throw "Expected Mock output was not created: $generatedMock"
+    }
+
+    Write-Output (
+        "AI local smoke passed: health=ready, marketing=completed, " +
+        "requestId=$requestId"
+    )
+} catch {
+    Write-Output ("Smoke failed: " + $_.Exception.Message)
+    if (Test-Path -LiteralPath $aiErr) {
+        Write-Output "FastAPI stderr:"
+        Get-Content -LiteralPath $aiErr -Tail 80
+    }
+    if (Test-Path -LiteralPath $aiOut) {
+        Write-Output "FastAPI stdout:"
+        Get-Content -LiteralPath $aiOut -Tail 80
+    }
+    if (Test-Path -LiteralPath $springOut) {
+        Write-Output "Spring stdout:"
+        Get-Content -LiteralPath $springOut -Tail 120
+    }
+    if (Test-Path -LiteralPath $springErr) {
+        Write-Output "Spring stderr:"
+        Get-Content -LiteralPath $springErr -Tail 80
+    }
+    exit 1
+} finally {
+    Stop-ProcessTree $springProcess
+    Stop-ProcessTree $aiProcess
+    if (
+        $null -ne $generatedMock -and
+        (Test-Path -LiteralPath $generatedMock)
+    ) {
+        Remove-Item -LiteralPath $generatedMock -Force
+    }
+    if (Test-Path -LiteralPath $runtimeRoot) {
+        Remove-Item -LiteralPath $runtimeRoot -Recurse -Force
+    }
+}
