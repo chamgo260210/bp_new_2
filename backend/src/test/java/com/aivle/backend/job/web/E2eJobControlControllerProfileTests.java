@@ -24,6 +24,11 @@ class E2eJobControlControllerProfileTests {
                 "e2eJobControlController"
             ));
         }
+        try (var postgres = context("postgres", true)) {
+            assertFalse(postgres.containsBeanDefinition(
+                "e2eJobControlController"
+            ));
+        }
         try (var disabled = context("e2e", false)) {
             assertFalse(disabled.containsBeanDefinition(
                 "e2eJobControlController"

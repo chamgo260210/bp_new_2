@@ -47,6 +47,7 @@ describe('useMarketingGeneration', () => {
   });
 
   it('prevents duplicate starts while a job is active', async () => {
+    vi.useFakeTimers();
     const api = {
       generate: vi.fn().mockResolvedValue({
         jobId: 9,

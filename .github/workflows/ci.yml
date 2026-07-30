@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/ai-task-hub-foundation]
   pull_request:
 
 permissions:
