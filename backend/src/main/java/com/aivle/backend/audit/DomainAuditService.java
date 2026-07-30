@@ -39,7 +39,11 @@ public class DomainAuditService {
         "versionNumber",
         "panelInterviewId",
         "marketResponseId",
-        "sourceSnapshotVersion"
+        "sourceSnapshotVersion",
+        "financialAnalysisId",
+        "scenarioCount",
+        "periodMonths",
+        "sourceFeasibilityAssessmentId"
     );
 
     private final AuditEventRepository repository;

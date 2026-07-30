@@ -64,7 +64,7 @@ public class PersonaRecommendationCommandService {
             return response(projectId, recommendation.getId(),
                 recommendation.getAnalysisJob(), plan.getId(), feasibility.getId());
         }
-        if (project.getStage() != ProjectStage.FEASIBILITY) {
+        if (project.getStage() != ProjectStage.PERSONA_CONFIGURATION) {
             throw new BusinessException(ErrorCode.PERSONA_INPUT_INVALID);
         }
         if (jobs.existsByProjectIdAndJobTypeAndStatusInAndDeletedAtIsNull(

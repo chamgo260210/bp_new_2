@@ -21,6 +21,9 @@ import { DocumentUploadPage, StructuredPlanPage } from '../../features/documents
 import { AuthPlaceholderPage, NotFoundPage } from '../../pages/FoundationPages.jsx';
 import LegalReviewPage from '../../features/legal-review/LegalReviewPage.jsx';
 import FeasibilityPage from '../../features/feasibility/FeasibilityPage.jsx';
+import FinancialAnalysisListPage from '../../features/financial/pages/FinancialAnalysisListPage.jsx';
+import FinancialAnalysisCreatePage from '../../features/financial/pages/FinancialAnalysisCreatePage.jsx';
+import FinancialAnalysisWorkspacePage from '../../features/financial/pages/FinancialAnalysisWorkspacePage.jsx';
 import PersonaPage from '../../features/personas/PersonaPage.jsx';
 import PersonaValidationHubPage from '../../features/validation/PersonaValidationHubPage.jsx';
 import PanelInterviewPage from '../../features/validation/pages/PanelInterviewPage.jsx';
@@ -85,6 +88,9 @@ export default function AppRouter() {
             <Route path="review" element={<Navigate to="legal" replace />} />
             <Route path="review/legal" element={<LegalReviewPage />} />
             <Route path="review/market" element={<FeasibilityPage />} />
+            <Route path="review/financial" element={<FinancialAnalysisListPage />} />
+            <Route path="review/financial/new" element={<FinancialAnalysisCreatePage />} />
+            <Route path="review/financial/:analysisId" element={<FinancialAnalysisWorkspacePage />} />
             <Route path="validate" element={<PersonaValidationHubPage />} />
             <Route path="validate/personas" element={<PersonaPage />} />
             <Route path="validate/interview" element={<PanelInterviewPage />} />
@@ -118,6 +124,7 @@ export default function AppRouter() {
           <Route path="projects/:projectId/structured-plan/missing-fields" element={<LegacyProjectRedirect suffix="/plan/structure" />} />
           <Route path="projects/:projectId/legal-review" element={<LegacyProjectRedirect suffix="/review/legal" />} />
           <Route path="projects/:projectId/feasibility" element={<LegacyProjectRedirect suffix="/review/market" />} />
+          <Route path="projects/:projectId/financial" element={<LegacyProjectRedirect suffix="/review/financial" />} />
           <Route path="projects/:projectId/analyses/:analysis" element={<LegacyProjectRedirect suffix="/review/market" />} />
           <Route path="projects/:projectId/personas" element={<LegacyProjectRedirect suffix="/validate/personas" />} />
           <Route path="projects/:projectId/panel-survey" element={<LegacyProjectRedirect suffix="/validate/interview" />} />

@@ -1,12 +1,14 @@
 # Current documentation
 
 - Status: Current
-- Verified HEAD: `fd30d55856dd3f266abadea79232c834358abc91`
-- Verified Date: 2026-07-24
+- Verified HEAD: pending final commit (기존 기준선: `fd30d55856dd3f266abadea79232c834358abc91`)
+- Verified Date: 2026-07-30 working tree
 - Owners: Platform integration team
 - Related Source: `backend/`, `frontEnd/`, `docs/api/openapi.yaml`
 
-이 디렉터리는 Phase 11 완료 As-built 기준선의 단일 진입점입니다. Phase 문서는 역사적 결정과 테스트 증거로 유지합니다.
+이 디렉터리는 현재 working tree의 As-built 단일 진입점입니다. G1-R에서는 재무 API·계산·화면·통합 보고서가 Active MVP로 검증되며, 최종 커밋 전까지 임의 SHA를 Verified HEAD로 기록하지 않습니다.
+
+현재 Active MVP: 관리자 운영 콘솔, Persona 카탈로그·선택, 예상 패널 인터뷰, 예상 시장 반응, 마케팅 콘텐츠 제작, 재무·수익성 분석. 실제 고객 조사·통계 예측·회계 자문·이미지 생성 AI는 미연동입니다.
 
 ## 읽는 순서
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AI Business Validation Platform Document API
-  version: 0.10.0-phase10
+  version: 0.11.0-g1r-working-tree
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -539,6 +539,57 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/PersonaRecommendationApiResponse'}
         '404': {$ref: '#/components/responses/StandardError'}
+  /projects/{projectId}/financial-analysis/source:
+    get:
+      tags: [Financial Analyses]
+      summary: Confirmed feasibility and structured-plan source for a financial analysis
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200': {description: Financial source snapshot metadata}
+  /projects/{projectId}/financial-analyses:
+    get:
+      tags: [Financial Analyses]
+      summary: List non-deleted project financial analyses
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200': {description: Financial analysis summaries}
+    post:
+      tags: [Financial Analyses]
+      summary: Create a financial-analysis draft from confirmed assumptions
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '201': {description: Financial analysis draft}
+  /projects/{projectId}/financial-analyses/{analysisId}:
+    get:
+      tags: [Financial Analyses]
+      summary: Get a financial analysis and its immutable source snapshot
+      responses:
+        '200': {description: Financial analysis detail}
+    patch:
+      tags: [Financial Analyses]
+      summary: Update a draft financial analysis
+      responses:
+        '200': {description: Updated financial analysis}
+    delete:
+      tags: [Financial Analyses]
+      summary: Soft-delete a financial analysis
+      responses:
+        '204': {description: Deleted}
+  /projects/{projectId}/financial-analyses/{analysisId}/run:
+    post:
+      tags: [Financial Analyses]
+      summary: Deterministically calculate and complete a financial analysis
+      responses:
+        '200': {description: Completed financial analysis}
+  /projects/{projectId}/financial-analyses/{analysisId}/duplicate:
+    post:
+      tags: [Financial Analyses]
+      summary: Duplicate assumptions into a new financial-analysis draft
+      responses:
+        '201': {description: New financial analysis draft}
 components:
   securitySchemes:
     platformAuth:

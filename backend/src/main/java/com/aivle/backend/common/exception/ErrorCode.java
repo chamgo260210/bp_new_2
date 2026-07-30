@@ -117,6 +117,14 @@ public enum ErrorCode {
     FEASIBILITY_INPUT_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "확정된 사업계획과 최신 법률 사전검토 결과를 확인해 주세요.", false),
     PERSONA_RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "페르소나 추천 결과를 찾을 수 없습니다.", false),
     PERSONA_INPUT_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "확정 계획과 최신 타당성 분석 입력을 확인해 주세요.", false),
+    FINANCIAL_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "재무 분석을 찾을 수 없습니다.", false),
+    FINANCIAL_FEASIBILITY_REQUIRED(HttpStatus.CONFLICT, "완료된 사업 타당성 분석이 필요합니다.", false),
+    FINANCIAL_SOURCE_INVALID(HttpStatus.BAD_REQUEST, "재무 분석 근거가 현재 프로젝트와 일치하지 않습니다.", false),
+    FINANCIAL_ASSUMPTION_INVALID(HttpStatus.BAD_REQUEST, "재무 가정을 확인해 주세요.", false),
+    FINANCIAL_SCENARIO_REQUIRED(HttpStatus.BAD_REQUEST, "보수·기준·낙관 시나리오가 필요합니다.", false),
+    FINANCIAL_SCENARIO_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "시나리오는 최대 3개까지 설정할 수 있습니다.", false),
+    FINANCIAL_CALCULATION_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "현재 가정으로는 재무 계산을 완료할 수 없습니다.", false),
+    FINANCIAL_ALREADY_COMPLETED(HttpStatus.CONFLICT, "완료된 재무 분석은 수정할 수 없습니다. 복제해 새 분석을 만드세요.", false),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", true);
 
     private final HttpStatus httpStatus;

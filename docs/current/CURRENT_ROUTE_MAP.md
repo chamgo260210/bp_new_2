@@ -1,8 +1,8 @@
 # Current route map
 
 - Status: Current
-- Verified HEAD: `fd30d55856dd3f266abadea79232c834358abc91`
-- Verified Date: 2026-07-24
+- Verified HEAD: pending final commit
+- Verified Date: 2026-07-30 working tree
 
 | Route | Guard/layout | Page/state | Status |
 |---|---|---|---|
@@ -16,10 +16,16 @@
 | `.../structure` | Protected/Project | structured plan | Active |
 | `.../legal-review` | Protected/Project | legal result | Active |
 | `.../feasibility` | Protected/Project | feasibility | Active |
+| `/app/projects/:projectId/review/financial` | Protected/Project | financial list | Active |
+| `/app/projects/:projectId/review/financial/new` | Protected/Project | financial draft creation | Active |
+| `/app/projects/:projectId/review/financial/:analysisId` | Protected/Project | assumptions, scenarios, result | Active |
 | `.../personas` | Protected/Project | persona/validation plan | Active |
+| `/app/projects/:projectId/validate/interview` | Protected/Project | persona-based expected interview | Active MVP |
+| `/app/projects/:projectId/validate/market-response` | Protected/Project | validation-data-based expected response | Active MVP |
+| `/app/projects/:projectId/validate/marketing` | Protected/Project | marketing content workspace | Active MVP |
 | `.../report` | Protected/Project | runtime integrated report | Active canonical |
 | `.../reports`, `.../reports/:reportId` | Protected/Project | redirect to `.../report` | Compatibility |
-| financial/panel/market-validation/marketing/settings | Protected | placeholder | Deferred |
+| `/projects/:projectId/financial` | Protected | redirect to `/app/projects/:projectId/review/financial` | Compatibility |
 | `*` | any | Not found | Active |
 
 Direct entry, refresh, logout/login return, and cross-owner 404 were verified in Phase 11.

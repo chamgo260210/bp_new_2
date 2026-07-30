@@ -1,7 +1,7 @@
 # Known gaps and technical debt
 
 - Status: Current
-- Verified HEAD: `fd30d55856dd3f266abadea79232c834358abc91`
+- Verified HEAD: pending final commit
 
 | Gap/debt | Impact | Risk | Next |
 |---|---|---|---|
@@ -12,7 +12,10 @@
 | refresh token not HttpOnly cookie | XSS exposure | Medium | contract change |
 | real AI not live-certified | runtime uncertainty | Medium | controlled certification |
 | current legal/market data not integrated | output remains preliminary | High | external data |
-| customer response execution absent | plans cannot be completed in app | High | product/privacy |
+| panel interview is persona-based simulation | not an actual customer interview | High | recruit/consent/research integration |
+| market response scores are deterministic relative indicators | not a statistical probability | High | validated data/model integration |
+| financial result uses user-confirmed assumptions | not accounting/tax/investment advice | High | professional review and external accounting data |
+| marketing draft has no image-generation AI | template output only | Medium | future controlled image service |
 | no plan reopen | correction needs new workflow | Medium | product decision |
 | deterministic document Mock has no missing fields | live FILLED/WAIVED E2E gap | Medium | test fixture |
 | legacy UI/schema remains | maintenance noise | Medium | focused cleanup |

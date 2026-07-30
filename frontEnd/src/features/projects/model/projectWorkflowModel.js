@@ -37,7 +37,7 @@ export const PROJECT_AREA_DEFINITIONS = Object.freeze([
   { id: PROJECT_AREAS.REPORT, label: 'Report', path: 'report' },
 ]);
 
-const STAGE_AREA = Object.freeze({
+export const STAGE_AREA = Object.freeze({
   DOCUMENT: PROJECT_AREAS.PLAN,
   STRUCTURING: PROJECT_AREAS.PLAN,
   LEGAL_REVIEW: PROJECT_AREAS.REVIEW,
@@ -50,12 +50,12 @@ const STAGE_AREA = Object.freeze({
   COMPLETED: PROJECT_AREAS.REPORT,
 });
 
-const STAGE_VIEW = Object.freeze({
+export const STAGE_VIEW = Object.freeze({
   DOCUMENT: { label: '사업계획 입력', route: 'plan/documents' },
   STRUCTURING: { label: '정보 구조화', route: 'plan/structure' },
   LEGAL_REVIEW: { label: '법률·규제 검토', route: 'review/legal' },
   FEASIBILITY: { label: '사업 타당성 분석', route: 'review' },
-  FINANCIAL: { label: '재무·수익성 분석', route: 'review' },
+  FINANCIAL: { label: '재무·수익성 분석', route: 'review/financial' },
   PERSONA_CONFIGURATION: { label: 'AI 패널 검증', route: 'validate/personas' },
   PANEL_SURVEY: { label: 'AI 패널 조사', route: 'validate' },
   PANEL_DISCUSSION: { label: 'AI 패널 토론', route: 'validate' },
@@ -110,12 +110,14 @@ export function getProjectProgress(project) {
 export function getAreaSummary(project) {
   const currentArea = getProjectArea(project);
   const currentIndex = PROJECT_AREA_DEFINITIONS.findIndex((definition) => definition.id === currentArea);
-  return PROJECT_AREA_DEFINITIONS.filter(({ id }) => id !== PROJECT_AREAS.OVERVIEW).map((definition, index) => ({
-    ...definition,
-    taskStatus: project?.status === 'COMPLETED' || index < currentIndex - 1
-      ? 'COMPLETED'
-      : index === currentIndex - 1
-        ? getTaskStatusForProject(project)
-        : 'BLOCKED',
-  }));
+  return PROJECT_AREA_DEFINITIONS
+    .filter(({ id }) => id !== PROJECT_AREAS.OVERVIEW)
+    .map((definition, index) => ({
+      ...definition,
+      taskStatus: project?.status === 'COMPLETED' || index < currentIndex - 1
+        ? 'COMPLETED'
+        : index === currentIndex - 1
+          ? getTaskStatusForProject(project)
+          : 'BLOCKED',
+    }));
 }

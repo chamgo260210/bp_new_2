@@ -15,7 +15,7 @@ const SUBNAVIGATION = {
     ['Documents', 'plan/documents'], ['Structured Plan', 'plan/structure'],
   ],
   [PROJECT_AREAS.REVIEW]: [
-    ['Legal', 'review/legal'], ['Feasibility', 'review/market'],
+    ['Legal', 'review/legal'], ['Feasibility', 'review/market'], ['Financial', 'review/financial'],
   ],
   [PROJECT_AREAS.VALIDATE]: [
     ['검증 Hub', 'validate'],

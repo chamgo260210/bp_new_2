@@ -1,8 +1,8 @@
 # Current API catalog
 
 - Status: Current
-- Verified HEAD: `fd30d55856dd3f266abadea79232c834358abc91`
-- OpenAPI: `0.10.0-phase10`
+- Verified HEAD: pending final commit
+- OpenAPI: `0.11.0-g1r-working-tree`
 
 모든 path는 `/api/v1` 아래에 있습니다.
 
@@ -23,5 +23,13 @@
 | POST, GET latest | `/projects/{projectId}/feasibility-assessments` | feasibility/report |
 | GET | `/personas/catalog` | personas |
 | POST, GET latest | `/projects/{projectId}/persona-recommendations` | personas/report |
+| GET | `/projects/{projectId}/financial-analysis/source` | financial source |
+| GET, POST | `/projects/{projectId}/financial-analyses` | financial list/create |
+| GET, PATCH, DELETE | `/projects/{projectId}/financial-analyses/{analysisId}` | financial detail/update/soft-delete |
+| POST | `/projects/{projectId}/financial-analyses/{analysisId}/run` | deterministic calculation |
+| POST | `/projects/{projectId}/financial-analyses/{analysisId}/duplicate` | duplicate draft |
+| CRUD + run | `/projects/{projectId}/panel-interviews` | expected interview MVP |
+| CRUD + run | `/projects/{projectId}/market-responses` | expected market response MVP |
+| CRUD + versions | `/projects/{projectId}/marketing-contents` | marketing workspace MVP |
 
-오류는 공통 envelope를 사용하고 다른 owner의 resource는 404입니다. Phase 11은 endpoint를 추가하지 않았습니다. Dashboard/report는 위 계약을 병렬 재사용하며 `/reports` API는 존재하지 않습니다.
+오류는 공통 envelope를 사용합니다. 재무 목록은 월별 결과 JSON을 포함하지 않고, 통합 보고서는 최신 완료 요약을 찾은 뒤 상세 API를 별도로 조회합니다. `/reports` 저장 API는 존재하지 않습니다.
