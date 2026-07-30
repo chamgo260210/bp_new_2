@@ -14,6 +14,7 @@ from app.api.errors import (
     validation_exception_handler,
 )
 from app.api.marketing import router as marketing_router
+from app.api.tasks import router as task_router
 from app.models.contracts import EchoResponse, HealthResponse
 from app.request_context import (
     REQUEST_ID_HEADER,
@@ -52,7 +53,9 @@ async def request_id_middleware(request: Request, call_next):
     )
     request.state.request_id = request_id
     response = await call_next(request)
-    response.headers[REQUEST_ID_HEADER] = request_id
+    response.headers[REQUEST_ID_HEADER] = current_request_id(
+        request
+    )
     return response
 
 
@@ -68,6 +71,7 @@ app.mount(
     name="outputs",
 )
 app.include_router(marketing_router)
+app.include_router(task_router)
 
 
 def health_payload(

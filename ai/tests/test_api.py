@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 
 from app.models.marketing import AdvertisingMood, BannerFormat
 from app.api import marketing as marketing_api
+from app.api import tasks as task_api
+from app.models.tasks import AiTaskType
 from app.services import banner_service
 from app.utils.image_validator import MAX_IMAGE_SIZE
 from main import app
@@ -202,3 +204,106 @@ def test_internal_error_is_safe_and_does_not_expose_trace(
         },
     }
     assert "sensitive provider stack detail" not in response.text
+
+
+def task_payload(**overrides):
+    payload = {
+        "request_id": "task-request-id",
+        "task_id": "101",
+        "task_type": AiTaskType.SYSTEM_SMOKE_TEST.value,
+        "schema_version": "1.0",
+        "input": {"probe": "phase-3"},
+        "context": {},
+        "options": {},
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_system_smoke_task_preserves_contract_ids():
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-Id"] == "task-request-id"
+    assert response.json() == {
+        "request_id": "task-request-id",
+        "task_id": "101",
+        "task_type": "SYSTEM_SMOKE_TEST",
+        "status": "SUCCEEDED",
+        "schema_version": "1.0",
+        "result": {
+            "ok": True,
+            "message": "SYSTEM_SMOKE_OK",
+            "received_input": {"probe": "phase-3"},
+        },
+        "warnings": [],
+        "execution": {
+            "handler": "system-smoke",
+            "handler_version": "1.0",
+        },
+        "error": None,
+    }
+
+
+def test_task_schema_version_is_rejected():
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(schema_version="2.0"),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["error"]["code"]
+        == "UNSUPPORTED_SCHEMA_VERSION"
+    )
+
+
+def test_unknown_task_type_is_rejected():
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(task_type="AUTONOMOUS_AGENT"),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "UNKNOWN_TASK_TYPE"
+
+
+def test_task_request_id_mismatch_is_rejected():
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(),
+        headers={"X-Request-Id": "different-request-id"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert response.json()["request_id"] == "different-request-id"
+
+
+def test_task_handler_error_uses_safe_envelope(monkeypatch):
+    def fail_handler(task):
+        raise RuntimeError("private handler stack")
+
+    monkeypatch.setattr(
+        task_api,
+        "execute_task",
+        fail_handler,
+    )
+    response = safe_client.post(
+        "/internal/v1/tasks",
+        json=task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 500
+    assert (
+        response.json()["error"]["code"]
+        == "AI_SERVER_INTERNAL_ERROR"
+    )
+    assert "private handler stack" not in response.text

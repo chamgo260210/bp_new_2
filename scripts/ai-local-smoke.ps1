@@ -2,7 +2,8 @@
 param(
     [int]$AiPort = 8000,
     [int]$SpringPort = 8080,
-    [int]$StartupTimeoutSeconds = 120
+    [int]$StartupTimeoutSeconds = 120,
+    [switch]$JobSmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -117,6 +118,11 @@ try {
     $env:FILE_STORAGE_ROOT = Join-Path $runtimeRoot "files"
     $env:SPRING_PROFILES_ACTIVE = "local,dev-header-auth"
     $env:SERVER_PORT = "$SpringPort"
+    $env:DOCUMENT_JOB_RUNNER_ENABLED = if ($JobSmoke) {
+        "true"
+    } else {
+        "false"
+    }
 
     $springProcess = Start-Process -FilePath $gradle `
         -ArgumentList "bootRun" `
@@ -191,9 +197,103 @@ try {
         throw "Expected Mock output was not created: $generatedMock"
     }
 
+    $jobSummary = ""
+    if ($JobSmoke) {
+        $identitySuffix = [guid]::NewGuid().ToString("N")
+        $signupBody = @{
+            username = "smk" + $identitySuffix.Substring(0, 12)
+            password = "Q7!" + $identitySuffix.Substring(0, 20)
+            displayName = "Smoke User"
+            email = "smoke-" + $identitySuffix + "@example.com"
+            organizationName = $null
+            departmentName = $null
+            jobTitle = $null
+        } | ConvertTo-Json
+        $signup = Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://127.0.0.1:$SpringPort/api/v1/auth/signup" `
+            -ContentType "application/json" `
+            -Body $signupBody `
+            -TimeoutSec 15
+        $userId = $signup.data.user.id
+        if ($null -eq $userId) {
+            throw "Smoke signup did not return a user ID."
+        }
+
+        $jobHeaders = @{
+            "X-User-Id" = "$userId"
+            "X-User-Role" = "USER"
+            "X-Request-Id" = $requestId
+            "Idempotency-Key" = "job-" + $identitySuffix
+        }
+        $projectBody = @{
+            title = "AI task smoke " + $identitySuffix.Substring(0, 8)
+            description = "Temporary SYSTEM_SMOKE_TEST project"
+            industryCategory = "test"
+        } | ConvertTo-Json
+        $project = Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://127.0.0.1:$SpringPort/api/v1/projects" `
+            -Headers $jobHeaders `
+            -ContentType "application/json" `
+            -Body $projectBody `
+            -TimeoutSec 15
+        $projectId = $project.data.id
+
+        $accepted = Invoke-RestMethod `
+            -Method Post `
+            -Uri (
+                "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+                "$projectId/ai-tasks/smoke"
+            ) `
+            -Headers $jobHeaders `
+            -ContentType "application/json" `
+            -Body "{}" `
+            -TimeoutSec 30
+        $jobId = $accepted.data.jobId
+        if ($accepted.data.status -ne "QUEUED") {
+            throw "AI task start did not return QUEUED."
+        }
+
+        $deadline = [DateTime]::UtcNow.AddSeconds(30)
+        $job = $null
+        while ([DateTime]::UtcNow -lt $deadline) {
+            $job = Invoke-RestMethod `
+                -Uri (
+                    "http://127.0.0.1:$SpringPort/api/v1/jobs/" +
+                    "$jobId"
+                ) `
+                -Headers $jobHeaders `
+                -TimeoutSec 10
+            if (
+                $job.data.status -eq "SUCCEEDED" -or
+                $job.data.status -eq "FAILED"
+            ) {
+                break
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        if ($job.data.status -ne "SUCCEEDED") {
+            throw (
+                "SYSTEM_SMOKE_TEST job did not succeed. status=" +
+                $job.data.status
+            )
+        }
+        if (
+            $job.data.resultReferenceType -ne "AI_TASK_RESULT" -or
+            $null -eq $job.data.resultReferenceId -or
+            [string]::IsNullOrWhiteSpace(
+                $job.data.externalRequestId
+            )
+        ) {
+            throw "SYSTEM_SMOKE_TEST result reference is incomplete."
+        }
+        $jobSummary = ", job=$jobId/SUCCEEDED"
+    }
+
     Write-Output (
         "AI local smoke passed: health=ready, marketing=completed, " +
-        "requestId=$requestId"
+        "requestId=$requestId" + $jobSummary
     )
 } catch {
     Write-Output ("Smoke failed: " + $_.Exception.Message)

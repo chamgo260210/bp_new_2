@@ -70,11 +70,26 @@ async def validation_exception_handler(
     request: Request,
     exception: RequestValidationError,
 ) -> JSONResponse:
+    unknown_task_type = (
+        request.url.path == "/internal/v1/tasks"
+        and any(
+            error.get("loc", ())[-1:] == ("task_type",)
+            for error in exception.errors()
+        )
+    )
     return error_response(
         request,
         status_code=422,
-        code="INVALID_REQUEST",
-        message="요청 값의 형식이 올바르지 않습니다.",
+        code=(
+            "UNKNOWN_TASK_TYPE"
+            if unknown_task_type
+            else "INVALID_REQUEST"
+        ),
+        message=(
+            "지원하지 않는 AI task type입니다."
+            if unknown_task_type
+            else "요청 값의 형식이 올바르지 않습니다."
+        ),
         retryable=False,
     )
 
