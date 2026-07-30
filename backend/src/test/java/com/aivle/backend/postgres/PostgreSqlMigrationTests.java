@@ -15,7 +15,7 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
     @Test
     void v9AddsPersonaCatalogRecommendationAndValidationSchema() throws Exception {
         String schema = "v9_fresh_" + UUID.randomUUID().toString().replace("-", "");
-        Flyway flyway = flyway(schema, null);
+        Flyway flyway = flyway(schema, "9");
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(9);
         try (Connection connection = DriverManager.getConnection(
             POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()

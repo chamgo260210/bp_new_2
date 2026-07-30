@@ -284,10 +284,12 @@ function Start-MarketingJob {
         [object]$Content,
         [string]$Key
     )
-    $curlCommand = Get-Command curl.exe -ErrorAction SilentlyContinue
+    $curlCommand = Get-Command curl.exe -ErrorAction SilentlyContinue |
+        Select-Object -First 1
     if ($null -eq $curlCommand) {
         $curlCommand = Get-Command curl -CommandType Application `
-            -ErrorAction Stop
+            -ErrorAction Stop |
+            Select-Object -First 1
     }
     $url = (
         "$frontendBase/api/v1/projects/$($Fixture.ProjectId)" +

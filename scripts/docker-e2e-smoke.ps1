@@ -346,11 +346,13 @@ try {
         )
     )
     $headers["Idempotency-Key"] = "marketing-$suffix"
-    $nativeCurl = Get-Command curl.exe -ErrorAction SilentlyContinue
+    $nativeCurl = Get-Command curl.exe -ErrorAction SilentlyContinue |
+        Select-Object -First 1
     $curl = if ($null -ne $nativeCurl) {
         $nativeCurl.Source
     } else {
-        (Get-Command curl -CommandType Application -ErrorAction Stop).Source
+        (Get-Command curl -CommandType Application -ErrorAction Stop |
+            Select-Object -First 1).Source
     }
     $generateUrl = (
         "$frontendBase/api/v1/projects/$projectId/marketing-contents/" +

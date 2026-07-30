@@ -563,6 +563,9 @@ paths:
       responses:
         '201': {description: Financial analysis draft}
   /projects/{projectId}/financial-analyses/{analysisId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AnalysisId'
     get:
       tags: [Financial Analyses]
       summary: Get a financial analysis and its immutable source snapshot
@@ -579,12 +582,18 @@ paths:
       responses:
         '204': {description: Deleted}
   /projects/{projectId}/financial-analyses/{analysisId}/run:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AnalysisId'
     post:
       tags: [Financial Analyses]
       summary: Deterministically calculate and complete a financial analysis
       responses:
         '200': {description: Completed financial analysis}
   /projects/{projectId}/financial-analyses/{analysisId}/duplicate:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AnalysisId'
     post:
       tags: [Financial Analyses]
       summary: Duplicate assumptions into a new financial-analysis draft
@@ -602,6 +611,11 @@ components:
   parameters:
     ProjectId:
       name: projectId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    AnalysisId:
+      name: analysisId
       in: path
       required: true
       schema: {type: integer, format: int64}
