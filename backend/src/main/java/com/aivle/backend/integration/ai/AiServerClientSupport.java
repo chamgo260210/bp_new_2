@@ -1,7 +1,10 @@
 package com.aivle.backend.integration.ai;
 
 import com.aivle.backend.integration.ai.dto.AiServerErrorResponse;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -73,6 +76,9 @@ public class AiServerClientSupport {
                 exception
             );
         } catch (RestClientException exception) {
+            if (isTimeout(exception)) {
+                throw timeout(requestId, exception);
+            }
             throw invalidResponse(
                 requestId,
                 "AI 서버 응답 형식이 올바르지 않습니다.",
@@ -144,6 +150,45 @@ public class AiServerClientSupport {
         } catch (RuntimeException ignored) {
             return null;
         }
+    }
+
+    private boolean isTimeout(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (
+                current instanceof SocketTimeoutException
+                || current instanceof HttpTimeoutException
+                || current instanceof TimeoutException
+            ) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase();
+                if (
+                    normalized.contains("timed out")
+                    || normalized.contains("read timeout")
+                ) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private AiServerException timeout(
+        String requestId,
+        Throwable cause
+    ) {
+        return new AiServerException(
+            HttpStatus.GATEWAY_TIMEOUT.value(),
+            "AI_SERVER_TIMEOUT",
+            true,
+            requestId,
+            "AI server response timed out.",
+            cause
+        );
     }
 
     private AiServerException invalidResponse(

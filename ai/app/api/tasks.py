@@ -8,6 +8,7 @@ from app.models.tasks import (
 )
 from app.request_context import REQUEST_ID_HEADER
 from app.services.task_service import execute_task
+from app.testing.e2e_faults import before_task, mutate_artifacts
 
 
 SUPPORTED_SCHEMA_VERSION = "1.0"
@@ -22,7 +23,7 @@ router = APIRouter(
     "/tasks",
     response_model=AiTaskResponse,
 )
-def run_task(
+async def run_task(
     request: Request,
     task: AiTaskRequest,
 ):
@@ -49,6 +50,10 @@ def run_task(
             message="지원하지 않는 AI task schema version입니다.",
         )
 
+    fault_response = await before_task()
+    if fault_response is not None:
+        return fault_response
+
     execution_result = execute_task(task)
     return AiTaskResponse(
         request_id=task.request_id,
@@ -63,5 +68,5 @@ def run_task(
             handler_version=execution_result.handler_version,
         ),
         error=None,
-        artifacts=execution_result.artifacts,
+        artifacts=mutate_artifacts(execution_result.artifacts),
     )

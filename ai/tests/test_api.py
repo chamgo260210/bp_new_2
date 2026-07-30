@@ -11,6 +11,7 @@ from app.api import tasks as task_api
 from app.models.tasks import AiTaskType
 from app.services import banner_service
 from app.services import artifact_service
+from app.testing import e2e_faults
 from app.utils.image_validator import MAX_IMAGE_SIZE
 from main import app
 
@@ -313,6 +314,63 @@ def test_task_handler_error_uses_safe_envelope(monkeypatch):
     assert "private handler stack" not in response.text
 
 
+def enable_e2e_fault(monkeypatch, mode):
+    monkeypatch.setenv("APP_ENVIRONMENT", "E2E")
+    monkeypatch.setenv("AI_E2E_FAULTS_ENABLED", "true")
+    monkeypatch.setenv("AI_E2E_FAULT_MODE", mode)
+
+
+def test_e2e_faults_are_disabled_outside_e2e(monkeypatch):
+    monkeypatch.setenv("APP_ENVIRONMENT", "PROD")
+    monkeypatch.setenv("AI_E2E_FAULTS_ENABLED", "true")
+    monkeypatch.setenv("AI_E2E_FAULT_MODE", "malformed_response")
+
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "SUCCEEDED"
+
+
+def test_e2e_malformed_response_is_explicitly_gated(monkeypatch):
+    enable_e2e_fault(monkeypatch, "malformed_response")
+
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    assert response.text == '{"request_id":'
+    assert "traceback" not in response.text.lower()
+
+
+def test_e2e_timeout_delay_is_explicitly_gated(monkeypatch):
+    delays = []
+    enable_e2e_fault(monkeypatch, "timeout")
+    monkeypatch.setenv("AI_E2E_FAULT_DELAY_SECONDS", "7")
+    async def record_delay(seconds):
+        delays.append(seconds)
+    monkeypatch.setattr(
+        e2e_faults.asyncio,
+        "sleep",
+        record_delay,
+    )
+
+    response = client.post(
+        "/internal/v1/tasks",
+        json=task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    assert delays == [7.0]
+
+
 def artifact_task_payload(
     source: bytes = b'{"message":"artifact-smoke"}',
     **overrides,
@@ -398,6 +456,34 @@ def test_artifact_smoke_downloads_and_uploads(monkeypatch):
     assert body["artifacts"][0]["checksum"].startswith("sha256:")
     assert body["artifacts"][0]["size"] == len(uploaded["content"])
     assert uploaded["content_type"] == "application/json"
+
+
+def test_e2e_checksum_mismatch_mutates_only_result_metadata(
+    monkeypatch,
+):
+    source = b'{"message":"artifact-smoke"}'
+    enable_e2e_fault(monkeypatch, "checksum_mismatch")
+
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                content=source,
+                headers={"Content-Type": "application/json"},
+            )
+        return httpx.Response(200)
+
+    install_artifact_transport(monkeypatch, handler)
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(source),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["artifacts"][0]["checksum"] == (
+        "sha256:" + ("0" * 64)
+    )
 
 
 def test_artifact_checksum_mismatch_is_rejected(monkeypatch):

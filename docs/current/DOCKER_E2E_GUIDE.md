@@ -83,15 +83,42 @@ With a custom environment:
 pwsh -File scripts/docker-e2e-smoke.ps1 -EnvFile .env.e2e
 ```
 
-When custom host ports are used, pass the matching `-FrontendPort`,
-`-BackendPort`, and `-AiServerPort` arguments to the script.
+Before Compose starts, the script checks every published port and reports the
+owning PID and process name without terminating it. When custom host ports are
+used, pass the matching `-FrontendPort`, `-BackendPort`, `-AiServerPort`,
+`-PostgresPort`, `-MinioPort`, and `-MinioConsolePort` arguments. The same
+values are exported to Compose and used by host health probes. For example,
+when Apache owns port 8000:
+
+```powershell
+powershell -ExecutionPolicy Bypass `
+  -File scripts/docker-e2e-smoke.ps1 `
+  -EnvFile .env.e2e.example `
+  -AiServerPort 18000
+```
 
 The script validates Compose configuration, builds and starts the stack,
 waits for health, creates a user/project, runs `SYSTEM_SMOKE_TEST`,
 `SYSTEM_ARTIFACT_SMOKE_TEST`, and `MARKETING_GENERATION`, downloads both
 artifact results, reruns marketing, and confirms the prior version remains.
-It prints service logs on failure and removes containers and volumes in
-`finally`. Use `-KeepEnvironment` only for diagnosis.
+On failure it preserves the original exception and non-zero exit, then prints
+`docker compose ps --all`, state inspection for unhealthy/exited containers,
+and all service log tails. Each diagnostic step is isolated so a log
+collection error cannot hide the original failure. Known credential and
+presigned-URL query values are redacted. Containers and volumes are removed
+in `finally`; use `-KeepEnvironment` only for diagnosis.
+
+Run the isolated failure and recovery suite after the normal smoke:
+
+```powershell
+powershell -ExecutionPolicy Bypass `
+  -File scripts/docker-failure-e2e.ps1 `
+  -EnvFile .env.e2e.example `
+  -AiServerPort 18000
+```
+
+See [Failure and Recovery E2E](FAILURE_AND_RECOVERY_E2E.md) for individual
+scenario commands and expected states.
 
 ## Cleanup
 
@@ -118,3 +145,6 @@ proxy, so the internal MinIO hostname is not exposed to users.
 - Frontend loads but APIs fail: check Nginx and backend health; no
   `VITE_API_BASE_URL` is needed for the container build.
 - Port conflict: change the matching value in `.env.e2e`.
+- MinIO restart: Actuator object-storage health can remain `DOWN` briefly
+  after MinIO is ready. Failure tests use the database as the Job ledger and
+  separately verify MinIO ready plus Backend HTTP reachability.

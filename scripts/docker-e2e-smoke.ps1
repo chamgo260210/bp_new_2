@@ -4,6 +4,10 @@ param(
     [int]$FrontendPort = 3000,
     [int]$BackendPort = 8080,
     [int]$AiServerPort = 8000,
+    [int]$PostgresPort = 5432,
+    [int]$MinioPort = 9000,
+    [int]$MinioConsolePort = 9001,
+    [switch]$PreflightOnly,
     [switch]$KeepEnvironment
 )
 
@@ -24,6 +28,160 @@ $aiBase = "http://127.0.0.1:$AiServerPort"
 $sampleImage = Join-Path ([IO.Path]::GetTempPath()) (
     "aivle-docker-e2e-" + [guid]::NewGuid().ToString("N") + ".png"
 )
+$locationPushed = $false
+$composeAttempted = $false
+$scriptFailed = $false
+$originalFailure = $null
+
+$env:FRONTEND_PORT = "$FrontendPort"
+$env:BACKEND_PORT = "$BackendPort"
+$env:AI_SERVER_PORT = "$AiServerPort"
+$env:POSTGRES_PORT = "$PostgresPort"
+$env:MINIO_API_PORT = "$MinioPort"
+$env:MINIO_CONSOLE_PORT = "$MinioConsolePort"
+
+function Get-PortOwners {
+    param([int]$Port)
+    if ($null -ne (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue)) {
+        return @(Get-NetTCPConnection -LocalPort $Port -State Listen `
+            -ErrorAction SilentlyContinue |
+            Sort-Object OwningProcess -Unique | ForEach-Object {
+                $process = Get-Process -Id $_.OwningProcess `
+                    -ErrorAction SilentlyContinue
+                [pscustomobject]@{
+                    Port = $Port
+                    Pid = $_.OwningProcess
+                    Process = if ($null -eq $process) {
+                        "unknown"
+                    } else {
+                        $process.ProcessName
+                    }
+                }
+            })
+    }
+    return @()
+}
+
+function Assert-PublicPortsAvailable {
+    $ports = @(
+        [pscustomobject]@{ Name = "frontend"; Port = $FrontendPort; Option = "-FrontendPort" }
+        [pscustomobject]@{ Name = "backend"; Port = $BackendPort; Option = "-BackendPort" }
+        [pscustomobject]@{ Name = "ai-server"; Port = $AiServerPort; Option = "-AiServerPort" }
+        [pscustomobject]@{ Name = "postgres"; Port = $PostgresPort; Option = "-PostgresPort" }
+        [pscustomobject]@{ Name = "minio"; Port = $MinioPort; Option = "-MinioPort" }
+        [pscustomobject]@{ Name = "minio-console"; Port = $MinioConsolePort; Option = "-MinioConsolePort" }
+    )
+    $duplicates = $ports | Group-Object Port | Where-Object Count -gt 1
+    if ($duplicates) {
+        throw "Published ports must be unique."
+    }
+    $conflicts = @()
+    foreach ($entry in $ports) {
+        foreach ($owner in @(Get-PortOwners $entry.Port)) {
+            $conflicts += [pscustomobject]@{
+                Service = $entry.Name
+                Port = $entry.Port
+                Pid = $owner.Pid
+                Process = $owner.Process
+                Option = $entry.Option
+            }
+        }
+    }
+    if ($conflicts.Count -eq 0) {
+        return
+    }
+    [Console]::Error.WriteLine("Docker E2E port preflight failed:")
+    foreach ($conflict in $conflicts) {
+        [Console]::Error.WriteLine(
+            ("  {0}: port={1}, pid={2}, process={3}" -f @(
+                $conflict.Service,
+                $conflict.Port,
+                $conflict.Pid,
+                $conflict.Process
+            ))
+        )
+    }
+    $example = $conflicts[0]
+    $suggested = 18000
+    while (@(Get-PortOwners $suggested).Count -gt 0) {
+        $suggested++
+    }
+    [Console]::Error.WriteLine(
+        "Override example: powershell -ExecutionPolicy Bypass " +
+        "-File scripts/docker-e2e-smoke.ps1 -EnvFile .env.e2e.example " +
+        "$($example.Option) $suggested"
+    )
+    throw "One or more Docker E2E published ports are already in use."
+}
+
+function Protect-DiagnosticText {
+    param([AllowEmptyString()][string]$Text)
+    $redacted = [string]$Text
+    foreach ($name in @(
+        "POSTGRES_PASSWORD",
+        "JWT_SECRET",
+        "MINIO_ROOT_PASSWORD",
+        "OBJECT_STORAGE_SECRET_KEY",
+        "AI_SERVER_INTERNAL_API_KEY"
+    )) {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $redacted = $redacted.Replace($value, "[REDACTED]")
+        }
+    }
+    $redacted = $redacted -replace (
+        '(?i)(X-Amz-(Credential|Signature|Security-Token)=)[^&\s]+'
+    ), '$1[REDACTED]'
+    return $redacted
+}
+
+function Write-ComposeDiagnostics {
+    param([int]$ExitCode)
+    [Console]::Error.WriteLine("Docker E2E diagnostic exitCode=$ExitCode")
+    try {
+        $psOutput = & docker compose @composeFiles ps --all 2>&1 |
+            Out-String
+        [Console]::Error.WriteLine((Protect-DiagnosticText $psOutput))
+    } catch {
+        [Console]::Error.WriteLine(
+            "Could not collect docker compose ps: " + $_.Exception.Message
+        )
+    }
+    try {
+        $containerIds = @(& docker compose @composeFiles ps --all -q 2>$null)
+        foreach ($containerId in $containerIds) {
+            if ([string]::IsNullOrWhiteSpace($containerId)) {
+                continue
+            }
+            $state = & docker inspect --format (
+                'name={{.Name}} state={{json .State}}'
+            ) $containerId 2>&1 | Out-String
+            if ($state -notmatch '"Status":"running".*"Health":\{"Status":"healthy"') {
+                [Console]::Error.WriteLine(
+                    "Unhealthy/exited container inspect:"
+                )
+                [Console]::Error.WriteLine(
+                    (Protect-DiagnosticText $state)
+                )
+            }
+        }
+    } catch {
+        [Console]::Error.WriteLine(
+            "Could not inspect unhealthy containers: " +
+            $_.Exception.Message
+        )
+    }
+    try {
+        $logs = & docker compose @composeFiles logs `
+            --no-color --tail 200 2>&1 | Out-String
+        [Console]::Error.WriteLine((Protect-DiagnosticText $logs))
+    } catch {
+        [Console]::Error.WriteLine(
+            "Could not collect docker compose logs: " +
+            $_.Exception.Message
+        )
+    }
+}
 
 function Invoke-Compose {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
@@ -81,8 +239,15 @@ function New-JsonPost {
 }
 
 try {
+    Assert-PublicPortsAvailable
+    if ($PreflightOnly) {
+        Write-Output "Docker E2E port preflight passed."
+        exit 0
+    }
     Push-Location $root
+    $locationPushed = $true
     Invoke-Compose config --quiet
+    $composeAttempted = $true
     Invoke-Compose up --build --detach
 
     Wait-Http "$frontendBase/healthz" 180
@@ -251,24 +416,37 @@ try {
         "rerun=$($rerun.data.jobId)"
     )
 } catch {
-    Write-Error ("Docker E2E failed: " + $_.Exception.Message)
-    try {
-        & docker compose @composeFiles ps
-        & docker compose @composeFiles logs --no-color --tail 200
-    } catch {
-        Write-Warning "Could not collect Docker Compose diagnostics."
+    $scriptFailed = $true
+    $originalFailure = $_
+    [Console]::Error.WriteLine(
+        "Docker E2E failed: " + $originalFailure.Exception.Message
+    )
+    if ($composeAttempted) {
+        Write-ComposeDiagnostics -ExitCode 1
+    } else {
+        [Console]::Error.WriteLine(
+            "Compose was not started; no service diagnostics are available."
+        )
     }
-    exit 1
 } finally {
     if (Test-Path -LiteralPath $sampleImage) {
         Remove-Item -LiteralPath $sampleImage -Force
     }
-    if (-not $KeepEnvironment) {
+    if ($composeAttempted -and -not $KeepEnvironment) {
         try {
             & docker compose @composeFiles down --volumes --remove-orphans
         } catch {
             Write-Warning "Docker Compose cleanup failed."
         }
     }
-    Pop-Location
+    if ($locationPushed) {
+        Pop-Location
+    }
+}
+if ($scriptFailed) {
+    [Console]::Error.WriteLine(
+        "Docker E2E original failure preserved: " +
+        $originalFailure.Exception.Message
+    )
+    exit 1
 }
