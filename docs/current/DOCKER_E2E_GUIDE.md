@@ -7,12 +7,13 @@ image-generation provider.
 
 ## Verification status
 
-Compose merge/config validation, application tests/builds, and the existing
-host Spring-to-FastAPI smoke were completed for this revision. The authoring
-machine did not have a running Docker Desktop Linux daemon, so image builds,
-container health, Flyway-on-container, MinIO initialization, and the full
-Docker E2E were not claimed as locally verified. The repository CI contains a
-Docker-capable `docker-e2e` job that runs this guide's smoke command.
+Compose merge/config validation, all three image builds, container health,
+Flyway V1 through V25, MinIO initialization, and the full task, artifact,
+marketing, and rerun Docker E2E were completed for this revision. Port 8000 was
+already owned by a local Apache process on the verification machine, so the
+successful run published FastAPI on port 18000. The repository CI also
+contains a Docker-capable `docker-e2e` job that runs this guide's smoke
+command.
 
 ## Prerequisites
 

@@ -122,7 +122,8 @@ services:
 
   frontend:
     build:
-      context: ./frontEnd
+      context: .
+      dockerfile: frontEnd/Dockerfile
     depends_on:
       backend:
         condition: service_healthy
