@@ -17,6 +17,13 @@ const SUBNAVIGATION = {
   [PROJECT_AREAS.REVIEW]: [
     ['Legal', 'review/legal'], ['Feasibility', 'review/market'],
   ],
+  [PROJECT_AREAS.VALIDATE]: [
+    ['검증 Hub', 'validate'],
+    ['Persona 추천', 'validate/personas'],
+    ['패널 인터뷰', 'validate/interview'],
+    ['시장 반응 예측', 'validate/market-response'],
+    ['마케팅 콘텐츠', 'validate/marketing'],
+  ],
   [PROJECT_AREAS.REPORT]: [['Integrated Report', 'report']],
 };
 
@@ -65,7 +72,7 @@ function ProjectLayoutContent() {
       </nav>
       {subnavigation.length > 1 && (
         <nav className="project-subnav" aria-label={`${PROJECT_AREA_DEFINITIONS.find((area) => area.id === activeArea)?.label} 세부 메뉴`}>
-          {subnavigation.map(([label, route]) => <NavLink key={route} to={`${basePath}/${route}`} end={route === activeArea.toLowerCase()}>{label}</NavLink>)}
+          {subnavigation.map(([label, route]) => <NavLink key={route} to={`${basePath}/${route}`} end>{label}</NavLink>)}
         </nav>
       )}
       <div className="project-shell__content"><Outlet context={{ activeArea, currentArea: getProjectArea(project) }} /></div>

@@ -22,6 +22,11 @@ import { AuthPlaceholderPage, NotFoundPage } from '../../pages/FoundationPages.j
 import LegalReviewPage from '../../features/legal-review/LegalReviewPage.jsx';
 import FeasibilityPage from '../../features/feasibility/FeasibilityPage.jsx';
 import PersonaPage from '../../features/personas/PersonaPage.jsx';
+import PersonaValidationHubPage from '../../features/validation/PersonaValidationHubPage.jsx';
+import PanelInterviewPage from '../../features/validation/pages/PanelInterviewPage.jsx';
+import MarketResponsePage from '../../features/validation/pages/MarketResponsePage.jsx';
+import MarketingContentListPage from '../../features/marketing/pages/MarketingContentListPage.jsx';
+import MarketingContentWorkspacePage from '../../features/marketing/pages/MarketingContentWorkspacePage.jsx';
 import ReportPage from '../../features/report/ReportPage.jsx';
 import LandingPage from '../../features/landing/LandingPage.jsx';
 import AdminShell from '../layouts/AdminShell.jsx';
@@ -80,8 +85,19 @@ export default function AppRouter() {
             <Route path="review" element={<Navigate to="legal" replace />} />
             <Route path="review/legal" element={<LegalReviewPage />} />
             <Route path="review/market" element={<FeasibilityPage />} />
-            <Route path="validate" element={<Navigate to="personas" replace />} />
+            <Route path="validate" element={<PersonaValidationHubPage />} />
             <Route path="validate/personas" element={<PersonaPage />} />
+            <Route path="validate/interview" element={<PanelInterviewPage />} />
+            <Route path="validate/interview/:interviewId" element={<PanelInterviewPage />} />
+            <Route path="validate/market-response" element={<MarketResponsePage />} />
+            <Route path="validate/market-response/:predictionId" element={<MarketResponsePage />} />
+            <Route path="validate/marketing" element={<MarketingContentListPage />} />
+            <Route path="validate/marketing/new" element={<MarketingContentListPage initialCreate />} />
+            <Route path="validate/marketing/:contentId" element={<MarketingContentWorkspacePage />} />
+            <Route path="validation" element={<LegacyProjectRedirect suffix="/validate" />} />
+            <Route path="validation/interview" element={<LegacyProjectRedirect suffix="/validate/interview" />} />
+            <Route path="validation/market-response" element={<LegacyProjectRedirect suffix="/validate/market-response" />} />
+            <Route path="validation/marketing" element={<LegacyProjectRedirect suffix="/validate/marketing" />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="settings" element={<ProjectSettingsSheet />} />
             <Route path="settings/general" element={<Navigate to="../settings" replace />} />
@@ -104,12 +120,12 @@ export default function AppRouter() {
           <Route path="projects/:projectId/feasibility" element={<LegacyProjectRedirect suffix="/review/market" />} />
           <Route path="projects/:projectId/analyses/:analysis" element={<LegacyProjectRedirect suffix="/review/market" />} />
           <Route path="projects/:projectId/personas" element={<LegacyProjectRedirect suffix="/validate/personas" />} />
-          <Route path="projects/:projectId/panel-survey" element={<LegacyProjectRedirect suffix="/validate" />} />
-          <Route path="projects/:projectId/panel-discussion" element={<LegacyProjectRedirect suffix="/validate" />} />
-          <Route path="projects/:projectId/market-validation" element={<LegacyProjectRedirect suffix="/validate" />} />
+          <Route path="projects/:projectId/panel-survey" element={<LegacyProjectRedirect suffix="/validate/interview" />} />
+          <Route path="projects/:projectId/panel-discussion" element={<LegacyProjectRedirect suffix="/validate/interview" />} />
+          <Route path="projects/:projectId/market-validation" element={<LegacyProjectRedirect suffix="/validate/market-response" />} />
           <Route path="projects/:projectId/report" element={<LegacyProjectRedirect suffix="/report" />} />
           <Route path="projects/:projectId/reports/*" element={<LegacyProjectRedirect suffix="/report" />} />
-          <Route path="projects/:projectId/marketing" element={<LegacyProjectRedirect suffix="/report" />} />
+          <Route path="projects/:projectId/marketing" element={<LegacyProjectRedirect suffix="/validate/marketing" />} />
           <Route path="projects/:projectId/settings" element={<LegacyProjectRedirect suffix="/settings" />} />
         </Route>
 

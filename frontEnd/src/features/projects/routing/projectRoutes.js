@@ -21,6 +21,16 @@ export const projectRoutes = Object.freeze({
   feasibility: (projectId) => `${projectBase(projectId)}/review/market`,
   validate: (projectId) => `${projectBase(projectId)}/validate`,
   personas: (projectId) => `${projectBase(projectId)}/validate/personas`,
+  interview: (projectId) => `${projectBase(projectId)}/validate/interview`,
+  interviewDetail: (projectId, interviewId) =>
+    `${projectBase(projectId)}/validate/interview/${encodeURIComponent(interviewId)}`,
+  marketResponse: (projectId) => `${projectBase(projectId)}/validate/market-response`,
+  marketResponseDetail: (projectId, predictionId) =>
+    `${projectBase(projectId)}/validate/market-response/${encodeURIComponent(predictionId)}`,
+  marketing: (projectId) => `${projectBase(projectId)}/validate/marketing`,
+  marketingNew: (projectId) => `${projectBase(projectId)}/validate/marketing/new`,
+  marketingContent: (projectId, contentId) =>
+    `${projectBase(projectId)}/validate/marketing/${encodeURIComponent(contentId)}`,
   report: (projectId) => `${projectBase(projectId)}/report`,
   settings: (projectId) => `${projectBase(projectId)}/settings`,
   danger: (projectId) => `${projectBase(projectId)}/settings`,

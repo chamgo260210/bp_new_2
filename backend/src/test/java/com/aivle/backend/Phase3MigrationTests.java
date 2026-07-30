@@ -26,13 +26,13 @@ class Phase3MigrationTests {
     @Autowired DataSource dataSource;
 
     @Test
-    void freshH2SchemaAppliesThroughV17AndValidatesOperationalTables() throws Exception {
+    void freshH2SchemaAppliesThroughV20AndValidatesOperationalTables() throws Exception {
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version is not null
             order by installed_rank desc
             limit 1
-            """).query(String.class).single()).isEqualTo("17");
+            """).query(String.class).single()).isEqualTo("20");
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version in ('13', '14', '15', '16', '17')
@@ -90,6 +90,47 @@ class Phase3MigrationTests {
         assertThat(countRows("baseline_personas")).isEqualTo(56);
         assertThat(countRows("cluster_persona_policies")).isZero();
         assertThat(countRows("project_persona_selections")).isZero();
+        assertThat(tableExists("marketing_contents")).isTrue();
+        assertThat(tableExists("marketing_content_versions")).isTrue();
+        assertThat(importedKeyExists(
+            "marketing_contents",
+            "project_id",
+            "projects"
+        )).isTrue();
+        assertThat(importedKeyExists(
+            "marketing_contents",
+            "selected_persona_id",
+            "baseline_personas"
+        )).isTrue();
+        assertThat(uniqueIndexExists(
+            "marketing_content_versions",
+            "marketing_content_id"
+        )).isTrue();
+        assertThat(countRows("marketing_contents")).isZero();
+        assertThat(countRows("marketing_content_versions")).isZero();
+        assertThat(tableExists("persona_panel_interviews")).isTrue();
+        assertThat(tableExists("market_response_predictions")).isTrue();
+        assertThat(importedKeyExists(
+            "persona_panel_interviews",
+            "project_id",
+            "projects"
+        )).isTrue();
+        assertThat(importedKeyExists(
+            "market_response_predictions",
+            "panel_interview_id",
+            "persona_panel_interviews"
+        )).isTrue();
+        assertThat(countRows("persona_panel_interviews")).isZero();
+        assertThat(countRows("market_response_predictions")).isZero();
+        assertThat(columnExists("marketing_contents", "panel_interview_id")).isTrue();
+        assertThat(columnExists("marketing_contents", "market_response_id")).isTrue();
+        assertThat(columnExists("marketing_contents", "source_snapshot_version")).isTrue();
+        assertThat(columnExists("marketing_content_versions", "source_changed")).isTrue();
+        assertThat(importedKeyExists(
+            "marketing_contents",
+            "panel_interview_id",
+            "persona_panel_interviews"
+        )).isTrue();
     }
 
     @Test
