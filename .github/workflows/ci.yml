@@ -52,7 +52,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run test:run
-      - run: npm run build
+      - name: Build frontend
+        if: always()
+        run: npm run build
 
   docker-e2e:
     runs-on: ubuntu-latest
@@ -85,7 +87,7 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
