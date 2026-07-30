@@ -4,7 +4,8 @@ param(
     [int]$MinioConsolePort = 9001,
     [int]$AiPort = 18000,
     [int]$SpringPort = 8080,
-    [string]$MinioExecutable = ""
+    [string]$MinioExecutable = "",
+    [switch]$MarketingSmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -74,6 +75,7 @@ try {
         -AiPort $AiPort `
         -SpringPort $SpringPort `
         -ArtifactSmoke `
+        -MarketingSmoke:$MarketingSmoke `
         -ObjectStorageEndpoint "http://127.0.0.1:$MinioPort" `
         -ObjectStorageAccessKey $accessKey `
         -ObjectStorageSecretKey $secretKey

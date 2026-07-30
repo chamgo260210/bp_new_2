@@ -546,3 +546,112 @@ def test_artifact_download_failure_is_safe(monkeypatch):
     assert response.json()["error"]["code"] == (
         "ARTIFACT_DOWNLOAD_FAILED"
     )
+
+
+def marketing_task_payload(source: bytes = b"mock-image"):
+    payload = task_payload(
+        task_type=AiTaskType.MARKETING_BANNER_GENERATION.value,
+        input={
+            "promotion_name": "Summer Sale",
+            "main_banner": "Save now",
+            "supporting_copy": "Limited offer",
+            "mood": "PROFESSIONAL",
+            "banner_format": "LANDSCAPE",
+            "emphasis_keywords": ["sale", " sale ", "limited"],
+        },
+        artifacts=[{
+            "artifact_id": "marketing-source",
+            "role": "SOURCE",
+            "object_key": "ai-artifacts/source.png",
+            "download_url": "http://127.0.0.1:9000/bucket/source",
+            "content_type": "image/png",
+            "size": len(source),
+            "checksum": "sha256:" + hashlib.sha256(source).hexdigest(),
+        }],
+        output_targets=[{
+            "role": "RESULT",
+            "object_key": "ai-artifacts/result.png",
+            "upload_url": "http://127.0.0.1:9000/bucket/result",
+            "content_type": "image/png",
+        }],
+    )
+    return payload
+
+
+def test_marketing_task_reuses_prompt_and_mock_artifact_semantics(monkeypatch):
+    source = b"mock-image"
+    uploaded = {}
+
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                content=source,
+                headers={"Content-Type": "image/png"},
+            )
+        uploaded["content"] = request.content
+        return httpx.Response(200)
+
+    install_artifact_transport(monkeypatch, handler)
+    response = client.post(
+        "/internal/v1/tasks",
+        json=marketing_task_payload(source),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["execution"] == {
+        "handler": "marketing-banner",
+        "handler_version": "1.0",
+    }
+    assert body["result"]["provider"] == {
+        "name": "mock-copy",
+        "mock": True,
+    }
+    assert body["result"]["normalized_input"]["emphasis_keywords"] == [
+        "sale",
+        "limited",
+    ]
+    assert "Summer Sale" in body["result"]["prompt_preview"]
+    assert "Save now" in body["result"]["prompt_preview"]
+    assert uploaded["content"] == source
+    assert body["artifacts"][0]["checksum"] == (
+        "sha256:" + hashlib.sha256(source).hexdigest()
+    )
+
+
+def test_marketing_task_rejects_invalid_enum():
+    payload = marketing_task_payload()
+    payload["input"]["mood"] = "AUTONOMOUS"
+    response = client.post(
+        "/internal/v1/tasks",
+        json=payload,
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_marketing_task_rejects_mime_and_extension_mismatch():
+    payload = marketing_task_payload()
+    payload["artifacts"][0]["content_type"] = "image/jpeg"
+    response = client.post(
+        "/internal/v1/tasks",
+        json=payload,
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 415
+    assert response.json()["error"]["code"] == "UNSUPPORTED_IMAGE_TYPE"
+
+
+def test_marketing_task_rejects_oversized_source():
+    payload = marketing_task_payload()
+    payload["artifacts"][0]["size"] = 10 * 1024 * 1024 + 1
+    response = client.post(
+        "/internal/v1/tasks",
+        json=payload,
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "IMAGE_TOO_LARGE"

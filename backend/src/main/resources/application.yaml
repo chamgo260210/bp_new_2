@@ -79,6 +79,9 @@ app:
     artifact-max-size: ${OBJECT_STORAGE_ARTIFACT_MAX_SIZE:1MB}
     allowed-content-types:
       - application/json
+      - image/png
+      - image/jpeg
+      - image/webp
   storage:
     reconciliation:
       enabled: ${STORAGE_RECONCILIATION_ENABLED:false}

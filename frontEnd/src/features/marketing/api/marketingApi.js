@@ -55,5 +55,47 @@ export function createMarketingApi(client) {
         options,
       )).data;
     },
+    async generate(
+      projectId,
+      contentId,
+      image,
+      { sourceVersionId, idempotencyKey, ...options } = {},
+    ) {
+      const form = new FormData();
+      form.append('image', image);
+      const query = sourceVersionId == null
+        ? ''
+        : `?sourceVersionId=${encodeURIComponent(sourceVersionId)}`;
+      return (await client.upload(
+        `${root(projectId)}/${encodeURIComponent(contentId)}/generate${query}`,
+        form,
+        {
+          ...options,
+          headers: {
+            ...options.headers,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )).data;
+    },
+    async rerun(projectId, contentId, originalJobId, idempotencyKey, options) {
+      return (await client.post(
+        `${root(projectId)}/${encodeURIComponent(contentId)}/rerun`,
+        { originalJobId },
+        {
+          ...options,
+          headers: {
+            ...options?.headers,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )).data;
+    },
+    async job(jobId, options) {
+      return (await client.get(
+        `/jobs/${encodeURIComponent(jobId)}`,
+        options,
+      )).data;
+    },
   };
 }

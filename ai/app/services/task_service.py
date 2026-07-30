@@ -5,6 +5,7 @@ from typing import Any
 from app.models.tasks import AiTaskRequest, AiTaskType
 from app.models.tasks import AiTaskArtifactMetadata
 from app.services.artifact_service import execute_artifact_smoke
+from app.services.marketing_task_service import execute_marketing_banner
 
 
 TaskHandler = Callable[
@@ -61,6 +62,13 @@ def system_artifact_smoke_handler(
     return result, [artifact]
 
 
+def marketing_banner_handler(
+    task: AiTaskRequest,
+) -> tuple[dict[str, Any], list[AiTaskArtifactMetadata]]:
+    result, artifact = execute_marketing_banner(task)
+    return result, [artifact]
+
+
 TASK_HANDLERS: dict[AiTaskType, TaskHandlerRegistration] = {
     AiTaskType.SYSTEM_SMOKE_TEST: TaskHandlerRegistration(
         name="system-smoke",
@@ -71,6 +79,11 @@ TASK_HANDLERS: dict[AiTaskType, TaskHandlerRegistration] = {
         name="system-artifact-smoke",
         version="1.0",
         execute=system_artifact_smoke_handler,
+    ),
+    AiTaskType.MARKETING_BANNER_GENERATION: TaskHandlerRegistration(
+        name="marketing-banner",
+        version="1.0",
+        execute=marketing_banner_handler,
     ),
 }
 

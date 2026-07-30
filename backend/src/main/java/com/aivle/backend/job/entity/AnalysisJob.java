@@ -165,6 +165,24 @@ public class AnalysisJob extends BaseEntity {
         return job;
     }
 
+    public static AnalysisJob queuedMarketingGeneration(
+        Project project,
+        String requestJson,
+        String idempotencyKey,
+        String requestFingerprint,
+        AnalysisJob rerunOfJob
+    ) {
+        AnalysisJob job = new AnalysisJob(
+            project,
+            JobType.MARKETING_GENERATION,
+            requestJson
+        );
+        job.idempotencyKey = idempotencyKey;
+        job.requestFingerprint = requestFingerprint;
+        job.rerunOfJob = rerunOfJob;
+        return job;
+    }
+
     public boolean hasSameIdempotentRequest(String fingerprint) {
         return Objects.equals(this.requestFingerprint, fingerprint);
     }

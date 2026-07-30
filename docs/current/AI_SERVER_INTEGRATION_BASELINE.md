@@ -15,7 +15,8 @@ provider or access the service database.
 - `POST /api/v1/test`: connection echo
 - `POST /api/v1/marketing/banners/generate`: multipart Mock banner generation
 - `POST /internal/v1/tasks`: versioned internal task envelope; currently only
-  `SYSTEM_SMOKE_TEST` and `SYSTEM_ARTIFACT_SMOKE_TEST`
+  `SYSTEM_SMOKE_TEST`, `SYSTEM_ARTIFACT_SMOKE_TEST`, and
+  `MARKETING_BANNER_GENERATION`
 
 All responses return `X-Request-Id`. When the caller supplies the header,
 FastAPI returns the same value; otherwise it generates a UUID. Error responses
@@ -69,6 +70,14 @@ It verifies Spring-owned input metadata, presigned GET/PUT transfer through
 FastAPI, output checksum and metadata finalization, `SUCCEEDED`, and the
 owner-authorized Spring download endpoint.
 
+The marketing lifecycle smoke additionally creates a content/version, runs
+the Mock banner task, verifies the generated version and downloadable result,
+and submits an explicit rerun:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/ai-marketing-smoke.ps1
+```
+
 ## Known limitations
 
 - Local output storage and `/outputs` static serving are Mock-only.
@@ -77,7 +86,9 @@ owner-authorized Spring download endpoint.
   classification is recorded but no automatic task rerun occurs.
 - There is no separate AI Run table, image-generation provider, or Actuator
   `HealthIndicator`.
-- Artifact smoke supports small JSON only. The marketing Mock still uses its
+- System artifact smoke supports small JSON. Marketing tasks allow the
+  existing PNG/JPG/JPEG/WEBP and 10 MiB baseline. The compatibility endpoint
+  still uses its
   compatibility `ai/outputs` directory.
 
 A later phase can connect marketing/report artifacts to the same storage

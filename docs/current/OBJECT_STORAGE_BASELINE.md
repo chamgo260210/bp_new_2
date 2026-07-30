@@ -42,7 +42,9 @@ management.
 - GET and PUT URLs expire after five minutes by default.
 - FastAPI accepts only configured HTTP(S) origins and does not follow
   redirects.
-- Both sides enforce a 1 MiB default limit and `application/json`.
+- Both sides enforce content length and an allowlist. System smoke keeps its
+  1 MiB JSON limit; marketing uses the existing 10 MiB image limit and accepts
+  PNG/JPG/JPEG/WEBP.
 - Input and output SHA-256, MIME type, and byte count are verified.
 - URLs, signatures, credentials, and file contents are not logged.
 
@@ -53,3 +55,7 @@ links it to project, job, result, and SOURCE/RESULT role. Automated S3
 retention and reconciliation are not enabled in this phase; failed output
 creation is cleaned up immediately, with future S3 reconciliation as the
 fallback design.
+
+`MARKETING_GENERATION` uses the same port and metadata. A generated
+`MarketingContentVersion` references its `AnalysisJob`; result object metadata
+is reached through that Job's `AiTaskResult` and `AiTaskArtifact`.

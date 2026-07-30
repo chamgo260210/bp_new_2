@@ -5,6 +5,7 @@ param(
     [int]$StartupTimeoutSeconds = 120,
     [switch]$JobSmoke,
     [switch]$ArtifactSmoke,
+    [switch]$MarketingSmoke,
     [string]$ObjectStorageEndpoint = "http://127.0.0.1:9000",
     [string]$ObjectStorageAccessKey = "aivle-local",
     [string]$ObjectStorageSecretKey = "replace-with-local-secret"
@@ -123,13 +124,13 @@ try {
     $env:SPRING_PROFILES_ACTIVE = "local,dev-header-auth"
     $env:SERVER_PORT = "$SpringPort"
     $env:DOCUMENT_JOB_RUNNER_ENABLED = if (
-        $JobSmoke -or $ArtifactSmoke
+        $JobSmoke -or $ArtifactSmoke -or $MarketingSmoke
     ) {
         "true"
     } else {
         "false"
     }
-    if ($ArtifactSmoke) {
+    if ($ArtifactSmoke -or $MarketingSmoke) {
         $env:OBJECT_STORAGE_PROVIDER = "s3"
         $env:OBJECT_STORAGE_ENDPOINT = $ObjectStorageEndpoint
         $env:OBJECT_STORAGE_PUBLIC_ENDPOINT = $ObjectStorageEndpoint
@@ -415,9 +416,167 @@ try {
         )
     }
 
+    $marketingJobSummary = ""
+    if ($MarketingSmoke) {
+        $identitySuffix = [guid]::NewGuid().ToString("N")
+        $signupBody = @{
+            username = "mkt" + $identitySuffix.Substring(0, 12)
+            password = "Q7!" + $identitySuffix.Substring(0, 20)
+            displayName = "Marketing Smoke User"
+            email = "marketing-" + $identitySuffix + "@example.com"
+            organizationName = $null
+            departmentName = $null
+            jobTitle = $null
+        } | ConvertTo-Json
+        $signup = Invoke-RestMethod -Method Post `
+            -Uri "http://127.0.0.1:$SpringPort/api/v1/auth/signup" `
+            -ContentType "application/json" -Body $signupBody -TimeoutSec 15
+        $marketingHeaders = @{
+            "X-User-Id" = "$($signup.data.user.id)"
+            "X-User-Role" = "USER"
+            "X-Request-Id" = $requestId
+            "Idempotency-Key" = "marketing-" + $identitySuffix
+        }
+        $projectBody = @{
+            title = "Marketing smoke " + $identitySuffix.Substring(0, 8)
+            description = "Temporary MARKETING_GENERATION project"
+            industryCategory = "test"
+        } | ConvertTo-Json
+        $project = Invoke-RestMethod -Method Post `
+            -Uri "http://127.0.0.1:$SpringPort/api/v1/projects" `
+            -Headers $marketingHeaders -ContentType "application/json" `
+            -Body $projectBody -TimeoutSec 15
+        $projectId = $project.data.id
+        $contentBody = @{
+            title = "Smoke Campaign"
+            purpose = "PRODUCT_INTRODUCTION"
+            channel = "SOCIAL"
+            format = "SQUARE_1080"
+            width = $null
+            height = $null
+            personaId = $null
+            targetOffer = "Verified service"
+            emphasisMessage = "Reliable"
+            requiredText = ""
+            avoidedText = ""
+            brandName = "Aivle"
+            brandColor = "#0f8878"
+            callToAction = "Learn more"
+            tone = "PROFESSIONAL"
+            template = "HERO_CENTER"
+            panelInterviewId = $null
+            marketResponseId = $null
+        } | ConvertTo-Json
+        $content = Invoke-RestMethod -Method Post `
+            -Uri (
+                "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+                "$projectId/marketing-contents"
+            ) -Headers $marketingHeaders -ContentType "application/json" `
+            -Body $contentBody -TimeoutSec 15
+        $contentId = $content.data.content.id
+        $sourceVersionId = $content.data.current.id
+        $generateUrl = (
+            "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+            "$projectId/marketing-contents/$contentId/generate" +
+            "?sourceVersionId=$sourceVersionId"
+        )
+        $generateText = & curl.exe --silent --show-error --fail-with-body `
+            -H "X-User-Id: $($signup.data.user.id)" `
+            -H "X-User-Role: USER" `
+            -H "X-Request-Id: $requestId" `
+            -H "Idempotency-Key: marketing-$identitySuffix" `
+            -F "image=@$sampleImage;type=image/png" $generateUrl
+        if ($LASTEXITCODE -ne 0) {
+            throw "Marketing generation request failed: $generateText"
+        }
+        $accepted = $generateText | ConvertFrom-Json
+        $marketingJobId = $accepted.data.jobId
+        $deadline = [DateTime]::UtcNow.AddSeconds(45)
+        do {
+            $marketingJob = Invoke-RestMethod -Uri (
+                "http://127.0.0.1:$SpringPort/api/v1/jobs/$marketingJobId"
+            ) -Headers $marketingHeaders -TimeoutSec 10
+            if ($marketingJob.data.status -in @("SUCCEEDED", "FAILED")) {
+                break
+            }
+            Start-Sleep -Milliseconds 250
+        } while ([DateTime]::UtcNow -lt $deadline)
+        if ($marketingJob.data.status -ne "SUCCEEDED") {
+            throw (
+                "MARKETING_GENERATION did not succeed. status=" +
+                $marketingJob.data.status + ", error=" +
+                $marketingJob.data.errorCode
+            )
+        }
+        $versions = Invoke-RestMethod -Uri (
+            "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+            "$projectId/marketing-contents/$contentId/versions"
+        ) -Headers $marketingHeaders -TimeoutSec 15
+        if (
+            $versions.data.Count -ne 2 -or
+            $versions.data[0].analysisJobId -ne $marketingJobId -or
+            -not $versions.data[0].aiGenerated
+        ) {
+            throw "Generated marketing version linkage is invalid."
+        }
+        $download = Invoke-WebRequest -UseBasicParsing -Uri (
+            "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+            "$projectId/ai-tasks/$marketingJobId/artifacts/result"
+        ) -Headers $marketingHeaders -TimeoutSec 15
+        if ($download.RawContentLength -ne (
+            Get-Item -LiteralPath $sampleImage
+        ).Length) {
+            throw "Generated marketing artifact content is invalid."
+        }
+        $marketingHeaders["Idempotency-Key"] = (
+            "marketing-rerun-" + $identitySuffix
+        )
+        $rerun = Invoke-RestMethod -Method Post -Uri (
+            "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+            "$projectId/marketing-contents/$contentId/rerun"
+        ) -Headers $marketingHeaders -ContentType "application/json" `
+            -Body (@{ originalJobId = $marketingJobId } | ConvertTo-Json) `
+            -TimeoutSec 30
+        if (
+            $rerun.data.jobId -eq $marketingJobId -or
+            $rerun.data.rerunOfJobId -ne $marketingJobId
+        ) {
+            throw "Marketing rerun linkage is invalid."
+        }
+        $rerunJobId = $rerun.data.jobId
+        $deadline = [DateTime]::UtcNow.AddSeconds(45)
+        do {
+            $rerunJob = Invoke-RestMethod -Uri (
+                "http://127.0.0.1:$SpringPort/api/v1/jobs/$rerunJobId"
+            ) -Headers $marketingHeaders -TimeoutSec 10
+            if ($rerunJob.data.status -in @("SUCCEEDED", "FAILED")) {
+                break
+            }
+            Start-Sleep -Milliseconds 250
+        } while ([DateTime]::UtcNow -lt $deadline)
+        if ($rerunJob.data.status -ne "SUCCEEDED") {
+            throw "Marketing rerun did not succeed."
+        }
+        $rerunVersions = Invoke-RestMethod -Uri (
+            "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+            "$projectId/marketing-contents/$contentId/versions"
+        ) -Headers $marketingHeaders -TimeoutSec 15
+        if (
+            $rerunVersions.data.Count -ne 3 -or
+            $rerunVersions.data[0].analysisJobId -ne $rerunJobId
+        ) {
+            throw "Marketing rerun version was not appended."
+        }
+        $marketingJobSummary = (
+            ", marketingJob=$marketingJobId/SUCCEEDED" +
+            ", rerunJob=$rerunJobId/SUCCEEDED"
+        )
+    }
+
     Write-Output (
         "AI local smoke passed: health=ready, marketing=completed, " +
-        "requestId=$requestId" + $jobSummary + $artifactSummary
+        "requestId=$requestId" + $jobSummary + $artifactSummary +
+        $marketingJobSummary
     )
 } catch {
     Write-Output ("Smoke failed: " + $_.Exception.Message)

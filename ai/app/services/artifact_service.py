@@ -23,7 +23,7 @@ def execute_artifact_smoke(
     target: AiTaskOutputTarget,
 ) -> tuple[dict[str, object], AiTaskArtifactMetadata]:
     _validate_contract(source, target)
-    content = _download(source)
+    content = download_artifact(source)
     try:
         source_json = json.loads(content.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exception:
@@ -39,7 +39,7 @@ def execute_artifact_smoke(
     ).encode("utf-8")
     if len(result_content) > _max_bytes():
         raise _too_large()
-    _upload(target, result_content)
+    upload_artifact(target, result_content)
     checksum = hashlib.sha256(result_content).hexdigest()
     metadata = AiTaskArtifactMetadata(
         role="RESULT",
@@ -110,7 +110,10 @@ def _validate_url(url: str) -> None:
         )
 
 
-def _download(source: AiTaskArtifactInput) -> bytes:
+def download_artifact(
+    source: AiTaskArtifactInput,
+    max_bytes: int | None = None,
+) -> bytes:
     digest = hashlib.sha256()
     content = bytearray()
     try:
@@ -142,7 +145,7 @@ def _download(source: AiTaskArtifactInput) -> bytes:
                 for chunk in response.iter_bytes(CHUNK_SIZE):
                     content.extend(chunk)
                     digest.update(chunk)
-                    if len(content) > _max_bytes():
+                    if len(content) > (max_bytes or _max_bytes()):
                         raise _too_large()
     except ApiHttpException:
         raise
@@ -171,7 +174,7 @@ def _download(source: AiTaskArtifactInput) -> bytes:
     return bytes(content)
 
 
-def _upload(
+def upload_artifact(
     target: AiTaskOutputTarget,
     content: bytes,
 ) -> None:

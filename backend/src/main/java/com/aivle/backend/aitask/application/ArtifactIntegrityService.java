@@ -23,6 +23,24 @@ public class ArtifactIntegrityService {
         long reportedSize,
         String reportedChecksum
     ) throws IOException {
+        return verify(
+            objectStorage,
+            objectKey,
+            expectedContentType,
+            reportedSize,
+            reportedChecksum,
+            properties.maxArtifactBytes()
+        );
+    }
+
+    public VerifiedArtifact verify(
+        ObjectStoragePort objectStorage,
+        String objectKey,
+        String expectedContentType,
+        long reportedSize,
+        String reportedChecksum,
+        long maxBytes
+    ) throws IOException {
         if (
             !properties.allowedContentTypes()
                 .contains(expectedContentType)
@@ -32,7 +50,7 @@ public class ArtifactIntegrityService {
         var metadata = objectStorage.metadata(objectKey);
         if (
             metadata.sizeBytes() <= 0
-            || metadata.sizeBytes() > properties.maxArtifactBytes()
+            || metadata.sizeBytes() > maxBytes
             || metadata.sizeBytes() != reportedSize
         ) {
             throw new IOException("artifact size mismatch");
@@ -47,7 +65,7 @@ public class ArtifactIntegrityService {
         try (InputStream input = objectStorage.open(objectKey)) {
             content = readLimited(
                 input,
-                properties.maxArtifactBytes()
+                maxBytes
             );
         }
         if (content.length != metadata.sizeBytes()) {

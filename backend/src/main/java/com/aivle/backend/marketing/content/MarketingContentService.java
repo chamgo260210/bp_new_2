@@ -164,7 +164,23 @@ public class MarketingContentService {
             persona
         );
         MarketingContentVersion version = currentVersion(content);
-        version.apply(validatedDraft(command.draft()), LocalDateTime.now(clock));
+        if (version.getAnalysisJob() != null) {
+            int number = content.advanceVersion();
+            version = versions.save(MarketingContentVersion.create(
+                content,
+                number,
+                actor,
+                validatedDraft(command.draft()),
+                LocalDateTime.now(clock),
+                content.getSourceSnapshotVersion(),
+                false,
+                true
+            ));
+        } else {
+            version.apply(
+                validatedDraft(command.draft()),
+                LocalDateTime.now(clock));
+        }
         audit(
             actor,
             project,
@@ -639,8 +655,9 @@ public class MarketingContentService {
             content.getSourceSnapshotJson(),
             sourceSnapshots.legalNotice(content.getSourceSnapshotJson()),
             version(version),
-            "VALIDATION_TEMPLATE",
-            false,
+            version.getAnalysisJob() == null
+                ? "VALIDATION_TEMPLATE" : "AI_TASK",
+            version.getAnalysisJob() != null,
             sourceSnapshots.guidance(content.getSourceSnapshotJson()).evidence(),
             sourceSnapshots.guidance(content.getSourceSnapshotJson()).recommendedPresets()
         );
@@ -670,6 +687,9 @@ public class MarketingContentService {
             value.getSourceSnapshotVersion(),
             value.isSourceChanged(),
             value.isCopyChanged(),
+            value.getAnalysisJob() == null
+                ? null : value.getAnalysisJob().getId(),
+            value.getAnalysisJob() != null,
             value.getCreatedAt(),
             value.getUpdatedAt()
         );
@@ -841,6 +861,8 @@ public class MarketingContentService {
         int sourceSnapshotVersion,
         boolean sourceChanged,
         boolean copyChanged,
+        Long analysisJobId,
+        boolean aiGenerated,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
     ) { }

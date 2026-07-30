@@ -9,6 +9,7 @@ from app.models.contracts import AiServerErrorDetail
 class AiTaskType(str, Enum):
     SYSTEM_SMOKE_TEST = "SYSTEM_SMOKE_TEST"
     SYSTEM_ARTIFACT_SMOKE_TEST = "SYSTEM_ARTIFACT_SMOKE_TEST"
+    MARKETING_BANNER_GENERATION = "MARKETING_BANNER_GENERATION"
 
 
 class AiTaskArtifactInput(BaseModel):

@@ -1,6 +1,7 @@
 package com.aivle.backend.marketing.content;
 
 import com.aivle.backend.user.entity.User;
+import com.aivle.backend.job.entity.AnalysisJob;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -55,6 +56,9 @@ public class MarketingContentVersion {
     private User createdBy;
     @Column(nullable = false) private LocalDateTime createdAt;
     @Column(nullable = false) private LocalDateTime updatedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "analysis_job_id")
+    private AnalysisJob analysisJob;
 
     public static MarketingContentVersion create(
         MarketingContent content,
@@ -76,6 +80,39 @@ public class MarketingContentVersion {
         value.copyChanged = copyChanged;
         value.apply(draft, now);
         return value;
+    }
+
+    public static MarketingContentVersion generated(
+        MarketingContent content,
+        int versionNumber,
+        User actor,
+        Draft draft,
+        LocalDateTime now,
+        int sourceSnapshotVersion,
+        AnalysisJob analysisJob
+    ) {
+        MarketingContentVersion value = create(
+            content,
+            versionNumber,
+            actor,
+            draft,
+            now,
+            sourceSnapshotVersion,
+            false,
+            false
+        );
+        value.analysisJob = analysisJob;
+        return value;
+    }
+
+    public Draft toDraft() {
+        return new Draft(
+            headline, subheadline, bodyCopy, callToAction,
+            supportingText, visualStyle, colorTheme, layoutTemplate,
+            backgroundType, backgroundValue, accentColor, textColor,
+            textAlignment, headlineSize, showCta, showPersonaTag,
+            contentJson
+        );
     }
 
     public void apply(Draft draft, LocalDateTime now) {
