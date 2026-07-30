@@ -54,6 +54,24 @@ jobs:
       - run: npm run test:run
       - run: npm run build
 
+  docker-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose
+        run: >-
+          docker compose
+          --env-file .env.e2e.example
+          -f compose.yaml
+          -f compose.e2e.yaml
+          config --quiet
+      - name: Run full Docker E2E
+        shell: pwsh
+        run: >-
+          ./scripts/docker-e2e-smoke.ps1
+          -EnvFile .env.e2e.example
+
   contract-and-security:
     runs-on: ubuntu-latest
     steps:

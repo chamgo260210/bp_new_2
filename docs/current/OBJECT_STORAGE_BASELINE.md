@@ -59,3 +59,8 @@ fallback design.
 `MARKETING_GENERATION` uses the same port and metadata. A generated
 `MarketingContentVersion` references its `AnalysisJob`; result object metadata
 is reached through that Job's `AiTaskResult` and `AiTaskArtifact`.
+
+In Docker Compose, both the S3 client endpoint and the presigned URL signing
+endpoint are `http://minio:9000`, because Spring and FastAPI share the private
+Compose network. Browser downloads still pass through Spring and never depend
+on resolving the internal `minio` hostname.

@@ -41,7 +41,7 @@ public class SecurityConfiguration {
                     "/api/v1/auth/signup",
                     "/api/v1/auth/login",
                     "/api/v1/auth/refresh",
-                    "/actuator/health",
+                    "/actuator/health/**",
                     "/h2-console/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -99,7 +99,7 @@ public class SecurityConfiguration {
                     "/api/v1/auth/signup",
                     "/api/v1/auth/login",
                     "/api/v1/auth/refresh",
-                    "/actuator/health",
+                    "/actuator/health/**",
                     "/h2-console/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -130,7 +130,7 @@ public class SecurityConfiguration {
                     "/api/v1/auth/signup",
                     "/api/v1/auth/login",
                     "/api/v1/auth/refresh",
-                    "/actuator/health",
+                    "/actuator/health/**",
                     "/h2-console/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

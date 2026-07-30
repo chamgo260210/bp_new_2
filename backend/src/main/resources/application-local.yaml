@@ -9,10 +9,5 @@ spring:
       enabled: true
 
 app:
-  ai-server:
-    base-url: ${AI_SERVER_BASE_URL:http://127.0.0.1:8000}
-    connect-timeout: ${AI_SERVER_CONNECT_TIMEOUT:3s}
-    read-timeout: ${AI_SERVER_READ_TIMEOUT:30s}
-    internal-api-key: ${AI_SERVER_INTERNAL_API_KEY:}
   object-storage:
     provider: ${OBJECT_STORAGE_PROVIDER:local}

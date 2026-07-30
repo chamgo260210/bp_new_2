@@ -41,6 +41,11 @@ app:
     max-retries: ${AI_MAX_RETRIES:2}
     max-input-characters: ${AI_MAX_INPUT_CHARACTERS:200000}
     max-response-bytes: ${AI_MAX_RESPONSE_BYTES:1048576}
+  ai-server:
+    base-url: ${AI_SERVER_BASE_URL:http://127.0.0.1:8000}
+    connect-timeout: ${AI_SERVER_CONNECT_TIMEOUT:3s}
+    read-timeout: ${AI_SERVER_READ_TIMEOUT:30s}
+    internal-api-key: ${AI_SERVER_INTERNAL_API_KEY:}
   jobs:
     document-processing:
       enabled: ${DOCUMENT_JOB_RUNNER_ENABLED:false}
@@ -101,3 +106,14 @@ app:
         max-blocks: 10000
         max-table-cells: 20000
         max-paragraph-characters: 50000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true

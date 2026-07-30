@@ -78,6 +78,11 @@ and submits an explicit rerun:
 powershell -ExecutionPolicy Bypass -File scripts/ai-marketing-smoke.ps1
 ```
 
+The full container baseline sets `AI_SERVER_BASE_URL` to
+`http://ai-server:8000` and permits artifact transfers only from the exact
+`http://minio:9000` origin. See `DOCKER_E2E_GUIDE.md`; the compatibility
+`outputs` mount is not used by task artifacts in Compose.
+
 ## Known limitations
 
 - Local output storage and `/outputs` static serving are Mock-only.
