@@ -3,7 +3,11 @@ param(
     [int]$AiPort = 8000,
     [int]$SpringPort = 8080,
     [int]$StartupTimeoutSeconds = 120,
-    [switch]$JobSmoke
+    [switch]$JobSmoke,
+    [switch]$ArtifactSmoke,
+    [string]$ObjectStorageEndpoint = "http://127.0.0.1:9000",
+    [string]$ObjectStorageAccessKey = "aivle-local",
+    [string]$ObjectStorageSecretKey = "replace-with-local-secret"
 )
 
 $ErrorActionPreference = "Stop"
@@ -118,10 +122,21 @@ try {
     $env:FILE_STORAGE_ROOT = Join-Path $runtimeRoot "files"
     $env:SPRING_PROFILES_ACTIVE = "local,dev-header-auth"
     $env:SERVER_PORT = "$SpringPort"
-    $env:DOCUMENT_JOB_RUNNER_ENABLED = if ($JobSmoke) {
+    $env:DOCUMENT_JOB_RUNNER_ENABLED = if (
+        $JobSmoke -or $ArtifactSmoke
+    ) {
         "true"
     } else {
         "false"
+    }
+    if ($ArtifactSmoke) {
+        $env:OBJECT_STORAGE_PROVIDER = "s3"
+        $env:OBJECT_STORAGE_ENDPOINT = $ObjectStorageEndpoint
+        $env:OBJECT_STORAGE_PUBLIC_ENDPOINT = $ObjectStorageEndpoint
+        $env:OBJECT_STORAGE_ACCESS_KEY = $ObjectStorageAccessKey
+        $env:OBJECT_STORAGE_SECRET_KEY = $ObjectStorageSecretKey
+        $env:OBJECT_STORAGE_BUCKET = "aivle-ai-artifacts"
+        $env:AI_ARTIFACT_ALLOWED_ORIGINS = $ObjectStorageEndpoint
     }
 
     $springProcess = Start-Process -FilePath $gradle `
@@ -291,9 +306,118 @@ try {
         $jobSummary = ", job=$jobId/SUCCEEDED"
     }
 
+    $artifactSummary = ""
+    if ($ArtifactSmoke) {
+        $identitySuffix = [guid]::NewGuid().ToString("N")
+        $signupBody = @{
+            username = "art" + $identitySuffix.Substring(0, 12)
+            password = "Q7!" + $identitySuffix.Substring(0, 20)
+            displayName = "Artifact Smoke User"
+            email = "artifact-" + $identitySuffix + "@example.com"
+            organizationName = $null
+            departmentName = $null
+            jobTitle = $null
+        } | ConvertTo-Json
+        $signup = Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://127.0.0.1:$SpringPort/api/v1/auth/signup" `
+            -ContentType "application/json" `
+            -Body $signupBody `
+            -TimeoutSec 15
+        $userId = $signup.data.user.id
+        $artifactHeaders = @{
+            "X-User-Id" = "$userId"
+            "X-User-Role" = "USER"
+            "X-Request-Id" = $requestId
+            "Idempotency-Key" = "artifact-" + $identitySuffix
+        }
+        $projectBody = @{
+            title = "Artifact smoke " + $identitySuffix.Substring(0, 8)
+            description = "Temporary SYSTEM_ARTIFACT_SMOKE_TEST project"
+            industryCategory = "test"
+        } | ConvertTo-Json
+        $project = Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://127.0.0.1:$SpringPort/api/v1/projects" `
+            -Headers $artifactHeaders `
+            -ContentType "application/json" `
+            -Body $projectBody `
+            -TimeoutSec 15
+        $projectId = $project.data.id
+        $accepted = Invoke-RestMethod `
+            -Method Post `
+            -Uri (
+                "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+                "$projectId/ai-tasks/artifact-smoke"
+            ) `
+            -Headers $artifactHeaders `
+            -ContentType "application/json" `
+            -Body "{}" `
+            -TimeoutSec 30
+        $artifactJobId = $accepted.data.jobId
+        if ($accepted.data.status -ne "QUEUED") {
+            throw "Artifact task start did not return QUEUED."
+        }
+        $deadline = [DateTime]::UtcNow.AddSeconds(45)
+        $artifactJob = $null
+        while ([DateTime]::UtcNow -lt $deadline) {
+            $artifactJob = Invoke-RestMethod `
+                -Uri (
+                    "http://127.0.0.1:$SpringPort/api/v1/jobs/" +
+                    "$artifactJobId"
+                ) `
+                -Headers $artifactHeaders `
+                -TimeoutSec 10
+            if (
+                $artifactJob.data.status -eq "SUCCEEDED" -or
+                $artifactJob.data.status -eq "FAILED"
+            ) {
+                break
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        if ($artifactJob.data.status -ne "SUCCEEDED") {
+            throw (
+                "SYSTEM_ARTIFACT_SMOKE_TEST did not succeed. status=" +
+                $artifactJob.data.status + ", error=" +
+                $artifactJob.data.errorCode
+            )
+        }
+        $downloadUrl = (
+            "http://127.0.0.1:$SpringPort/api/v1/projects/" +
+            "$projectId/ai-tasks/$artifactJobId/artifacts/result"
+        )
+        $download = Invoke-WebRequest -UseBasicParsing `
+            -Uri $downloadUrl `
+            -Headers $artifactHeaders `
+            -TimeoutSec 15
+        $artifactText = if ($download.Content -is [byte[]]) {
+            [Text.Encoding]::UTF8.GetString($download.Content)
+        } else {
+            [string]$download.Content
+        }
+        $artifactJson = $artifactText | ConvertFrom-Json
+        if (
+            $artifactJson.status -ne "processed" -or
+            $artifactJson.source.message -ne "artifact-smoke"
+        ) {
+            throw "Downloaded artifact content is invalid."
+        }
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $download.Headers["X-Artifact-Id"]
+            )
+        ) {
+            throw "Spring artifact download omitted metadata header."
+        }
+        $artifactSummary = (
+            ", artifactJob=$artifactJobId/SUCCEEDED"
+        )
+    }
+
     Write-Output (
         "AI local smoke passed: health=ready, marketing=completed, " +
-        "requestId=$requestId" + $jobSummary
+        "requestId=$requestId" + $jobSummary + $artifactSummary
     )
 } catch {
     Write-Output ("Smoke failed: " + $_.Exception.Message)

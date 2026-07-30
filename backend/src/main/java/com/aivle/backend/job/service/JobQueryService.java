@@ -24,7 +24,8 @@ public class JobQueryService {
         if (jobType != JobType.DOCUMENT_PARSE && jobType != JobType.LEGAL_REVIEW
             && jobType != JobType.FEASIBILITY_ANALYSIS
             && jobType != JobType.PERSONA_RECOMMENDATION
-            && jobType != JobType.SYSTEM_SMOKE_TEST) {
+            && jobType != JobType.SYSTEM_SMOKE_TEST
+            && jobType != JobType.SYSTEM_ARTIFACT_SMOKE_TEST) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         AnalysisJob job = repository

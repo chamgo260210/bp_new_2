@@ -14,6 +14,7 @@ import com.aivle.backend.integration.ai.AiServerProperties;
 import com.aivle.backend.integration.ai.task.dto.AiTaskRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -128,6 +129,36 @@ class AiTaskClientTests {
         server.verify();
     }
 
+    @Test
+    void sendsAndReceivesTypedArtifactContract() {
+        server.expect(requestTo("http://ai.test/internal/v1/tasks"))
+            .andExpect(request -> {
+                String body = ((MockClientHttpRequest) request)
+                    .getBodyAsString(StandardCharsets.UTF_8);
+                assertThat(body).contains(
+                    "\"artifacts\":[",
+                    "\"download_url\":\"http://minio/source\"",
+                    "\"output_targets\":[",
+                    "\"upload_url\":\"http://minio/result\""
+                );
+            })
+            .andRespond(withSuccess(
+                artifactSuccessBody(),
+                MediaType.APPLICATION_JSON
+            ));
+
+        var response = client.execute(artifactRequest());
+
+        assertThat(response.artifacts()).singleElement()
+            .satisfies(artifact -> {
+                assertThat(artifact.objectKey())
+                    .isEqualTo("ai-artifacts/result.json");
+                assertThat(artifact.checksum())
+                    .startsWith("sha256:");
+            });
+        server.verify();
+    }
+
     private AiTaskRequest request() {
         return new AiTaskRequest(
             "request-1",
@@ -137,6 +168,33 @@ class AiTaskClientTests {
             objectMapper.createObjectNode(),
             objectMapper.createObjectNode(),
             objectMapper.createObjectNode()
+        );
+    }
+
+    private AiTaskRequest artifactRequest() {
+        return new AiTaskRequest(
+            "request-1",
+            "41",
+            AiTaskType.SYSTEM_ARTIFACT_SMOKE_TEST,
+            "1.0",
+            objectMapper.createObjectNode(),
+            objectMapper.createObjectNode(),
+            objectMapper.createObjectNode(),
+            List.of(new AiTaskRequest.ArtifactInput(
+                "source-1",
+                "SOURCE",
+                "ai-artifacts/source.json",
+                "http://minio/source",
+                "application/json",
+                2,
+                "sha256:" + "0".repeat(64)
+            )),
+            List.of(new AiTaskRequest.OutputTarget(
+                "RESULT",
+                "ai-artifacts/result.json",
+                "http://minio/result",
+                "application/json"
+            ))
         );
     }
 
@@ -173,5 +231,31 @@ class AiTaskClientTests {
               }
             }
             """.formatted(code, retryable);
+    }
+
+    private String artifactSuccessBody() {
+        return """
+            {
+              "request_id":"request-1",
+              "task_id":"41",
+              "task_type":"SYSTEM_ARTIFACT_SMOKE_TEST",
+              "status":"SUCCEEDED",
+              "schema_version":"1.0",
+              "result":{"ok":true},
+              "warnings":[],
+              "execution":{
+                "handler":"system-artifact-smoke",
+                "handler_version":"1.0"
+              },
+              "error":null,
+              "artifacts":[{
+                "role":"RESULT",
+                "object_key":"ai-artifacts/result.json",
+                "content_type":"application/json",
+                "size":2,
+                "checksum":"sha256:%s"
+              }]
+            }
+            """.formatted("0".repeat(64));
     }
 }

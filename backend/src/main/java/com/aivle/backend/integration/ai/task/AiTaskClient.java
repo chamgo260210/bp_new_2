@@ -36,7 +36,9 @@ public class AiTaskClient implements AiTaskGateway {
             request.schemaVersion(),
             request.input(),
             request.context(),
-            request.options()
+            request.options(),
+            request.artifacts(),
+            request.outputTargets()
         );
         return support.execute(
             requestId,
@@ -77,6 +79,14 @@ public class AiTaskClient implements AiTaskGateway {
             || !"SUCCEEDED".equals(response.status())
             || response.result() == null
             || response.execution() == null
+            || (
+                request.taskType()
+                == AiTaskType.SYSTEM_ARTIFACT_SMOKE_TEST
+                && (
+                    response.artifacts() == null
+                    || response.artifacts().isEmpty()
+                )
+            )
         ) {
             throw new RestClientException(
                 "AI task response contract mismatch"

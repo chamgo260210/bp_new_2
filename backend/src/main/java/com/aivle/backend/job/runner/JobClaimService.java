@@ -30,7 +30,7 @@ public class JobClaimService {
         return jobRepository.findClaimCandidates(
                 List.of(JobType.DOCUMENT_PARSE, JobType.LEGAL_REVIEW,
                     JobType.FEASIBILITY_ANALYSIS, JobType.PERSONA_RECOMMENDATION,
-                    JobType.SYSTEM_SMOKE_TEST),
+                    JobType.SYSTEM_SMOKE_TEST, JobType.SYSTEM_ARTIFACT_SMOKE_TEST),
                 JobStatus.QUEUED,
                 now,
                 PageRequest.of(0, properties.batchSize())
@@ -48,7 +48,8 @@ public class JobClaimService {
                 || job.getJobType() == JobType.LEGAL_REVIEW
                 || job.getJobType() == JobType.FEASIBILITY_ANALYSIS
                 || job.getJobType() == JobType.PERSONA_RECOMMENDATION
-                || job.getJobType() == JobType.SYSTEM_SMOKE_TEST)
+                || job.getJobType() == JobType.SYSTEM_SMOKE_TEST
+                || job.getJobType() == JobType.SYSTEM_ARTIFACT_SMOKE_TEST)
             .filter(job -> job.getStatus() == JobStatus.QUEUED)
             .filter(job -> switch (job.getJobType()) {
                 case DOCUMENT_PARSE -> job.getSourceDocumentVersion() != null;
@@ -58,7 +59,7 @@ public class JobClaimService {
                 case PERSONA_RECOMMENDATION ->
                     job.getSourceStructuredPlan() != null
                         && job.getSourceFeasibilityAssessment() != null;
-                case SYSTEM_SMOKE_TEST -> true;
+                case SYSTEM_SMOKE_TEST, SYSTEM_ARTIFACT_SMOKE_TEST -> true;
                 default -> false;
             })
             .filter(job -> job.getNextAttemptAt() == null

@@ -15,7 +15,7 @@ provider or access the service database.
 - `POST /api/v1/test`: connection echo
 - `POST /api/v1/marketing/banners/generate`: multipart Mock banner generation
 - `POST /internal/v1/tasks`: versioned internal task envelope; currently only
-  `SYSTEM_SMOKE_TEST`
+  `SYSTEM_SMOKE_TEST` and `SYSTEM_ARTIFACT_SMOKE_TEST`
 
 All responses return `X-Request-Id`. When the caller supplies the header,
 FastAPI returns the same value; otherwise it generates a UUID. Error responses
@@ -56,14 +56,29 @@ file, then stops the process trees and removes its generated files.
 If port 8000 is already owned by another service, pass an unused AI port, for
 example `-AiPort 18000`; the script injects the matching base URL into Spring.
 
+The artifact smoke starts MinIO through `compose.infrastructure.yaml` when
+Docker is available. A native MinIO binary can be supplied when it is not:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/ai-artifact-smoke.ps1
+powershell -ExecutionPolicy Bypass -File scripts/ai-artifact-smoke.ps1 `
+  -MinioExecutable C:\tools\minio.exe
+```
+
+It verifies Spring-owned input metadata, presigned GET/PUT transfer through
+FastAPI, output checksum and metadata finalization, `SUCCEEDED`, and the
+owner-authorized Spring download endpoint.
+
 ## Known limitations
 
 - Local output storage and `/outputs` static serving are Mock-only.
 - The Spring multipart adapter still buffers the upload into a byte array.
 - `SYSTEM_SMOKE_TEST` remote failures are terminal; the remote retryable
   classification is recorded but no automatic task rerun occurs.
-- There is no separate AI Run table, provider call, MinIO/S3 storage,
-  presigned URL, or Actuator `HealthIndicator`.
+- There is no separate AI Run table, image-generation provider, or Actuator
+  `HealthIndicator`.
+- Artifact smoke supports small JSON only. The marketing Mock still uses its
+  compatibility `ai/outputs` directory.
 
-A later phase will replace the Mock storage boundary with MinIO-compatible
-object storage while keeping `AnalysisJob` as the Spring-owned run ledger.
+A later phase can connect marketing/report artifacts to the same storage
+boundary while keeping `AnalysisJob` as the Spring-owned run ledger.

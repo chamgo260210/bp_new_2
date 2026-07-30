@@ -63,4 +63,5 @@ def run_task(
             handler_version=execution_result.handler_version,
         ),
         error=None,
+        artifacts=execution_result.artifacts,
     )

@@ -149,6 +149,22 @@ public class AnalysisJob extends BaseEntity {
         return job;
     }
 
+    public static AnalysisJob queuedSystemArtifactSmoke(
+        Project project,
+        String requestJson,
+        String idempotencyKey,
+        String requestFingerprint
+    ) {
+        AnalysisJob job = new AnalysisJob(
+            project,
+            JobType.SYSTEM_ARTIFACT_SMOKE_TEST,
+            requestJson
+        );
+        job.idempotencyKey = idempotencyKey;
+        job.requestFingerprint = requestFingerprint;
+        return job;
+    }
+
     public boolean hasSameIdempotentRequest(String fingerprint) {
         return Objects.equals(this.requestFingerprint, fingerprint);
     }

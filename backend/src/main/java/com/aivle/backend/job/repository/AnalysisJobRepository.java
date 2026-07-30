@@ -66,6 +66,8 @@ public interface AnalysisJobRepository extends JpaRepository<AnalysisJob, Long> 
               and j.sourceFeasibilityAssessment is not null)
             or
             j.jobType = com.aivle.backend.common.entity.JobType.SYSTEM_SMOKE_TEST
+            or
+            j.jobType = com.aivle.backend.common.entity.JobType.SYSTEM_ARTIFACT_SMOKE_TEST
           )
           and j.deletedAt is null
           and (j.nextAttemptAt is null or j.nextAttemptAt <= :now)

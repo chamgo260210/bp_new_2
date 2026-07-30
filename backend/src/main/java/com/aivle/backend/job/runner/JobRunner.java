@@ -84,6 +84,8 @@ public class JobRunner {
             if (
                 claim.jobType()
                 == com.aivle.backend.common.entity.JobType.SYSTEM_SMOKE_TEST
+                || claim.jobType()
+                == com.aivle.backend.common.entity.JobType.SYSTEM_ARTIFACT_SMOKE_TEST
             ) {
                 failureService.handle(
                     claim,
@@ -109,6 +111,8 @@ public class JobRunner {
             if (
                 claim.jobType()
                 == com.aivle.backend.common.entity.JobType.SYSTEM_SMOKE_TEST
+                || claim.jobType()
+                == com.aivle.backend.common.entity.JobType.SYSTEM_ARTIFACT_SMOKE_TEST
             ) {
                 failureService.handle(
                     claim,
@@ -143,6 +147,8 @@ public class JobRunner {
         if (
             claim.jobType()
             == com.aivle.backend.common.entity.JobType.SYSTEM_SMOKE_TEST
+            || claim.jobType()
+            == com.aivle.backend.common.entity.JobType.SYSTEM_ARTIFACT_SMOKE_TEST
         ) {
             return JobProcessingException.nonRetryable(
                 "AI_TASK_EXECUTION_FAILED",

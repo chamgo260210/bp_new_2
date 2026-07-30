@@ -1,5 +1,7 @@
 from pathlib import Path
+import hashlib
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,6 +10,7 @@ from app.api import marketing as marketing_api
 from app.api import tasks as task_api
 from app.models.tasks import AiTaskType
 from app.services import banner_service
+from app.services import artifact_service
 from app.utils.image_validator import MAX_IMAGE_SIZE
 from main import app
 
@@ -246,6 +249,7 @@ def test_system_smoke_task_preserves_contract_ids():
             "handler_version": "1.0",
         },
         "error": None,
+        "artifacts": [],
     }
 
 
@@ -307,3 +311,238 @@ def test_task_handler_error_uses_safe_envelope(monkeypatch):
         == "AI_SERVER_INTERNAL_ERROR"
     )
     assert "private handler stack" not in response.text
+
+
+def artifact_task_payload(
+    source: bytes = b'{"message":"artifact-smoke"}',
+    **overrides,
+):
+    payload = task_payload(
+        task_type=AiTaskType.SYSTEM_ARTIFACT_SMOKE_TEST.value,
+        artifacts=[
+            {
+                "artifact_id": "source-1",
+                "role": "SOURCE",
+                "object_key": "ai-artifacts/source.json",
+                "download_url": (
+                    "http://127.0.0.1:9000/bucket/source"
+                ),
+                "content_type": "application/json",
+                "size": len(source),
+                "checksum": (
+                    "sha256:" + hashlib.sha256(source).hexdigest()
+                ),
+            }
+        ],
+        output_targets=[
+            {
+                "role": "RESULT",
+                "object_key": "ai-artifacts/result.json",
+                "upload_url": (
+                    "http://127.0.0.1:9000/bucket/result"
+                ),
+                "content_type": "application/json",
+            }
+        ],
+    )
+    payload.update(overrides)
+    return payload
+
+
+def install_artifact_transport(monkeypatch, handler):
+    real_client = httpx.Client
+    transport = httpx.MockTransport(handler)
+    monkeypatch.setattr(
+        artifact_service.httpx,
+        "Client",
+        lambda **kwargs: real_client(
+            transport=transport,
+            **kwargs,
+        ),
+    )
+
+
+def test_artifact_smoke_downloads_and_uploads(monkeypatch):
+    source = b'{"message":"artifact-smoke"}'
+    uploaded = {}
+
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                content=source,
+                headers={"Content-Type": "application/json"},
+            )
+        uploaded["content"] = request.content
+        uploaded["content_type"] = request.headers["Content-Type"]
+        return httpx.Response(200)
+
+    install_artifact_transport(monkeypatch, handler)
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(source),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task_id"] == "101"
+    assert body["request_id"] == "task-request-id"
+    assert body["execution"] == {
+        "handler": "system-artifact-smoke",
+        "handler_version": "1.0",
+    }
+    assert body["artifacts"][0]["object_key"] == (
+        "ai-artifacts/result.json"
+    )
+    assert body["artifacts"][0]["checksum"].startswith("sha256:")
+    assert body["artifacts"][0]["size"] == len(uploaded["content"])
+    assert uploaded["content_type"] == "application/json"
+
+
+def test_artifact_checksum_mismatch_is_rejected(monkeypatch):
+    source = b'{"message":"artifact-smoke"}'
+    payload = artifact_task_payload(source)
+    payload["artifacts"][0]["checksum"] = "sha256:" + ("0" * 64)
+
+    install_artifact_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            content=source,
+            headers={"Content-Type": "application/json"},
+        ),
+    )
+    response = client.post(
+        "/internal/v1/tasks",
+        json=payload,
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_CHECKSUM_MISMATCH"
+    )
+
+
+def test_artifact_content_type_mismatch_is_rejected(monkeypatch):
+    source = b'{"message":"artifact-smoke"}'
+    install_artifact_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            content=source,
+            headers={"Content-Type": "text/plain"},
+        ),
+    )
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(source),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_CONTENT_TYPE_MISMATCH"
+    )
+
+
+def test_artifact_size_limit_is_enforced(monkeypatch):
+    monkeypatch.setenv("AI_ARTIFACT_MAX_BYTES", "4")
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "ARTIFACT_TOO_LARGE"
+
+
+def test_artifact_disallowed_host_is_rejected():
+    payload = artifact_task_payload()
+    payload["artifacts"][0]["download_url"] = (
+        "http://metadata.internal/source"
+    )
+    response = client.post(
+        "/internal/v1/tasks",
+        json=payload,
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_URL_NOT_ALLOWED"
+    )
+
+
+def test_artifact_redirect_is_not_followed(monkeypatch):
+    install_artifact_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            307,
+            headers={"Location": "http://127.0.0.1/other"},
+        ),
+    )
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_REDIRECT_REJECTED"
+    )
+
+
+def test_artifact_download_timeout_is_safe(monkeypatch):
+    def handler(request):
+        raise httpx.ReadTimeout("private timeout detail")
+
+    install_artifact_transport(monkeypatch, handler)
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 504
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_DOWNLOAD_TIMEOUT"
+    )
+    assert "private timeout detail" not in response.text
+
+
+def test_artifact_upload_failure_is_safe(monkeypatch):
+    source = b'{"message":"artifact-smoke"}'
+
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                content=source,
+                headers={"Content-Type": "application/json"},
+            )
+        return httpx.Response(503)
+
+    install_artifact_transport(monkeypatch, handler)
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(source),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_UPLOAD_FAILED"
+    )
+
+
+def test_artifact_download_failure_is_safe(monkeypatch):
+    install_artifact_transport(
+        monkeypatch,
+        lambda request: httpx.Response(403),
+    )
+    response = client.post(
+        "/internal/v1/tasks",
+        json=artifact_task_payload(),
+        headers={"X-Request-Id": "task-request-id"},
+    )
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == (
+        "ARTIFACT_DOWNLOAD_FAILED"
+    )

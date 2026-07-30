@@ -24,13 +24,15 @@ public class JobRecoveryService {
         LocalDateTime threshold = now.minus(properties.staleRunningTimeout());
         var staleJobs = java.util.stream.Stream.of(
                 JobType.DOCUMENT_PARSE, JobType.LEGAL_REVIEW, JobType.FEASIBILITY_ANALYSIS,
-                JobType.PERSONA_RECOMMENDATION, JobType.SYSTEM_SMOKE_TEST)
+                JobType.PERSONA_RECOMMENDATION, JobType.SYSTEM_SMOKE_TEST,
+                JobType.SYSTEM_ARTIFACT_SMOKE_TEST)
             .flatMap(type -> jobRepository.findRecoveryCandidates(
                 type, JobStatus.RUNNING, PageRequest.of(0, properties.batchSize())).stream())
             .filter(job -> job.isStaleBefore(threshold))
             .toList();
         staleJobs.forEach(job -> {
-            if (job.getJobType() == JobType.SYSTEM_SMOKE_TEST) {
+            if (job.getJobType() == JobType.SYSTEM_SMOKE_TEST
+                || job.getJobType() == JobType.SYSTEM_ARTIFACT_SMOKE_TEST) {
                 job.failStale(now);
                 return;
             }

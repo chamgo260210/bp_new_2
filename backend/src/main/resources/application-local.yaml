@@ -14,3 +14,5 @@ app:
     connect-timeout: ${AI_SERVER_CONNECT_TIMEOUT:3s}
     read-timeout: ${AI_SERVER_READ_TIMEOUT:30s}
     internal-api-key: ${AI_SERVER_INTERNAL_API_KEY:}
+  object-storage:
+    provider: ${OBJECT_STORAGE_PROVIDER:local}
