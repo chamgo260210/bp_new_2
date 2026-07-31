@@ -21,6 +21,7 @@
 7. 각 run의 12개 판정은 `structured_plan_section_validations`에 저장한다.
 8. 확정 시 `confirmed_structured_plan_snapshots`와 정확히 12개 snapshot section을 생성한다.
 9. `analysis_jobs`와 ValidationRun은 1:1이다. 기존 `ai_task_results`와 `ai_task_artifacts`는 같은 AnalysisJob을 통해 재사용한다.
+10. plan에는 상태와 무관한 최신 실행과 최신 성공 실행을 구분해 참조한다.
 
 ## 3. Mermaid ER diagram
 
@@ -107,17 +108,17 @@ typed blocks 전체를 `parse_metadata_json` 또는 신규 DB TEXT에 저장하�
 | 항목 | 계약 |
 |---|---|
 | PK | `id` |
-| FK | `project_id`; `source_document_version_id`; `latest_successful_validation_run_id` 신규 nullable; 기존 confirmed user |
-| 주요 컬럼 | 기존 + `rubric_version`, `latest_successful_validation_run_id`, `latest_overall_passed`, `supplement_revision`, `legacy_confirmed` |
+| FK | `project_id`; `source_document_version_id`; `latest_validation_run_id` 신규 nullable; `latest_successful_validation_run_id` 신규 nullable; 기존 confirmed user |
+| 주요 컬럼 | 기존 + `rubric_version`, `latest_validation_run_id`, `latest_successful_validation_run_id`, `latest_overall_passed`, `supplement_revision`, `legacy_confirmed` |
 | enum/status | `DRAFT, NEEDS_INPUT, READY_TO_CONFIRM, CONFIRMED, SUPERSEDED` |
 | unique | 기존 `(project_id, version_number)`; 기존 `source_document_version_id` |
-| check | version_number > 0; latest_overall_passed=true이면 latest run 존재; CONFIRMED이면 confirmed metadata 존재 |
-| index | `(project_id, status, version_number DESC)`, `latest_successful_validation_run_id` |
+| check | version_number > 0; latest_overall_passed=true이면 latest successful run 존재; CONFIRMED이면 confirmed metadata 존재 |
+| index | `(project_id, status, version_number DESC)`, `latest_validation_run_id`, `latest_successful_validation_run_id` |
 | immutable | CONFIRMED/SUPERSEDED 후 사용자 내용 변경 금지 |
 | soft delete | 기존 soft delete 유지하되 confirmed plan 삭제 금지 |
 | backfill | 기존 DRAFT/NEEDS_INPUT 유지; snapshot 없는 CONFIRMED는 `legacy_confirmed=true`; overallPassed는 NULL |
 
-`latest_overall_passed`는 조회 projection/cache이며 source of truth는 latest ValidationRun이다. confirm transaction은 run row를 다시 읽는다.
+`latest_validation_run_id`는 상태와 무관하게 가장 큰 run number를, `latest_successful_validation_run_id`는 가장 최근 SUCCEEDED run을 가리킨다. 실패한 최신 run 뒤에는 두 FK가 다를 수 있다. `latest_overall_passed`는 조회 projection/cache이며 source of truth는 latest successful ValidationRun이다. confirm transaction은 두 FK가 같고 그 run이 SUCCEEDED/overallPassed=true인지 다시 읽는다.
 
 ### 4.4 `structured_plan_sections` — 유지·projection 역할 명확화
 
@@ -194,6 +195,16 @@ WHERE status IN ('QUEUED', 'RUNNING')
 
 Spring은 한 transaction에서 정확히 12개 row를 저장한 뒤 run을 SUCCEEDED로 바꾼다. DB의 row-level constraint만으로 “정확히 12개”를 완전히 강제하기 어렵기 때문에 application validation과 transaction ordering이 필수다.
 
+AI result의 nullable 단일 `supplement_reference`는 다음처럼 1:1 매핑한다.
+
+| AI result | SectionValidation |
+|---|---|
+| `supplement_reference.supplement_id` | `supplement_id` |
+| `supplement_reference.revision` | `supplement_version` |
+| `supplement_reference=null` | 두 컬럼 모두 NULL |
+
+배열 또는 한 section에 복수 supplement reference는 허용하지 않는다.
+
 ### 4.8 `confirmed_structured_plan_snapshots` — 신규
 
 | 항목 | 계약 |
@@ -243,6 +254,8 @@ Spring은 한 transaction에서 정확히 12개 row를 저장한 뒤 run을 SUCC
 
 - ValidationRun 생성 transaction에서 AnalysisJob을 생성하고 1:1 연결한다.
 - Job `result_reference_type=STRUCTURED_PLAN_VALIDATION_RUN`, `result_reference_id=run.id`.
+- 초기 분석은 parser artifact가 없으므로 Job step이 `PARSING → EVALUATING → PERSISTING`이다.
+- 같은 plan 재검증은 기존 parser artifact의 존재와 checksum을 확인하고 `PARSING`을 생략해 `EVALUATING → PERSISTING`으로 진행한다. 재검증마다 DOCX를 다시 parse하지 않는다.
 - Job SUCCEEDED는 ValidationRun SUCCEEDED와 동일 transaction에서 기록한다.
 - section REJECT가 있어도 Job과 run은 SUCCEEDED이며 `overallPassed=false`다.
 
@@ -251,14 +264,14 @@ Spring은 한 transaction에서 정확히 12개 row를 저장한 뒤 run을 SUCC
 | 항목 | 계약 |
 |---|---|
 | 관계 | 둘 다 `analysis_job_id`를 통해 ValidationRun과 연결 |
-| source artifact | parser artifact를 role=`SOURCE_DOCUMENT_BLOCKS`로 기록 |
-| result artifact | 원본 provider response 또는 canonical response JSON을 role=`RESULT_DOCUMENT_STRUCTURE`로 기록 가능 |
+| source artifact | 공통 DB/wire role=`SOURCE`; DOCUMENT_PARSE semantic role=`SOURCE_DOCUMENT_BLOCKS` |
+| result artifact | 공통 DB/wire role=`RESULT`; DOCUMENT_PARSE semantic role=`RESULT_DOCUMENT_STRUCTURE` |
 | unique | `(analysis_job_id, role)`는 role당 하나 유지. 다중 artifact 필요 시 role/sequence 확장 여부를 migration 단계에서 결정 |
 | immutable | task 완료 후 불변 |
 | soft delete | ValidationRun 보존 중 금지 |
 | backfill | 기존 smoke/marketing artifact 영향 없음 |
 
-FastAPI는 presigned GET/PUT만 사용하며 `stored_files.id`나 PostgreSQL을 조회하지 않는다.
+공통 `ai_task_artifacts.role`과 `/internal/v1/tasks` artifact role은 기존 marketing/smoke 호환을 위해 `SOURCE/RESULT`를 유지한다. `SOURCE_DOCUMENT_BLOCKS`와 `RESULT_DOCUMENT_STRUCTURE`는 DocumentParseTaskInput의 semantic role이며 공통 enum을 대체하지 않는다. FastAPI는 presigned GET/PUT만 사용하며 `stored_files.id`나 PostgreSQL을 조회하지 않는다.
 
 ## 5. Parser artifact schema identity
 
@@ -346,4 +359,3 @@ Migration 구현 시 권장 순서는 다음과 같지만 이 문서는 SQL을 �
   - `stored_files`
   - `ai_task_results`
   - `ai_task_artifacts`
-

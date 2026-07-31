@@ -32,7 +32,7 @@
 | 업로드 | project editor | 업로드 가능한 project stage |
 | supplement 저장 | project editor | plan editable, CONFIRMED/SUPERSEDED 아님 |
 | 재검증 | project editor | 최신 document 기반 plan, active parse job 없음 |
-| 확정 | project owner 또는 confirm 권한 | latest run 전체 PASS |
+| 확정 | project owner 또는 confirm 권한 | latest run이 latest successful run과 동일하고 전체 PASS |
 | 후속 단계 진입 | 해당 분석 실행 권한 | confirmed snapshot 존재 |
 
 다른 project의 ID를 주었을 때 resource 존재 여부를 노출하지 않도록 `404`를 반환한다.
@@ -92,6 +92,8 @@
 ```
 
 - `step`: `QUEUED`, `PARSING`, `EVALUATING`, `PERSISTING`.
+- 초기 분석은 parser artifact가 없으므로 `PARSING → EVALUATING → PERSISTING`이다.
+- 같은 plan 재검증은 기존 parser artifact의 존재와 checksum을 검증한 뒤 `PARSING`을 생략하고 `EVALUATING → PERSISTING`으로 진행한다. 재검증마다 DOCX를 다시 parse하지 않는다.
 - section REJECT가 있어도 Job은 `SUCCEEDED`; 업무 결과는 ValidationRun의 `overallPassed=false`다.
 
 ### 3.5 `GET /projects/{projectId}/jobs/latest?jobType=DOCUMENT_PARSE`
@@ -118,6 +120,7 @@
     "supplementRevision": 3,
     "completedAt": "2026-07-31T10:00:00Z"
   },
+  "latestSuccessfulValidationRunId": "uuid",
   "supplementRevision": 3,
   "sections": [],
   "legacy": false
@@ -126,7 +129,8 @@
 
 - `sections`는 정확히 12개 canonical 순서다.
 - 기존 `completionRate`는 legacy 표시 호환 필드이며 confirmation 판단에 쓰지 않는다.
-- latest는 project의 최신 active DocumentVersion에서 파생된 plan이다. 과거 plan은 별도 ID 조회가 구현되기 전 history에서만 참조한다.
+- `latestValidationRun`은 상태와 무관하게 run number가 가장 큰 실행이다. `latestSuccessfulValidationRunId`는 가장 최근 SUCCEEDED 실행이며 최신 run이 FAILED/RUNNING이면 서로 다를 수 있다.
+- latest plan은 project의 최신 active DocumentVersion에서 파생된 plan이다. 과거 plan은 별도 ID 조회가 구현되기 전 history에서만 참조한다.
 
 ### 3.7 `POST /projects/{projectId}/structured-plans/{planId}/confirm`
 
@@ -142,9 +146,10 @@
 - `version`: 기존 optimistic lock 필수 값.
 - `validationRunId`: 신규 client는 필수로 보낸다. 전환 기간의 기존 client가 생략하면 서버가 latest successful run을 resolve하되 모든 Gate는 동일하게 검사한다.
 - response: `200 OK`, 기존 confirmed plan DTO에 `confirmedSnapshotId`, `confirmedValidationRunId`를 additive로 반환한다.
-- transaction은 plan row를 lock하고 최신 DocumentVersion, supplement revision, latest run 전체 PASS, 정확히 12개, provider/mock 정책, snapshot 미존재를 재검증한다.
+- transaction은 plan row를 lock하고 최신 DocumentVersion, supplement revision, 정확히 12개, provider/mock 정책을 재검증한다. 이때 latest run은 SUCCEEDED이고 latest successful run과 동일하며 overallPassed=true여야 하고, 그 뒤 supplement/parser/source 변경이 없어야 한다.
 - 성공 시 snapshot 생성, plan `CONFIRMED`, project `LEGAL_REVIEW` 전이를 원자적으로 수행한다. LegalReview Job은 자동 생성하지 않는다.
-- 같은 plan에 같은 snapshot이 이미 있으면 기존 성공 response를 반환해 idempotent하게 처리한다.
+- 같은 plan, 같은 validationRun, 같은 snapshot identity의 재요청은 `200 OK`로 기존 confirmed plan/snapshot response를 반환한다.
+- snapshot이 이미 있는데 다른 validationRun으로 확정하려는 요청은 `409 CONFIRMATION_ALREADY_EXISTS`다.
 - 충돌/오류:
   - `409 RESOURCE_VERSION_CONFLICT`
   - `409 DOCUMENT_VERSION_STALE`
@@ -327,11 +332,11 @@ Frontend는 서버 error code로 분기하고 message 문자열을 비교하지 
 | `evaluating` | Job RUNNING + step EVALUATING/PERSISTING | 진행 표시 |
 | `needs input` | latest run SUCCEEDED, overallPassed=false | REJECT section 보완 |
 | `revalidating` | 기존 plan의 새 run QUEUED/RUNNING | polling, 편집 잠금 |
-| `ready to confirm` | latest run SUCCEEDED, overallPassed=true, revision/source 최신 | 확정 |
+| `ready to confirm` | latest run SUCCEEDED, latest successful run과 동일, overallPassed=true, revision/source 최신 | 확정 |
 | `confirmed` | plan CONFIRMED + snapshot 존재 | LegalReview CTA |
 | `failed` | Job/ValidationRun FAILED | 오류별 retry/reupload/support |
 
-`completionRate=100`은 legacy UI 보조값일 뿐 `ready to confirm`으로 매핑하지 않는다. 준비 상태는 반드시 latest ValidationRun의 `overallPassed=true`와 서버 Gate 정보로 계산한다.
+`completionRate=100`은 legacy UI 보조값일 뿐 `ready to confirm`으로 매핑하지 않는다. 준비 상태는 반드시 latest ValidationRun이 latest successful run과 같고 `overallPassed=true`인 경우와 서버 Gate 정보로 계산한다.
 
 ### 9.1 Recovery 우선순위
 

@@ -22,8 +22,10 @@ DOCX upload
 → Spring DocxDocumentParser typed blocks 생성
 → parser block JSON artifact 저장
 → Spring AnalysisJob/ValidationRun 생성
+→ Spring AiTaskClient가 공통 AiTaskRequest.input에 DocumentParseTaskInput 매핑
 → FastAPI DOCUMENT_PARSE
 → AI Provider
+→ 공통 AiTaskResponse.result의 DocumentParseTaskResult
 → Spring schema/evidence/overall 검증
 → section validation 저장
 → 사용자 supplement
@@ -105,7 +107,7 @@ Spring은 PostgreSQL, 프로젝트 단계, 문서/plan 버전, AnalysisJob, Vali
 | `StructuredPlan.DRAFT` | `DRAFT` | 첫 ValidationRun 전 또는 실패 후 |
 | `StructuredPlan.NEEDS_INPUT` | `NEEDS_INPUT` | 최신 성공 run에 REJECT 존재 |
 | `StructuredPlan.CONFIRMED` | `CONFIRMED` + snapshot | snapshot 없는 legacy confirmed는 별도 표시 |
-| 현재 “완료 가능” | `READY_TO_CONFIRM` | 최신 성공 run의 overallPassed=true |
+| 현재 “완료 가능” | `READY_TO_CONFIRM` | latest run이 latest successful run과 동일하고 overallPassed=true |
 
 ## 6. StructuredPlan 상태 전이
 
@@ -116,7 +118,8 @@ new DocumentVersion
   → DRAFT
   → latest successful run overallPassed=false → NEEDS_INPUT
   → supplement saved                      → NEEDS_INPUT
-  → latest successful run overallPassed=true  → READY_TO_CONFIRM
+  → latest run = latest successful run
+    AND overallPassed=true                    → READY_TO_CONFIRM
   → user confirm + snapshot created           → CONFIRMED
 
 newer DocumentVersion creates new plan
@@ -128,6 +131,7 @@ newer DocumentVersion creates new plan
 - ValidationRun이 QUEUED/RUNNING인 동안 plan의 직전 안정 상태는 유지하되 `activeValidationRunId`로 쓰기를 제어한다.
 - 첫 run이 FAILED이면 plan은 DRAFT에 남는다.
 - 재검증이 FAILED이면 기존 성공 run의 결과를 삭제하지 않지만 확정은 금지한다. 확정은 반드시 “최신 run”이 SUCCEEDED/PASS여야 한다.
+- `latestValidationRun`은 상태와 무관하게 run number가 가장 큰 실행이고, `latestSuccessfulValidationRun`은 그중 가장 최근 SUCCEEDED 실행이다. 두 값은 같은 개념이 아니다.
 - CONFIRMED plan은 수정·supplement·재검증할 수 없다.
 - 동일 plan에 새 DOCX 내용을 덮어쓰지 않는다.
 
@@ -189,6 +193,7 @@ Spring은 FastAPI가 반환한 overallPassed를 신뢰만 하지 않고 위 식�
 
 - supplement는 REJECT section code에 귀속된다.
 - 하나의 plan/section에는 하나의 active supplement가 있고 optimistic lock version을 가진다.
+- AI section result도 nullable 단일 `supplementReference{supplementId, revision}`만 반환한다. 배열과 복수 참조는 금지한다.
 - 사용자는 원문을 삭제하거나 바꾸는 대신 부족한 사실만 제공한다.
 - supplement 저장은 section을 PASS로 바꾸지 않는다.
 - 저장 후 `supplementChanged=true`가 되며 새 전체 재검증이 필요하다.
@@ -234,6 +239,10 @@ typed blocks의 검증된 원문 사실
 
 이전 plan의 supplement를 새 문서 plan으로 자동 복제하지 않는다. UI가 사용자가 검토한 뒤 명시적으로 재입력하도록 해야 한다.
 
+- 초기 분석: parser artifact가 없으므로 `PARSING → EVALUATING → PERSISTING`.
+- 같은 plan 재검증: 기존 parser artifact의 존재와 checksum을 검증하고 `PARSING`을 생략해 `EVALUATING → PERSISTING`.
+- 재검증마다 원본 DOCX를 다시 parse하지 않는다. parser version 변경 또는 artifact 무결성 실패는 같은 run의 묵시적 재parse가 아니라 명시적 parser artifact 재생성 정책으로 처리한다.
+
 ## 11. Confirmation 조건
 
 Spring confirm transaction은 다음을 모두 잠금 하에서 재검증해야 한다.
@@ -241,15 +250,18 @@ Spring confirm transaction은 다음을 모두 잠금 하에서 재검증해야 
 1. 요청 user가 project owner 또는 명시적 confirm 권한을 가지고 write policy를 통과한다.
 2. plan이 해당 project에 속하고 soft-deleted/superseded/confirmed 상태가 아니다.
 3. plan sourceDocumentVersion이 해당 active ProjectDocument의 최신 version이다.
-4. 최신 ValidationRun이 존재하고 `SUCCEEDED`다.
-5. 최신 ValidationRun `overallPassed=true`.
-6. 최신 run 뒤 supplement 또는 section source 변경이 없다.
-7. active QUEUED/RUNNING ValidationRun이 없다.
-8. 요청 plan optimistic lock version과 현재 version이 같다.
-9. project stage가 `STRUCTURING`이다.
-10. 같은 plan에 confirmed snapshot이 아직 없다.
+4. `latestValidationRun`이 존재하고 `SUCCEEDED`다.
+5. `latestValidationRun.id == latestSuccessfulValidationRun.id`다.
+6. `latestValidationRun.overallPassed=true`.
+7. latest run 뒤 supplement 또는 parser/source 변경이 없다.
+8. active QUEUED/RUNNING ValidationRun이 없다.
+9. 요청 plan optimistic lock version과 현재 version이 같다.
+10. project stage가 `STRUCTURING`이다.
+11. 같은 plan에 confirmed snapshot이 아직 없다.
 
 성공 transaction은 plan을 CONFIRMED로 바꾸고 snapshot 및 정확히 12개 snapshot section을 생성한 뒤 project를 LEGAL_REVIEW로 이동한다. 하나라도 실패하면 모두 rollback한다.
+
+같은 plan, 같은 latest ValidationRun, 같은 snapshot identity의 확정 재요청은 기존 snapshot을 반환하는 `200` 멱등 성공이다. snapshot이 이미 있는데 다른 ValidationRun으로 확정하려는 요청은 `409 CONFIRMATION_ALREADY_EXISTS`다.
 
 ## 12. Immutable ConfirmedStructuredPlanSnapshot
 
@@ -358,6 +370,6 @@ snapshot이 없는 기존 confirmed plan은 `LEGACY_CONFIRMED` 호환 상태로 
 구현 단계에서 선택 가능하지만 계약을 바꿀 수 없는 항목:
 
 - JSON artifact 압축 여부.
-- AI task response 최대 크기는 schema `1.0`의 UTF-8 1 MiB로 고정하고, 변경 시 새 schemaVersion을 발급한다.
+- AI task response 최대 크기는 schema `1.0`의 UTF-8 2 MiB로 고정하고, 변경 시 새 schemaVersion을 발급한다.
 - Provider별 SDK/HTTP 구현.
 - UI의 시각적 배치와 문구 세부 표현.
