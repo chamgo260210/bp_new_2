@@ -11,4 +11,9 @@ public interface MarketingContentVersionRepository
         Long contentId,
         int versionNumber
     );
+    Optional<MarketingContentVersion> findByIdAndMarketingContentId(
+        Long id,
+        Long contentId
+    );
+    Optional<MarketingContentVersion> findByAnalysisJobId(Long jobId);
 }

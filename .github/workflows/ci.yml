@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/ai-task-hub-foundation]
   pull_request:
 
 permissions:
@@ -51,8 +51,28 @@ jobs:
           cache-dependency-path: frontEnd/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm run test:run
-      - run: npm run build
+      - run: npm run test:baseline
+      - name: Build frontend
+        if: always()
+        run: npm run build
+
+  docker-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose
+        run: >-
+          docker compose
+          --env-file .env.e2e.example
+          -f compose.yaml
+          -f compose.e2e.yaml
+          config --quiet
+      - name: Run full Docker E2E
+        shell: pwsh
+        run: >-
+          ./scripts/docker-e2e-smoke.ps1
+          -EnvFile .env.e2e.example
 
   contract-and-security:
     runs-on: ubuntu-latest
@@ -67,12 +87,13 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .trivyignore.yaml
           exit-code: "1"
 
   dependency-review:

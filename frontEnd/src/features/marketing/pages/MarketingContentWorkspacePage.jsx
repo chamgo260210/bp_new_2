@@ -14,6 +14,7 @@ import MarketingStylePanel from '../components/MarketingStylePanel.jsx';
 import MarketingVersionPanel from '../components/MarketingVersionPanel.jsx';
 import useMarketingAutosave from '../hooks/useMarketingAutosave.js';
 import useMarketingContent from '../hooks/useMarketingContent.js';
+import useMarketingGeneration from '../hooks/useMarketingGeneration.js';
 import { exportMarketingPng, marketingOverflowWarnings } from '../render/marketingRenderer.js';
 import '../marketing.css';
 
@@ -93,6 +94,12 @@ export default function MarketingContentWorkspacePage() {
   const [alternativeIndex, setAlternativeIndex] = useState(0);
   const editRevision = useRef(0);
   const blocked = policy.maintenanceMode;
+  const generation = useMarketingGeneration({
+    api: hook.api,
+    projectId,
+    contentId,
+    onSucceeded: hook.refresh,
+  });
 
   const activeEditable = editable ?? editableFrom(hook.data);
 
@@ -270,6 +277,36 @@ export default function MarketingContentWorkspacePage() {
       </nav>
       {blocked && <Alert tone="warning" title="현재 서비스 점검 중입니다">편집과 새 버전 저장은 잠시 중지되지만 기존 시안과 PNG 내보내기는 이용할 수 있습니다.</Alert>}
       {errorMessage && <Alert tone="danger">{errorMessage}</Alert>}
+      {generation.status !== 'IDLE' && (
+        <Alert
+          tone={generation.status === 'FAILED' ? 'danger' : 'info'}
+          title={`AI banner: ${generation.status}`}
+        >
+          {generation.error
+            ? getUserErrorMessage(generation.error)
+            : generation.status === 'SUCCEEDED'
+              ? '새 마케팅 버전과 결과 이미지가 저장되었습니다.'
+              : 'AI 작업 상태를 확인하고 있습니다.'}
+        </Alert>
+      )}
+      <div className="marketing-generation">
+        <label>
+          AI 배너 원본 이미지
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+            disabled={blocked || generation.active}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void generation.generate(file, hook.data.current.id);
+              }
+              event.target.value = '';
+            }}
+          />
+        </label>
+        <span>Mock provider가 원본을 결과 artifact로 복사합니다.</span>
+      </div>
       {activeEditable.draft.headline.length > 70 && (
         <Alert tone="warning" title="Headline 길이를 확인해 주세요">
           긴 제목은 규격과 템플릿에 따라 최대 4줄 뒤에서 줄임 표시될 수 있습니다. 내보내기 전 미리보기를 확인해 주세요.

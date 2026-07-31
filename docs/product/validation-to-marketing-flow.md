@@ -38,3 +38,11 @@
 PNG는 Client Canvas에서 생성되며 서버 감사 대상이 아니다. 실제 Pixel과 Preview는 같은
 Renderer를 사용한다. 폰트 로딩과 텍스트 Overflow 검사를 통과하지 못하면 다운로드를 시작하지
 않는다. JPEG, PDF, 외부 이미지 URL과 생성형 이미지는 현재 범위가 아니다.
+# AI banner generation baseline
+
+The existing validation-driven content editor and browser PNG export remain
+available. A user may select an existing content version and upload a source
+image to start `MARKETING_GENERATION`. Spring owns the queued/running/terminal
+state and artifact metadata. On Mock success it appends a new immutable
+`MarketingContentVersion`; failure does not create a version. Explicit rerun
+creates another Job and version without replacing prior results.

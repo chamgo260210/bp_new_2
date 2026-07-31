@@ -7,3 +7,7 @@ spring:
   h2:
     console:
       enabled: true
+
+app:
+  object-storage:
+    provider: ${OBJECT_STORAGE_PROVIDER:local}

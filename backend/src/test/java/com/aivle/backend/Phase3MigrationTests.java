@@ -9,6 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -26,13 +27,13 @@ class Phase3MigrationTests {
     @Autowired DataSource dataSource;
 
     @Test
-    void freshH2SchemaAppliesThroughV22AndValidatesOperationalTables() throws Exception {
+    void freshH2SchemaAppliesThroughV25AndValidatesOperationalTables() throws Exception {
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version is not null
             order by installed_rank desc
             limit 1
-            """).query(String.class).single()).isEqualTo("22");
+            """).query(String.class).single()).isEqualTo("25");
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version in ('13', '14', '15', '16', '17')
@@ -131,16 +132,37 @@ class Phase3MigrationTests {
             "panel_interview_id",
             "persona_panel_interviews"
         )).isTrue();
+        assertThat(columnExists(
+            "analysis_jobs",
+            "rerun_of_job_id"
+        )).isTrue();
+        assertThat(tableExists("ai_task_results")).isTrue();
+        assertThat(importedKeyExists(
+            "ai_task_results",
+            "analysis_job_id",
+            "analysis_jobs"
+        )).isTrue();
+        assertThat(tableExists("ai_task_artifacts")).isTrue();
+        assertThat(importedKeyExists(
+            "ai_task_artifacts",
+            "stored_file_id",
+            "stored_files"
+        )).isTrue();
+        assertThat(importedKeyExists(
+            "ai_task_artifacts",
+            "analysis_job_id",
+            "analysis_jobs"
+        )).isTrue();
     }
 
     @Test
-    void v1ThroughV8MigrationBytesRemainUnchanged() throws Exception {
+    void v1ThroughV8MigrationContentsRemainUnchanged() throws Exception {
         assertThat(classpathHash("db/migration/V1__create_core_tables.sql"))
-            .isEqualTo("15011e63b8c3e1aeed4da3839660857d3eebdc93d47aa3f58ca06b27c96d1836");
+            .isEqualTo("596df9a0a264a23a4ebab3c0a9a15268f154653ffd2658c4a941c01ee1f15aef");
         assertThat(classpathHash(
             "db/migration/V2__create_simulation_report_tables.sql"
         )).isEqualTo(
-            "a9b13c0830b3ace4f2d166333ce0738fe33ef6b88d02f735e47bb4a028b5fc47"
+            "7cc523cdf918d0490e3e826633ca0ccb172e9fe9b78d3a3fefffb7f3e6cbe2cb"
         );
         assertThat(classpathHash(
             "db/migration/V3__extend_document_processing_metadata.sql"
@@ -243,8 +265,12 @@ class Phase3MigrationTests {
     }
 
     private String hash(byte[] bytes) throws Exception {
+        byte[] normalized = new String(bytes, StandardCharsets.UTF_8)
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
+            .getBytes(StandardCharsets.UTF_8);
         return HexFormat.of().formatHex(
-            MessageDigest.getInstance("SHA-256").digest(bytes)
+            MessageDigest.getInstance("SHA-256").digest(normalized)
         );
     }
 }

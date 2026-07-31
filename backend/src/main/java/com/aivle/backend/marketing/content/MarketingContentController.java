@@ -4,6 +4,8 @@ import com.aivle.backend.common.response.ApiResponse;
 import com.aivle.backend.common.security.CurrentUserProvider;
 import com.aivle.backend.marketing.content.MarketingContentService.*;
 import com.aivle.backend.marketing.content.MarketingContentVersion.Draft;
+import com.aivle.backend.marketing.generation.MarketingGenerationCommandService;
+import com.aivle.backend.marketing.generation.MarketingGenerationStartResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -11,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import static com.aivle.backend.marketing.content.MarketingContentTypes.*;
 
@@ -20,6 +23,7 @@ import static com.aivle.backend.marketing.content.MarketingContentTypes.*;
 public class MarketingContentController {
     private final MarketingContentService marketing;
     private final CurrentUserProvider currentUser;
+    private final MarketingGenerationCommandService generation;
 
     @GetMapping
     public ApiResponse<List<SummaryResponse>> list(
@@ -165,6 +169,44 @@ public class MarketingContentController {
         );
     }
 
+    @PostMapping(
+        value = "/{contentId}/generate",
+        consumes = "multipart/form-data"
+    )
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<MarketingGenerationStartResponse> generate(
+        @PathVariable Long projectId,
+        @PathVariable Long contentId,
+        @RequestParam(required = false) Long sourceVersionId,
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @RequestPart("image") MultipartFile image,
+        HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+            generation.start(
+                currentUser.currentUserId(), projectId, contentId,
+                sourceVersionId, idempotencyKey, image),
+            requestId(request)
+        );
+    }
+
+    @PostMapping("/{contentId}/rerun")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<MarketingGenerationStartResponse> rerun(
+        @PathVariable Long projectId,
+        @PathVariable Long contentId,
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @Valid @RequestBody RerunRequest body,
+        HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+            generation.rerun(
+                currentUser.currentUserId(), projectId, contentId,
+                body.originalJobId(), idempotencyKey),
+            requestId(request)
+        );
+    }
+
     private String requestId(HttpServletRequest request) {
         return request.getHeader("X-Request-Id");
     }
@@ -259,5 +301,8 @@ public class MarketingContentController {
                 headlineSize, showCta, showPersonaTag, contentJson
             );
         }
+    }
+
+    public record RerunRequest(@NotNull @Positive Long originalJobId) {
     }
 }
