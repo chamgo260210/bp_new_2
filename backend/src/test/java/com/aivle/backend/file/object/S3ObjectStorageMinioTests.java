@@ -149,6 +149,46 @@ class S3ObjectStorageMinioTests {
         assertThat(storage.exists(sourceKey)).isFalse();
     }
 
+    @Test
+    void storesDocumentSourceAndParserArtifactKeys()
+        throws Exception {
+        byte[] docx = {0x50, 0x4b, 0x03, 0x04};
+        String sourceKey =
+            "projects/1/documents/2/versions/3/source/"
+                + UUID.randomUUID() + ".docx";
+        storage.store(
+            new ByteArrayInputStream(docx),
+            docx.length,
+            "application/vnd.openxmlformats-officedocument"
+                + ".wordprocessingml.document",
+            sourceKey
+        );
+
+        byte[] artifact = "{\"blocks\":[]}".getBytes(
+            StandardCharsets.UTF_8
+        );
+        String checksum = java.util.HexFormat.of().formatHex(
+            java.security.MessageDigest.getInstance("SHA-256")
+                .digest(artifact)
+        );
+        String artifactKey =
+            "projects/1/documents/2/versions/3/parser/"
+                + "spring-docx-blocks-v2/" + checksum + ".json";
+        storage.store(
+            new ByteArrayInputStream(artifact),
+            artifact.length,
+            "application/json",
+            artifactKey
+        );
+
+        assertThat(storage.open(sourceKey).readAllBytes())
+            .isEqualTo(docx);
+        assertThat(storage.open(artifactKey).readAllBytes())
+            .isEqualTo(artifact);
+        storage.delete(sourceKey);
+        storage.delete(artifactKey);
+    }
+
     private static String required(String name) {
         String value = System.getenv(name);
         if (value == null || value.isBlank()) {

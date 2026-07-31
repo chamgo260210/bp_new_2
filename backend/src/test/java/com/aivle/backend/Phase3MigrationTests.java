@@ -27,13 +27,13 @@ class Phase3MigrationTests {
     @Autowired DataSource dataSource;
 
     @Test
-    void freshH2SchemaAppliesThroughV25AndValidatesOperationalTables() throws Exception {
+    void freshH2SchemaAppliesThroughV26AndValidatesOperationalTables() throws Exception {
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version is not null
             order by installed_rank desc
             limit 1
-            """).query(String.class).single()).isEqualTo("25");
+            """).query(String.class).single()).isEqualTo("26");
         assertThat(jdbcClient.sql("""
             select version from flyway_schema_history
             where success = true and version in ('13', '14', '15', '16', '17')
@@ -152,6 +152,23 @@ class Phase3MigrationTests {
             "ai_task_artifacts",
             "analysis_job_id",
             "analysis_jobs"
+        )).isTrue();
+        assertThat(columnExists(
+            "document_versions",
+            "parser_artifact_stored_file_id"
+        )).isTrue();
+        assertThat(columnExists(
+            "document_versions",
+            "parser_artifact_status"
+        )).isTrue();
+        assertThat(columnExists(
+            "document_versions",
+            "parser_block_count"
+        )).isTrue();
+        assertThat(importedKeyExists(
+            "document_versions",
+            "parser_artifact_stored_file_id",
+            "stored_files"
         )).isTrue();
     }
 

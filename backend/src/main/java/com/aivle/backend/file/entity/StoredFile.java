@@ -87,4 +87,15 @@ public class StoredFile extends BaseEntity {
             checksumSha256
         );
     }
+
+    public void assignStorageKey(String storageKey, String storedFilename) {
+        if (storageKey == null || storageKey.isBlank()
+            || storedFilename == null || storedFilename.isBlank()) {
+            throw new IllegalArgumentException(
+                "storage key and stored filename are required"
+            );
+        }
+        this.storageKey = storageKey;
+        this.storedFilename = storedFilename;
+    }
 }
