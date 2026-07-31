@@ -135,8 +135,30 @@ checks. Do not selectively remove V23–V25 while retaining code that references
 - Marketing image generation still uses the Mock provider.
 - The legacy direct OpenAI adapter remains; migration to the task hub is incomplete.
 - MinIO is the local S3-compatible implementation; cloud object storage is unverified.
-- Frontend has pre-existing provider-wrapper test debt outside the Phase 7B scope.
+- Frontend has 40 pre-existing provider-wrapper failures. CI permits only the exact
+  file/test-name pairs in `frontEnd/test-debt-baseline.json`; new failures and stale
+  entries fail the job, and the baseline expires on 2026-09-30. See
+  `docs/current/FRONTEND_TEST_DEBT_BASELINE.md`.
+- `GHSA-qwww-vcr4-c8h2` affects only unstable React Router RSC APIs, which this
+  declarative Vite SPA does not use. A PURL/path-scoped Trivy exception expires on
+  2026-10-31. See `docs/security/REACT_ROUTER_ADVISORY_DECISION.md`. A dedicated
+  React Router 8 migration remains the permanent resolution.
 - No automatic business-operation retry, message queue, autonomous agent, report
   linkage, or production deployment is included.
 - The AIdev code was behaviorally absorbed, not Git-history merged, because the
   repositories had no common ancestor.
+
+## Phase 7C merge policy
+
+The frontend job must run `npm run test:baseline`; neither the test step nor the
+job may use `continue-on-error`. The allowlist is temporary debt accounting, not a
+general test bypass. Contract, secret, and Trivy scans remain blocking, with only
+the documented React Router advisory exception.
+
+Merge review requires:
+
+- the exact 225/40 frontend baseline with zero unexpected failures;
+- frontend lint and production build success;
+- Trivy success with the exception shown as scoped and unexpired;
+- Backend, PostgreSQL, and Docker E2E jobs green;
+- no RSC, SSR, Data Router, or server-action code added while the exception exists.
