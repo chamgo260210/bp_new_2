@@ -55,7 +55,7 @@ git log -3 --oneline --decorate
 3. 그러나 기본 설정 `app.ai.enabled=false`에서는 `MockAiServiceClient`가 12개 항목을 모두 `PRESENT`로 생성한다. 이 경로는 **MOCK**이며 입력 내용에 따른 검증이 아니다.
 4. 실 AI 설정에서는 `OpenAiDocumentStructureAdapter`가 Spring에서 OpenAI 호환 endpoint를 동기 호출한다. 공식 원칙인 `Spring → AnalysisJob → FastAPI → AI Provider`와 다르므로 **LEGACY/PARTIAL**이다.
 5. FastAPI의 `AiTaskType`에는 `DOCUMENT_PARSE`가 없고 문서 parser/structure handler/provider interface/문서 schema도 없다. `/internal/v1/tasks`는 존재하지만 문서 구조화에는 **DISCONNECTED/NOT_IMPLEMENTED**다.
-6. 사용자 보완과 `WAIVED`는 Spring에서 해당 field를 곧바로 해결된 것으로 계산한다. AI 재검증 Job은 생성되지 않는다. 따라서 `사용자 보완 → AI 재검증 → 전체 PASS` 계약은 **NOT_IMPLEMENTED**다.
+6. 사용자 보완과 `WAIVED`는 Spring에서 해당 field를 곧바로 해결된 것으로 계산한다. AI 재검증 Job은 생성되지 않는다. 따라서 `사용자 보완 → AI 재검증 → 전체 PASS` 계약은 **NOT_IMPLEMENTED**다. 현재의 `completionRate=100`은 누락 field가 `FILLED/WAIVED`로 닫혔다는 계산값이며, 향후 AI 검증 결과인 `overallPassed=true`와 동일한 개념이 아니다.
 7. LegalReview는 확정된 plan의 section `sourceText`와 `evidenceJson`만 읽는다. `MissingField.userValueJson`과 면제 사유를 읽지 않는다. 보완으로 100%가 된 plan도 법률 검토에는 원래 부족한 추출문만 전달될 수 있다.
 8. 사업계획서 원본은 `ObjectStoragePort`가 아니라 `FileStorage`/`LocalFileStorage`를 사용하며 `StoredFile.available(...)`도 `StorageType.LOCAL`로 저장한다. MinIO/S3 object storage는 현재 AI artifact 경로에 별도로 존재한다. 공식 저장 원칙과 불일치한다.
 9. Frontend route 자체에는 stage 접근 차단이 없다. LegalReview 화면과 Spring start command가 stage/confirmed-plan 조건을 재검증하므로 서버 Gate는 있으나 탐색 차단은 부분적이다.
@@ -246,7 +246,7 @@ Project
 - `PRESENT`가 아니면 section당 `SECTION_{sectionCode}` missing field 하나를 만든다.
 - 현재 UI/API는 모든 missing field에 `FILLED`와 `WAIVED`를 허용한다. catalog의 `USER_INPUT_REQUIRED`는 waiver를 막지 않는다.
 - `FILLED`는 `userValueJson`, `WAIVED`는 `reason`에 저장된다.
-- 확정 조건은 최신 source, status DRAFT, completion 100, OPEN required 0, plan lock 존재, project stage STRUCTURING이다.
+- Frontend 확정 조건은 화면이 복구한 최신 Job의 source와 plan source가 일치하고, status DRAFT, completion 100, OPEN required 0, plan lock 존재, project stage STRUCTURING인 것이다. Spring confirm service는 plan/status/completion/stage/lock은 재검증하지만 해당 plan source가 현재 최신 `DocumentVersion`인지 직접 재검증하지 않으므로 최신 source 서버 Gate는 PARTIAL이다.
 
 | # | sectionCode | 표시명 | 필수 | 상태/필드 | 후속 실제 사용처 |
 |---:|---|---|---|---|---|
@@ -350,7 +350,7 @@ FastAPI는 이 경로에 등장하지 않는다. Job runner 기본값도 `enable
 | `OpenAiDocumentStructureAdapter` | Spring에서 Provider 직접 동기 호출 | LEGACY/PARTIAL |
 | `AiServerTestController` | local/dev header profile의 AI health/marketing probe | TEST_ONLY/LEGACY |
 | FastAPI `/api/v1/test`, legacy marketing endpoint | connection/demo surface | TEST_ONLY/LEGACY |
-| `/upload-guideline`, `/save-analysis` | 저장소에 구현/계약 없음 | NOT_IMPLEMENTED; 초기 코드만의 경로 |
+| `/upload-guideline`, `/save-analysis` | 저장소에 구현/계약 없음 | NOT_IMPLEMENTED; 초기 `/upload-guideline`은 가이드 다운로드가 아니라 업로드+분석 endpoint였고 현재 대체 계약은 `POST /api/v1/projects/{projectId}/documents` |
 | `@CrossOrigin("*")` | 없음; 중앙 CORS allowlist 사용 | 초기 방식 폐기됨 |
 
 ### Test-only / Fault
@@ -371,11 +371,12 @@ FastAPI는 이 경로에 등장하지 않는다. Job runner 기본값도 `enable
 |---|---|---|
 | 누락 field 생성 | PRESENT가 아닌 canonical section당 1개 | REAL |
 | 사용자 보완 | 최대 4,000자, `FILLED`, field optimistic lock | REAL |
-| 면제 | 최대 500자 사유, `WAIVED`, 필수 section에도 허용 | PARTIAL |
+| 면제 | 최대 500자 사유, `WAIVED`, 필수 section에도 허용 | PARTIAL: 현재 동작이나 “12개 필수 section은 면제 불가, 모두 AI PASS 후 확정”이라는 최종 목표 정책과 충돌 |
 | 완성도 재계산 | PRESENT 또는 linked required fields 모두 FILLED/WAIVED면 완료 | REAL이나 정책상 PARTIAL |
+| AI 전체 통과 | 현재 `completionRate=100`만 존재하며 AI `overallPassed=true`는 저장·검증되지 않음 | NOT_IMPLEMENTED; 두 값은 별도 개념 |
 | AI 재검증 | 새 Job, prompt, provider call, validation history 없음 | NOT_IMPLEMENTED |
 | section effective content 갱신 | 보완값은 원래 section sourceText와 분리 유지 | PARTIAL |
-| 확정 | DRAFT/100/open required 0/source active/stage/lock 재검증 | REAL |
+| 확정 | Spring은 DRAFT/100/open required 0/stage/lock을 재검증하고 Frontend는 최신 source를 비교 | PARTIAL: Spring confirm service의 최신 DocumentVersion 직접 재검증은 불완전 |
 | 확정 후 수정 | plan immutable, UI도 read-only | REAL |
 | 최신 문서 보호 | Frontend source version 비교와 server latest-plan 조회 | PARTIAL: confirm service는 plan이 최신 document version인지 직접 비교하지 않음 |
 
@@ -419,7 +420,7 @@ FastAPI는 이 경로에 등장하지 않는다. Job runner 기본값도 `enable
 | extractedContent | 그대로 차용 | 현재 DTO/DB/frontend 필드와 일치 |
 | reason | 그대로 차용 | 현재 DTO/DB/frontend 필드와 일치 |
 | Spring 직접 OpenAI 호출 | 폐기 | FastAPI Provider 경계 원칙 위반 |
-| `/upload-guideline` | 현재 구현으로 대체 | static guide/example resource 다운로드가 존재 |
+| `/upload-guideline` | 현재 구현으로 대체 | 초기 endpoint는 업로드+분석 경로였으며 현재 대체 계약은 `POST /api/v1/projects/{projectId}/documents` |
 | `/save-analysis` | 폐기 | Spring이 Job 결과를 검증하고 DB 저장해야 함 |
 | Map payload | 폐기 | typed task/DTO/schema 계약 필요 |
 | `CrossOrigin("*")` | 폐기 | 중앙 allowlist CORS 유지 |
