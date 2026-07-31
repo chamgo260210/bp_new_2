@@ -9,9 +9,168 @@ import java.sql.DriverManager;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("postgres")
 class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
+    @Test
+    void upgradesLegacyLocalDocumentFromV25ToV26WithoutDataLoss()
+        throws Exception {
+        String schema = "v26_upgrade_"
+            + UUID.randomUUID().toString().replace("-", "");
+        Flyway v25 = flyway(schema, "25");
+        assertThat(v25.migrate().migrationsExecuted).isEqualTo(25);
+
+        try (Connection connection = connection(schema)) {
+            insertPhase1Rows(connection);
+        }
+
+        Flyway v26 = flyway(schema, "26");
+        assertThat(v26.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(v26.info().current().getVersion().getVersion())
+            .isEqualTo("26");
+
+        try (Connection connection = connection(schema)) {
+            var result = connection.createStatement().executeQuery("""
+                select sf.storage_type,
+                       dv.parser_artifact_stored_file_id,
+                       dv.parser_block_count,
+                       dv.parser_artifact_checksum_sha256,
+                       dv.parser_artifact_schema_version,
+                       dv.parsed_at
+                from document_versions dv
+                join stored_files sf on sf.id = dv.stored_file_id
+                where dv.id = 1
+                """);
+            assertThat(result.next()).isTrue();
+            assertThat(result.getString("storage_type"))
+                .isEqualTo("LOCAL");
+            assertThat(result.getObject(
+                "parser_artifact_stored_file_id"
+            )).isNull();
+            assertThat(result.getObject("parser_block_count"))
+                .isNull();
+            assertThat(result.getString(
+                "parser_artifact_checksum_sha256"
+            )).isNull();
+            assertThat(result.getString(
+                "parser_artifact_schema_version"
+            )).isNull();
+            assertThat(result.getTimestamp("parsed_at")).isNull();
+            assertThat(count(connection, """
+                select count(*) from stored_files where id = 1
+                """)).isEqualTo(1);
+            assertThat(count(connection, """
+                select count(*) from document_versions where id = 1
+                """)).isEqualTo(1);
+            System.out.println(
+                "D2_PG_UPGRADE from=25 to=26 migrationsExecuted=1 "
+                    + "legacyLocalRow=PASS nullableMetadata=PASS "
+                    + "dataPreserved=PASS"
+            );
+        }
+    }
+
+    @Test
+    void v26EnforcesParserArtifactMetadataConstraints()
+        throws Exception {
+        String schema = "v26_constraints_"
+            + UUID.randomUUID().toString().replace("-", "");
+        Flyway flyway = flyway(schema, "26");
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(26);
+
+        try (Connection connection = connection(schema)) {
+            insertPhase1Rows(connection);
+            insertStoredFile(connection, 2, "artifact-2");
+
+            assertThat(connection.createStatement().executeUpdate("""
+                update document_versions
+                set parser_artifact_stored_file_id = 2,
+                    parser_artifact_status = 'SUCCEEDED',
+                    parser_block_count = 12,
+                    parser_artifact_checksum_sha256 = repeat('b', 64),
+                    parser_artifact_schema_version = 'document-blocks-v1',
+                    parsed_at = current_timestamp
+                where id = 1
+                """)).isEqualTo(1);
+
+            assertThat(connection.createStatement().executeUpdate("""
+                update document_versions
+                set parser_artifact_stored_file_id = null,
+                    parser_artifact_status = null,
+                    parser_block_count = null,
+                    parser_artifact_checksum_sha256 = null,
+                    parser_artifact_schema_version = null,
+                    parsed_at = null
+                where id = 1
+                """)).isEqualTo(1);
+
+            assertSqlRejected(connection, "23514", """
+                update document_versions
+                set parser_artifact_stored_file_id = 2,
+                    parser_block_count = 1,
+                    parser_artifact_checksum_sha256 = 'INVALID',
+                    parser_artifact_schema_version = 'document-blocks-v1',
+                    parsed_at = current_timestamp
+                where id = 1
+                """);
+            assertSqlRejected(connection, "23514", """
+                update document_versions
+                set parser_artifact_stored_file_id = 2,
+                    parser_block_count = 1,
+                    parser_artifact_checksum_sha256 = repeat('b', 64),
+                    parser_artifact_schema_version = null,
+                    parsed_at = current_timestamp
+                where id = 1
+                """);
+            assertSqlRejected(connection, "23503", """
+                update document_versions
+                set parser_artifact_stored_file_id = 999999,
+                    parser_block_count = 1,
+                    parser_artifact_checksum_sha256 = repeat('b', 64),
+                    parser_artifact_schema_version = 'document-blocks-v1',
+                    parsed_at = current_timestamp
+                where id = 1
+                """);
+            assertSqlRejected(connection, "23514", """
+                update document_versions
+                set parser_artifact_stored_file_id = 2,
+                    parser_block_count = 0,
+                    parser_artifact_checksum_sha256 = repeat('b', 64),
+                    parser_artifact_schema_version = 'document-blocks-v1',
+                    parsed_at = current_timestamp
+                where id = 1
+                """);
+
+            insertStoredFile(connection, 3, "source-3");
+            insertDocumentVersion(connection, 2, 3, 2);
+            connection.createStatement().executeUpdate("""
+                update document_versions
+                set parser_artifact_stored_file_id = 2,
+                    parser_block_count = 1,
+                    parser_artifact_checksum_sha256 = repeat('b', 64),
+                    parser_artifact_schema_version = 'document-blocks-v1',
+                    parsed_at = current_timestamp
+                where id = 1
+                """);
+            assertSqlRejected(connection, "23505", """
+                update document_versions
+                set parser_artifact_stored_file_id = 2,
+                    parser_block_count = 1,
+                    parser_artifact_checksum_sha256 = repeat('b', 64),
+                    parser_artifact_schema_version = 'document-blocks-v1',
+                    parsed_at = current_timestamp
+                where id = 2
+                """);
+            System.out.println(
+                "D2_PG_CONSTRAINTS validMetadata=PASS "
+                    + "nullableLegacy=PASS malformedChecksum=PASS "
+                    + "partialMetadata=PASS missingStoredFileFk=PASS "
+                    + "duplicateArtifactFk=PASS nonPositiveBlockCount=PASS"
+            );
+        }
+    }
+
     @Test
     void v9AddsPersonaCatalogRecommendationAndValidationSchema() throws Exception {
         String schema = "v9_fresh_" + UUID.randomUUID().toString().replace("-", "");
@@ -221,6 +380,70 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
         var result = connection.createStatement().executeQuery(sql);
         result.next();
         return result.getInt(1);
+    }
+
+    private Connection connection(String schema) throws Exception {
+        Connection connection = DriverManager.getConnection(
+            POSTGRES.getJdbcUrl(),
+            POSTGRES.getUsername(),
+            POSTGRES.getPassword()
+        );
+        connection.createStatement().execute(
+            "set search_path to " + schema
+        );
+        return connection;
+    }
+
+    private void assertSqlRejected(
+        Connection connection,
+        String sqlState,
+        String sql
+    ) {
+        assertThatThrownBy(
+            () -> connection.createStatement().executeUpdate(sql)
+        ).isInstanceOfSatisfying(
+            java.sql.SQLException.class,
+            exception -> assertThat(exception.getSQLState())
+                .isEqualTo(sqlState)
+        );
+    }
+
+    private void insertStoredFile(
+        Connection connection,
+        long id,
+        String storageKey
+    ) throws Exception {
+        connection.createStatement().executeUpdate("""
+            insert into stored_files (
+                id, storage_type, storage_key, original_filename,
+                stored_filename, extension, mime_type, size_bytes,
+                checksum_sha256, status, encrypted, created_at,
+                updated_at, version
+            ) values (
+                %d, 'S3_COMPATIBLE', '%s', 'artifact.json',
+                'artifact.json', 'json', 'application/json', 10,
+                repeat('b', 64), 'AVAILABLE', false,
+                current_timestamp, current_timestamp, 0
+            )
+            """.formatted(id, storageKey));
+    }
+
+    private void insertDocumentVersion(
+        Connection connection,
+        long id,
+        long storedFileId,
+        int versionNumber
+    ) throws Exception {
+        connection.createStatement().executeUpdate("""
+            insert into document_versions (
+                id, document_id, version_number, stored_file_id,
+                parse_status, uploaded_by, uploaded_at, created_at,
+                updated_at, version
+            ) values (
+                %d, 1, %d, %d, 'SUCCEEDED', 1, current_timestamp,
+                current_timestamp, current_timestamp, 0
+            )
+            """.formatted(id, versionNumber, storedFileId));
     }
 
     private void insertPhase1Rows(Connection connection) throws Exception {

@@ -2,8 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main, integration/ai-task-hub-foundation]
+    branches:
+      - main
+      - integration/ai-task-hub-foundation
+      - feature/document-parser-artifact-d2
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,6 +28,7 @@ jobs:
       - run: ./gradlew clean test build bootJar --no-daemon
 
   backend-postgresql:
+    name: PostgreSQL 17.10 / Flyway V26
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,7 +40,13 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
-      - run: ./gradlew postgresTest --no-daemon
+      - run: ./gradlew clean postgresTest --no-daemon --console=plain
+      - name: Upload PostgreSQL test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgresql-test-results
+          path: backend/build/test-results/postgresTest
 
   frontend:
     runs-on: ubuntu-latest
