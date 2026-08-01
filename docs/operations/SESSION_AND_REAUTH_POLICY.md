@@ -3,7 +3,7 @@
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
 - Document Phase: P1.1
-- Introduced In Commit: P1.1 commit pending
+- Introduced In Commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
 - Scope: Stable Core session, revocation and privileged action policy
 - Supersedes: Deleted session and reauthentication documents
 - Implementation Status: PARTIAL

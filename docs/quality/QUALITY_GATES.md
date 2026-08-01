@@ -10,12 +10,12 @@
 
 | Gate | Command/direction | Success | Evidence |
 |---|---|---|---|
-| Backend | ./gradlew test | exit 0/no failures | backend/build/test-results/test |
-| PostgreSQL/Flyway | ./gradlew postgresTest | fresh/upgrade/validate pass | backend/build/test-results/postgresTest |
-| Storage | ./gradlew minioTest | integrity/boundary pass | backend/build/test-results/minioTest |
-| Frontend lint | npm run lint | exit 0 | local/remote log |
-| Frontend test | npm run test:baseline | gate pass | command log |
-| Frontend build | npm run build | exit 0 | dist/log |
+| Backend | Windows `.\gradlew.bat test`; Linux/CI `./gradlew test` | exit 0/no failures | backend/build/test-results/test |
+| PostgreSQL/Flyway | Windows `.\gradlew.bat postgresTest`; Linux/CI `./gradlew postgresTest` | fresh/upgrade/validate pass | backend/build/test-results/postgresTest |
+| Storage | Windows `.\gradlew.bat minioTest`; Linux/CI `./gradlew minioTest` | integrity/boundary pass | backend/build/test-results/minioTest |
+| Frontend lint | Windows `npm.cmd run lint`; Linux/CI `npm run lint` | exit 0 | local/remote log |
+| Frontend test | Windows `npm.cmd run test:baseline`; Linux/CI `npm run test:baseline` | gate pass | command log |
+| Frontend build | Windows `npm.cmd run build`; Linux/CI `npm run build` | exit 0 | dist/log |
 | FastAPI | python -m pytest | selected tests pass | pytest output |
 | Public contract | Redocly + drift direction | syntax/expected paths agree | contract job |
 | Spring–AI | fixtures/integration | identity/schema/error/timeout/boundary pass | test reports |

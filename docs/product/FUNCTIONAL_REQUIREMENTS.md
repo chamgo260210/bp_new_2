@@ -33,6 +33,6 @@
 | FR-021 | upstream 변경 시 downstream stale 상태를 판정·표시한다. | P2/P4–P10 |
 | FR-022 | Admin은 사용자/역할, Project, audit, TaskRun, Storage, AI/법령 연결을 운영한다. | P11 |
 | FR-023 | Service Policy는 maintenance, Project 생성, upload, AI, report 생성 제어 방향을 제공한다. | P11 |
-| FR-024 | legacy Workflow API/route에 신규 compatibility 경로를 만들지 않는다. | P3–P11 |
+| FR-024 | legacy Workflow API/route에 신규 compatibility 경로를 만들지 않고 P12에서 제거한다. | P3–P12 |
 
 상세 field, validation, command/query schema와 UI interaction은 P2 이후 계약에서 결정한다.

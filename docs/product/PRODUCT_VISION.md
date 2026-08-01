@@ -38,4 +38,4 @@ Venture Verify는 완성된 사업계획서를 요구하는 문서 분석기가 
 
 ## Delivery direction
 
-P2에서 상세 domain/contract를 확정하고 P3에서 Stable Platform과 TaskRun 기반을 마련한다. P4~P10에서 workflow를 vertical slice로 구현하며 P11에서 Admin/Landing 전환, legacy 제거와 release hardening을 수행한다.
+P2에서 상세 domain/contract를 확정하고 P3에서 Stable Platform과 TaskRun 기반을 마련한다. P4~P10에서 workflow를 vertical slice로 구현한다. P11은 Admin/Landing 전환, P12는 legacy 제거와 database cutover, P13은 통합 품질·수동 테스트·release hardening을 수행한다.

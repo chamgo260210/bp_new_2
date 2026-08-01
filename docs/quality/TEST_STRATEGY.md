@@ -25,12 +25,16 @@ Legacy tests는 기능 삭제와 대체 test 존재 후 제거한다.
 | P2 | contract cross-reference/drift fixtures |
 | P3 | full Stable Core, TaskRun concurrency, Spring–AI, FastAPI, Flyway |
 | P4–P10 | affected Stable Core + backend/frontend/AI + owner/stale/error + E2E |
-| P11 | full local suite, migration, Docker E2E, security, remote CI |
+| P11 | Admin authorization/policy/audit와 Landing frontend/accessibility |
+| P12 | replacement suite, migration fresh/upgrade/validate, legacy reference scan |
+| P13 | full local suite, Docker E2E, manual testing, security, Remote CI |
 
 ## Local command set
 
-- Backend: cd backend; ./gradlew test; ./gradlew postgresTest; ./gradlew minioTest
-- Frontend: cd frontEnd; npm ci; npm run lint; npm run test:baseline; npm run build
+- Backend Windows: cd backend; .\gradlew.bat test; .\gradlew.bat postgresTest; .\gradlew.bat minioTest
+- Backend Linux/CI: cd backend; ./gradlew test; ./gradlew postgresTest; ./gradlew minioTest
+- Frontend Windows: cd frontEnd; npm.cmd ci; npm.cmd run lint; npm.cmd run test:baseline; npm.cmd run build
+- Frontend Linux/CI: cd frontEnd; npm ci; npm run lint; npm run test:baseline; npm run build
 - AI: cd ai; python -m pytest
 - E2E: ./scripts/docker-e2e-smoke.ps1 -EnvFile .env.e2e.example
 

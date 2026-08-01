@@ -48,6 +48,8 @@ Project는 IdeaSource 수집부터 FinalReportVersion까지 하나의 검증 계
 | P7–P8 | Persona cards/independent interviews |
 | P9 | Marketing Workspace/comparison |
 | P10 | persisted Final Report |
-| P11 | Admin, Landing content, legacy removal, release |
+| P11 | Admin과 Landing content 전환 |
+| P12 | legacy 제거와 database cutover |
+| P13 | 통합 품질, 수동 테스트, release hardening |
 
 초기 FILE 형식과 export 형식 등은 [Open Decisions](OPEN_DECISIONS.md)에 남긴다.

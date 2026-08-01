@@ -27,4 +27,4 @@ Auth/owner/admin/audit가 회귀하지 않고 Spring만 RDB/Storage를 관리해
 
 ## Workflow and release
 
-각 slice는 owner, version/provenance, stale, safe error, AI contract, frontend와 필요한 E2E를 포함한다. P11은 full local gate, 확인 가능한 remote CI/security/deployment evidence와 legacy 제거를 요구한다.
+각 slice는 owner, version/provenance, stale, safe error, AI contract, frontend와 필요한 E2E를 포함한다. P11은 Admin/Landing 전환 검증, P12는 legacy 제거와 Flyway cutover 검증, P13은 full local gate와 확인 가능한 Remote CI/security/deployment/manual evidence를 요구한다.
