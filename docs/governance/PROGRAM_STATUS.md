@@ -21,7 +21,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2.6 — Contract Fixtures and Consistency Verification |
+| Current phase | P2.6 Correction — Executable Negative Validation and Exact Schema Coverage |
 | P2.3 status | COMPLETE at `cd1c9816a5b716533e3a79c459f42ce09bde3671` |
 | P2.4 status | COMPLETE at `2a667479ba37b3e6c0649124e750ff47f9718188` |
 | P2.5 status | COMPLETE at `134c5acbf7d858934888fd468de3b7b7e2e2da78` |
@@ -31,7 +31,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.6 fixture/validator 결과의 commit·push와 외부 검토; OD-008은 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.6 executable negative/exact schema validator correction의 commit·push와 외부 검토; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -56,4 +56,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.5 final correction commit `134c5acbf7d858934888fd468de3b7b7e2e2da78`은 65개 named schema, Financial result ownership과 12개 error/33개 reason 조합을 닫았다. P2.6은 실제 JSON fixture와 Python 표준 라이브러리 validator로 public/internal registry, canonical hash, chunk integrity와 workflow invariant를 검증 중이다. 구현 진행률과 vertical slice는 여전히 0이며 OD-008은 DEFERRED다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.6 baseline commit `33a37478deb1313c2a2a100523ebe29bc43ae941`은 fixture/validator 골격을 도입했으나 외부 검토에서 negative 실행, pre-parse identifier와 exact schema coverage gap이 확인됐다. 현재 correction은 동일 validation path의 expected-rule 실패, 65개 schema 실행 coverage, 고정 deadline clock과 public/internal exact registry equality를 검증한다. 구현 진행률과 vertical slice는 여전히 0이며 OD-008은 DEFERRED다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

@@ -1,7 +1,7 @@
 {
-  "canonicalInputHash": "sha256:7c701bee7295ed839a7778561e75a071e2dad838db56b8118b85d9417efe1b24",
+  "canonicalInputHash": "sha256:d852d722c9ab36b96759b0c0bf41d78fa574e65eb383299bede7e4166fd829fa",
   "contractVersion": "1.0",
-  "correlationId": "correlation-8",
+  "correlationId": "correlation-market",
   "provenance": [
     {
       "category": "AI_PROPOSAL",
@@ -15,31 +15,33 @@
     }
   ],
   "result": {
-    "caveats": [
-      "합성 응답 기반입니다."
-    ],
-    "commonResponses": [
+    "analysisType": "MARKET",
+    "findings": [
       {
-        "interviewKeys": [
-          "interview-1"
-        ],
-        "itemKey": "synthesis-item-1",
+        "assumptions": [],
+        "category": "MARKET",
+        "evidenceKeys": [],
+        "findingKey": "market-finding-1",
+        "impact": "UNKNOWN",
         "provenance": [
           {
             "category": "AI_PROPOSAL",
             "externalSourceReferences": [],
             "generatedAt": "2035-01-01T00:00:00Z",
-            "sourceKeys": [
-              "interview-1"
-            ],
-            "statementKey": "synthesis-item-prov-1",
+            "sourceKeys": [],
+            "statementKey": "market-finding-prov-1",
             "verificationNeeded": true
           }
         ],
-        "summary": "독립 인터뷰에서 공통으로 확인된 합성 응답입니다."
+        "summary": "추가 시장 근거가 필요합니다."
       }
     ],
-    "conflictingResponses": [],
+    "marketResult": {
+      "caveats": [
+        "시장 분석 검증 caveat"
+      ],
+      "findings": []
+    },
     "provenance": [
       {
         "category": "AI_PROPOSAL",
@@ -52,14 +54,13 @@
         "verificationNeeded": false
       }
     ],
-    "researchRecommendations": [],
-    "unresolvedQuestions": []
+    "warnings": []
   },
   "resultSchemaVersion": "1.0",
-  "taskAttemptId": "task-attempt-8",
-  "taskRunId": "task-run-8",
+  "taskAttemptId": "task-attempt-market",
+  "taskRunId": "task-run-market",
   "taskSchemaVersion": "1.0",
-  "taskType": "INTERVIEW_SYNTHESIS",
+  "taskType": "DETAILED_ANALYSIS",
   "usage": null,
   "warnings": []
 }

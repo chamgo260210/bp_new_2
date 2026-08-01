@@ -5,7 +5,18 @@
   "provenance": [
     {
       "category": "AI_PROPOSAL",
-      "externalSourceReferences": [],
+      "externalSourceReferences": [
+        {
+          "authoritative": true,
+          "currentness": "CURRENT",
+          "degraded": false,
+          "externalIdentifier": "KR-LAW-1",
+          "observedAt": "2035-01-01T00:00:00Z",
+          "officialSourceUrl": "https://www.law.go.kr/example",
+          "sourceChannel": "MOLEG_API",
+          "title": "예시 법령"
+        }
+      ],
       "generatedAt": "2035-01-01T00:00:00Z",
       "sourceKeys": [
         "source-1"
@@ -17,7 +28,32 @@
   "result": {
     "conditions": [],
     "expertReviewReasons": [],
-    "findings": [],
+    "findings": [
+      {
+        "affectedIdeaItemKeys": [
+          "source-1"
+        ],
+        "claim": "확인된 법령 출처를 추가 검토해야 합니다.",
+        "findingKey": "legal-finding-1",
+        "findingType": "REGULATORY",
+        "provenance": [
+          {
+            "category": "EXTERNAL_SOURCE_FACT",
+            "externalSourceReferences": [],
+            "generatedAt": "2035-01-01T00:00:00Z",
+            "sourceKeys": [
+              "law-1"
+            ],
+            "statementKey": "legal-finding-prov-1",
+            "verificationNeeded": false
+          }
+        ],
+        "severity": "INFO",
+        "sourceReferenceKeys": [
+          "law-1"
+        ]
+      }
+    ],
     "legalResult": "PASS",
     "provenance": [
       {
@@ -65,6 +101,12 @@
   "taskRunId": "task-run-2",
   "taskSchemaVersion": "1.0",
   "taskType": "LEGAL_REVIEW",
-  "usage": null,
+  "usage": {
+    "estimated": true,
+    "inputUnits": 100,
+    "outputUnits": 50,
+    "totalUnits": 150,
+    "unit": "TOKENS"
+  },
   "warnings": []
 }

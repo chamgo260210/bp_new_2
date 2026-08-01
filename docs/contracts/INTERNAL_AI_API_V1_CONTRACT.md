@@ -249,9 +249,28 @@ Fixture case manifest는 다음 범위를 포함한다.
 - unsupported contract/task schema version, deadline exceeded, result schema invalid
 - unknown request-local reference rejection
 
-Fixture는 이 문서의 schema/version/limit/error registry를 재사용하고 public P2.4 contract와 enum·provenance·error mapping drift를 검사한다.
+Fixture는 이 문서의 65개 field table을 제한된 Markdown parser로 읽어 exact field, presence, nullability, type, bounds/enum과 named nested schema를 재귀 검증한다. Negative도 positive와 동일한 validator 경로에서 manifest의 단일 expected rule로 실패해야 한다. Public P2.4 contract와는 동명 consistency registry의 exact set/value equality, error mapping과 Financial/Persona/Marketing invariant equality를 검사한다.
 
 ## 14. Exact schema notation and common registry
+
+### Public/Internal consistency registry
+
+아래 registry는 [Public API v2 계약](PUBLIC_API_V2_CONTRACT.md)의 동명 표와 exact set/value equality를 유지한다.
+
+| Registry | Values |
+|---|---|
+| Legal Result | `PASS`, `PASS_WITH_CONDITIONS`, `REVISION_REQUIRED`, `PROHIBITED`, `INSUFFICIENT_INFORMATION`, `EXPERT_REVIEW_REQUIRED` |
+| Analysis Type | `MARKET`, `BUSINESS_MODEL`, `TECHNICAL_OPERATION`, `FINANCIAL` |
+| Report Decision | `GO`, `CONDITIONAL_GO`, `REWORK`, `HOLD`, `STOP` |
+| Provenance Category | `USER_INPUT`, `EXTERNAL_SOURCE_FACT`, `ASSUMPTION`, `AI_PROPOSAL`, `USER_DECISION` |
+| Marketing Asset Type | `HEADLINE`, `BODY_COPY`, `CTA`, `CAMPAIGN_CONCEPT` |
+
+| Invariant | Contract value |
+|---|---|
+| FINANCIAL_DETERMINISTIC_INPUT_OWNERSHIP | `SPRING_ONLY` |
+| PERSONA_SYNTHETIC_DISCLOSURE | `REQUIRED` |
+| MARKETING_PROBABILITY_CLAIMS | `FORBIDDEN` |
+| MARKETING_STATISTICAL_AB_CLAIM | `FORBIDDEN` |
 
 이 절의 표가 앞선 narrative보다 우선한다. 모든 object는 unknown field를 `REJECT`하고, 명시된 `extensions` field가 없는 v1 schema는 확장 key를 허용하지 않는다. `REQUIRED`+Nullable `YES`는 key가 반드시 존재하되 JSON `null`을 허용한다. `OPTIONAL`+Nullable `NO`는 omitted 가능하지만 존재하면 null이 아니다. Required array는 비어 있어도 되는 경우 `minItems=0`을 명시하며, omitted과 empty array는 각각 “정보 미제공”과 “검토했으나 항목 없음”으로 구분한다. Decimal은 JSON number가 아닌 canonical decimal string(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?$`)이고 timestamp는 RFC 3339 UTC다. Opaque identifier/local key string은 trim 후 blank를 허용하지 않는다.
 

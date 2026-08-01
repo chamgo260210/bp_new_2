@@ -20,6 +20,25 @@
 - Storage object key, local path, presigned URL, AI Server identifier, TaskAttempt/worker/lease/provider identity, provider prompt/raw body와 secret을 public 표현에 포함하지 않는다.
 - External legal citation의 `officialSourceUrl`은 provenance URL이며 Storage transport가 아니다.
 
+### Public/Internal consistency registry
+
+아래 표는 P2.6 validator가 Internal 계약과 exact set equality를 검사하는 public canonical registry다.
+
+| Registry | Values |
+|---|---|
+| Legal Result | `PASS`, `PASS_WITH_CONDITIONS`, `REVISION_REQUIRED`, `PROHIBITED`, `INSUFFICIENT_INFORMATION`, `EXPERT_REVIEW_REQUIRED` |
+| Analysis Type | `MARKET`, `BUSINESS_MODEL`, `TECHNICAL_OPERATION`, `FINANCIAL` |
+| Report Decision | `GO`, `CONDITIONAL_GO`, `REWORK`, `HOLD`, `STOP` |
+| Provenance Category | `USER_INPUT`, `EXTERNAL_SOURCE_FACT`, `ASSUMPTION`, `AI_PROPOSAL`, `USER_DECISION` |
+| Marketing Asset Type | `HEADLINE`, `BODY_COPY`, `CTA`, `CAMPAIGN_CONCEPT` |
+
+| Invariant | Contract value |
+|---|---|
+| FINANCIAL_DETERMINISTIC_INPUT_OWNERSHIP | `SPRING_ONLY` |
+| PERSONA_SYNTHETIC_DISCLOSURE | `REQUIRED` |
+| MARKETING_PROBABILITY_CLAIMS | `FORBIDDEN` |
+| MARKETING_STATISTICAL_AB_CLAIM | `FORBIDDEN` |
+
 ## 2. Headers and media types
 
 | Header/media | Contract |

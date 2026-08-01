@@ -38,7 +38,7 @@
       ],
       "degraded": true,
       "missingChannels": [
-        "LEGAL_MCP"
+        "MOLEG_API"
       ],
       "successfulChannels": [
         "LEGAL_MCP"

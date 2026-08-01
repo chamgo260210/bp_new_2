@@ -9,6 +9,8 @@ import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -61,7 +63,27 @@ FORBIDDEN_KEYS = {
 MANIFEST_FIELDS = {
     "fixtureId", "path", "category", "contractObject", "taskType", "schemaName",
     "expectedValid", "expectedErrorCode", "expectedReason", "invariants",
-    "matchingContractSection",
+    "matchingContractSection", "expectedValidatorRule", "coveredSchemas",
+    "primaryInvariant",
+}
+
+TASK_SCHEMAS = {
+    "IDEA_INTERPRETATION": ("IdeaInterpretationInputV1", "IdeaInterpretationResultV1"),
+    "LEGAL_REVIEW": ("LegalReviewInputV1", "LegalReviewResultV1"),
+    "CONCEPT_GENERATION": ("ConceptGenerationInputV1", "ConceptGenerationResultV1"),
+    "QUICK_ASSESSMENT": ("QuickAssessmentInputV1", "QuickAssessmentResultV1"),
+    "DETAILED_ANALYSIS": ("DetailedAnalysisInputV1", "DetailedAnalysisResultV1"),
+    "PERSONA_CARD_GENERATION": ("PersonaCardGenerationInputV1", "PersonaCardGenerationResultV1"),
+    "PERSONA_INTERVIEW": ("PersonaInterviewInputV1", "PersonaInterviewResultV1"),
+    "INTERVIEW_SYNTHESIS": ("InterviewSynthesisInputV1", "InterviewSynthesisResultV1"),
+    "MARKETING_GENERATION": ("MarketingGenerationInputV1", "MarketingGenerationResultV1"),
+    "MARKETING_COMPARISON": ("MarketingComparisonInputV1", "MarketingComparisonResultV1"),
+    "FINAL_REPORT_GENERATION": ("FinalReportGenerationInputV1", "FinalReportGenerationResultV1"),
+}
+
+PREPARSE_REASONS = {
+    "JSON_PARSE_FAILED", "REQUEST_BYTES_EXCEEDED", "SERVICE_TOKEN_MISSING",
+    "SERVICE_TOKEN_INVALID", "INTERNAL_PRINCIPAL_FORBIDDEN",
 }
 REQUEST_FIELDS = {
     "contractVersion", "taskType", "taskSchemaVersion", "taskRunId", "taskAttemptId",
@@ -156,19 +178,100 @@ def walk_keys(value: Any):
             yield from walk_keys(item)
 
 
+def _json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    normalized: dict[str, str] = {}
+    for key, value in pairs:
+        if key in result:
+            fail("<json>", "DUPLICATE_JSON_KEY", "unique object keys", key)
+        nfc_key = unicodedata.normalize("NFC", key)
+        if nfc_key in normalized and normalized[nfc_key] != key:
+            fail("<json>", "NORMALIZED_KEY_COLLISION", "unique NFC keys", nfc_key)
+        normalized[nfc_key] = key
+        result[key] = value
+    return result
+
+
+def _reject_float(value: str) -> None:
+    fail("<json>", "FLOAT_NUMBER_NOT_ALLOWED", "decimal string", value)
+
+
+def decode_json(raw: bytes, path: str) -> Any:
+    if raw.startswith(b"\xef\xbb\xbf"):
+        fail(path, "UTF8_BOM", "absent", "present")
+    if b"\r\n" in raw or b"\r" in raw:
+        fail(path, "LINE_ENDING_INVALID", "LF", "CRLF/CR")
+    try:
+        return json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_json_pairs,
+            parse_float=_reject_float,
+        )
+    except ValidationFailure as exc:
+        if exc.path == "<json>":
+            exc.path = path
+        raise
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(path, "JSON_PARSE", "valid UTF-8 JSON", type(exc).__name__)
+
+
 def load_json_file(path: Path) -> Any:
     raw = path.read_bytes()
-    if raw.startswith(b"\xef\xbb\xbf"):
-        fail(path.as_posix(), "UTF8_BOM", "absent", "present")
-    if b"\r\n" in raw:
-        fail(path.as_posix(), "LINE_ENDING", "LF", "CRLF")
+    return decode_json(raw, path.as_posix())
+
+
+def parse_field_schemas(internal: str) -> dict[str, dict[str, dict[str, str]]]:
+    headings = list(re.finditer(r"(?m)^### ([A-Za-z][A-Za-z0-9]+V1)\r?$", internal))
+    schemas: dict[str, dict[str, dict[str, str]]] = {}
+    header = "| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |"
+    for index, heading in enumerate(headings):
+        end = headings[index + 1].start() if index + 1 < len(headings) else len(internal)
+        lines = internal[heading.end():end].splitlines()
+        if header not in lines:
+            continue
+        cursor = lines.index(header) + 2
+        fields: dict[str, dict[str, str]] = {}
+        while cursor < len(lines) and lines[cursor].startswith("|"):
+            cells = [cell.strip() for cell in lines[cursor].strip("|").split("|")]
+            if len(cells) != 6:
+                fail(str(INTERNAL_DOC), "SCHEMA_TABLE_ROW", "6 cells", lines[cursor])
+            field, json_type, presence, nullable, bounds, semantic = cells
+            if field in fields:
+                fail(str(INTERNAL_DOC), "SCHEMA_FIELD_DUPLICATE", "unique", f"{heading.group(1)}.{field}")
+            if presence not in {"REQUIRED", "OPTIONAL"} or nullable not in {"YES", "NO"}:
+                fail(str(INTERNAL_DOC), "SCHEMA_PRESENCE", "REQUIRED/OPTIONAL and YES/NO", f"{presence}/{nullable}")
+            fields[field] = {
+                "type": json_type, "presence": presence, "nullable": nullable,
+                "bounds": bounds, "semantic": semantic,
+            }
+            cursor += 1
+        schemas[heading.group(1)] = fields
+    if len(schemas) != 65:
+        fail(str(INTERNAL_DOC), "NAMED_SCHEMA_REGISTRY", 65, len(schemas))
+    return schemas
+
+
+def parse_consistency_registry(text: str) -> tuple[dict[str, set[str]], dict[str, str]]:
     try:
-        return json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        fail(path.as_posix(), "JSON_PARSE", "valid UTF-8 JSON", type(exc).__name__)
+        block = text.split("### Public/Internal consistency registry", 1)[1]
+    except IndexError:
+        fail("contract", "CONSISTENCY_REGISTRY", "named registry section", "missing")
+    registries: dict[str, set[str]] = {}
+    invariants: dict[str, str] = {}
+    registry_names = {"Legal Result", "Analysis Type", "Report Decision", "Provenance Category", "Marketing Asset Type"}
+    for name, values in re.findall(r"(?m)^\| ([A-Za-z][A-Za-z ]+) \| ([^|]+) \|$", block):
+        if name not in registry_names:
+            continue
+        found = set(re.findall(r"`([A-Z][A-Z0-9_]+)`", values))
+        if found:
+            registries[name] = found
+    for name, value in re.findall(r"(?m)^\| ([A-Z][A-Z0-9_]+) \| `([A-Z][A-Z0-9_]+)` \|$", block):
+        invariants[name] = value
+    return registries, invariants
 
 
-def parse_registries(internal: str, public: str) -> tuple[dict[tuple[str, str], dict[str, str]], set[str]]:
+def parse_registries(
+    internal: str, public: str,
+) -> tuple[dict[tuple[str, str], dict[str, str]], dict[str, dict[str, dict[str, str]]], set[str]]:
     banned = (
         "array<object>", "exact fields below", "each exact {", "array of {",
         "policy-dependent", "indicated by response", "six canonical values", "task별 allowlist",
@@ -209,13 +312,8 @@ def parse_registries(internal: str, public: str) -> tuple[dict[tuple[str, str], 
     if len(reason_registry) != 33 or {code for code, _ in reason_registry} != set(INTERNAL_ERRORS):
         fail(str(INTERNAL_DOC), "ERROR_REASON_REGISTRY", "33 reasons / 12 codes", len(reason_registry))
 
-    schemas = set(re.findall(r"(?m)^### ([A-Za-z][A-Za-z0-9]+V1)\r?$", internal))
-    if len(schemas) != 65:
-        fail(str(INTERNAL_DOC), "NAMED_SCHEMA_REGISTRY", 65, len(schemas))
-    for schema in schemas:
-        pattern = rf"(?ms)^### {re.escape(schema)}\r?\n\r?\n\| Field \| JSON type \| Presence \| Nullable \| Bounds/enum \| Semantic rule \|"
-        if not re.search(pattern, internal):
-            fail(str(INTERNAL_DOC), "SCHEMA_FIELD_TABLE", schema, "missing")
+    schema_specs = parse_field_schemas(internal)
+    schemas = set(schema_specs)
 
     for required in (RESOURCE_TYPES, PROVENANCE_CATEGORIES, LEGAL_RESULTS, ANALYSIS_TYPES, REPORT_DECISIONS, MARKETING_ASSET_TYPES):
         if not all(value in internal for value in required):
@@ -228,14 +326,206 @@ def parse_registries(internal: str, public: str) -> tuple[dict[tuple[str, str], 
     public_schema_count = len(re.findall(r"(?m)^\| `[^`]+` \|", section(public, "## 10. Resource schema registry", "## 11.")))
     if (endpoint_count, capability_count, public_error_count, public_schema_count) != (67, 14, 14, 41):
         fail(str(PUBLIC_DOC), "PUBLIC_REGISTRY_COUNTS", "67/14/14/41", f"{endpoint_count}/{capability_count}/{public_error_count}/{public_schema_count}")
-    public_status = STATUS_DOC.read_text(encoding="utf-8")
-    for value in LEGAL_RESULTS:
-        if value not in public_status:
-            fail(str(STATUS_DOC), "PUBLIC_INTERNAL_LEGAL_ENUM", value, "missing")
-    for value in ANALYSIS_TYPES | REPORT_DECISIONS | PROVENANCE_CATEGORIES:
-        if value not in public:
-            fail(str(PUBLIC_DOC), "PUBLIC_INTERNAL_ENUM", value, "missing")
-    return reason_registry, schemas
+    public_registry, public_invariants = parse_consistency_registry(public)
+    internal_registry, internal_invariants = parse_consistency_registry(internal)
+    expected_registry = {
+        "Legal Result": LEGAL_RESULTS,
+        "Analysis Type": ANALYSIS_TYPES,
+        "Report Decision": REPORT_DECISIONS,
+        "Provenance Category": PROVENANCE_CATEGORIES,
+        "Marketing Asset Type": MARKETING_ASSET_TYPES,
+    }
+    if public_registry != expected_registry or internal_registry != expected_registry:
+        fail("contract registry", "EXACT_ENUM_CONSISTENCY", expected_registry, f"public={public_registry}; internal={internal_registry}")
+    expected_invariants = {
+        "FINANCIAL_DETERMINISTIC_INPUT_OWNERSHIP": "SPRING_ONLY",
+        "PERSONA_SYNTHETIC_DISCLOSURE": "REQUIRED",
+        "MARKETING_PROBABILITY_CLAIMS": "FORBIDDEN",
+        "MARKETING_STATISTICAL_AB_CLAIM": "FORBIDDEN",
+    }
+    if public_invariants != expected_invariants or internal_invariants != expected_invariants:
+        fail("contract registry", "CROSS_CONTRACT_INVARIANT", expected_invariants, f"public={public_invariants}; internal={internal_invariants}")
+    public_errors = set(re.findall(
+        r"(?m)^\| `([A-Z_]+)` \|", section(public, "## 4. Error envelope", "## 5. Pagination")
+    ))
+    mapped = {rule["public"] for rule in reason_registry.values()}
+    if not mapped.issubset(public_errors):
+        fail("contract registry", "ERROR_MAPPING_CONSISTENCY", sorted(public_errors), sorted(mapped - public_errors))
+    return reason_registry, schema_specs, schemas
+
+
+def parse_range(bounds: str) -> tuple[int, int] | None:
+    match = re.match(r"^([0-9][0-9,]*)[–-]([0-9][0-9,]*)", bounds)
+    if not match:
+        return None
+    return int(match.group(1).replace(",", "")), int(match.group(2).replace(",", ""))
+
+
+def parse_item_bounds(bounds: str) -> tuple[int | None, int | None]:
+    minimum = re.search(r"minItems ([0-9][0-9,]*)", bounds)
+    maximum = re.search(r"maxItems ([0-9][0-9,]*)", bounds)
+    return (
+        int(minimum.group(1).replace(",", "")) if minimum else None,
+        int(maximum.group(1).replace(",", "")) if maximum else None,
+    )
+
+
+def validate_timestamp(path: str, value: str, rule: str = "TIMESTAMP_FORMAT") -> datetime:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", value):
+        fail(path, rule, "RFC 3339 UTC Z", "invalid")
+    try:
+        return datetime.fromisoformat(value[:-1] + "+00:00").astimezone(timezone.utc)
+    except ValueError:
+        fail(path, rule, "valid RFC 3339 UTC Z", "invalid")
+
+
+def enum_values(field: str, bounds: str) -> set[str] | None:
+    values = set(re.findall(r"`([A-Z][A-Z0-9_.-]*)`", bounds))
+    if values:
+        return values
+    if "Task Registry" in bounds:
+        return set(TASK_TYPES)
+    if "Internal Error Mapping" in bounds:
+        return set(INTERNAL_ERRORS)
+    if "Request-local Resource Type Registry" in bounds:
+        return set(RESOURCE_TYPES)
+    if field in {"attemptedChannels", "successfulChannels", "missingChannels"}:
+        return {"MOLEG_API", "LEGAL_MCP"}
+    return None
+
+
+def validate_string_bounds(path: str, field: str, value: str, json_type: str, bounds: str) -> None:
+    if "timestamp" in json_type:
+        validate_timestamp(path, value, "DEADLINE_FORMAT" if field == "deadlineAt" else "TIMESTAMP_FORMAT")
+        return
+    if "decimal string" == json_type:
+        if not re.fullmatch(r"(?:0|[1-9]\d*)(?:\.\d+)?|-(?:0|[1-9]\d*)(?:\.\d+)?", value):
+            fail(path, "DECIMAL_STRING", "canonical decimal string", "invalid")
+        if "maxLength" in bounds:
+            maximum = int(re.search(r"maxLength ([0-9]+)", bounds).group(1))
+            if len(value) > maximum:
+                fail(path, "STRING_BOUNDS", f"maxLength {maximum}", len(value))
+        if bounds.startswith("0–1"):
+            try:
+                number = Decimal(value)
+            except InvalidOperation:
+                fail(path, "DECIMAL_STRING", "0..1", "invalid")
+            if not Decimal(0) <= number <= Decimal(1):
+                fail(path, "DECIMAL_BOUNDS", "0..1", value)
+        return
+    length_range = parse_range(bounds)
+    if length_range and not bounds.startswith("0–1 inclusive"):
+        minimum, maximum = length_range
+        if not minimum <= len(value) <= maximum:
+            fail(path, "STRING_BOUNDS", f"{minimum}..{maximum}", len(value))
+    max_length = re.search(r"maxLength ([0-9,]+)", bounds)
+    if max_length and len(value) > int(max_length.group(1).replace(",", "")):
+        fail(path, "STRING_BOUNDS", f"maxLength {max_length.group(1)}", len(value))
+    if "blank 금지" in bounds and not value.strip():
+        fail(path, "STRING_BLANK", "non-blank", "blank")
+    if "LocalKey" in bounds or field.endswith("Key") or field in {"statementKey", "sourceKey"}:
+        if not LOCAL_KEY_RE.fullmatch(value):
+            fail(path, "LOCAL_KEY_FORMAT", "1..64 local key", "invalid")
+    if "uppercase snake case" in bounds and not re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", value):
+        fail(path, "UPPER_SNAKE_CASE", "uppercase snake case", "invalid")
+    if "`[A-Za-z0-9._-]+`" in bounds and not re.fullmatch(r"[A-Za-z0-9._-]+", value):
+        fail(path, "STRING_PATTERN", "[A-Za-z0-9._-]+", "invalid")
+    if "`[A-Z][A-Z0-9_]*`" in bounds and not re.fullmatch(r"[A-Z][A-Z0-9_]*", value):
+        fail(path, "STRING_PATTERN", "[A-Z][A-Z0-9_]*", "invalid")
+    if "exactly 3 uppercase ASCII letters" in bounds and not re.fullmatch(r"[A-Z]{3}", value):
+        fail(path, "CURRENCY_CODE", "3 uppercase ASCII letters", "invalid")
+    if "SHA-256" in bounds or "sha256:" in bounds:
+        if not HASH_RE.fullmatch(value):
+            fail(path, "HASH_FORMAT", "sha256: + lowercase 64 hex", "invalid")
+    if bounds.startswith("HTTPS") and not value.startswith("https://"):
+        fail(path, "HTTPS_URL", "https://", "invalid")
+
+
+def validate_schema(
+    path: str,
+    value: Any,
+    schema_name: str,
+    schemas: dict[str, dict[str, dict[str, str]]],
+    coverage: set[str],
+    task_type: str | None = None,
+    field_path: str = "$",
+) -> None:
+    if schema_name not in schemas:
+        fail(path, "SCHEMA_REFERENCE", "known named schema", schema_name)
+    coverage.add(schema_name)
+    if not isinstance(value, dict):
+        fail(path, "SCHEMA_TYPE", f"{field_path}: object", type(value).__name__)
+    fields = schemas[schema_name]
+    required = {name for name, spec in fields.items() if spec["presence"] == "REQUIRED"}
+    missing = required - set(value)
+    if missing:
+        fail(path, "SCHEMA_REQUIRED_FIELD", f"{field_path}: {sorted(required)}", sorted(missing))
+    unknown = set(value) - set(fields)
+    if unknown:
+        fail(path, "SCHEMA_UNKNOWN_FIELD", f"{field_path}: exact fields", sorted(unknown))
+    for field, item in value.items():
+        spec = fields[field]
+        child_path = f"{field_path}.{field}"
+        if item is None:
+            if spec["nullable"] != "YES":
+                fail(path, "SCHEMA_NULLABILITY", f"{child_path}: non-null", "null")
+            continue
+        json_type, bounds = spec["type"], spec["bounds"]
+        if json_type in {"string", "string enum", "string timestamp", "decimal string"}:
+            if not isinstance(item, str):
+                fail(path, "SCHEMA_TYPE", f"{child_path}: string", type(item).__name__)
+            validate_string_bounds(path, field, item, json_type, bounds)
+            if "enum" in json_type:
+                allowed = enum_values(field, bounds)
+                if allowed is not None and item not in allowed:
+                    fail(path, "SCHEMA_ENUM", f"{child_path}: {sorted(allowed)}", item)
+        elif json_type == "integer":
+            if isinstance(item, bool) or not isinstance(item, int):
+                fail(path, "SCHEMA_TYPE", f"{child_path}: integer", type(item).__name__)
+            numeric_range = parse_range(bounds)
+            if numeric_range and not numeric_range[0] <= item <= numeric_range[1]:
+                fail(path, "INTEGER_BOUNDS", f"{child_path}: {numeric_range}", item)
+        elif json_type == "boolean":
+            if not isinstance(item, bool):
+                fail(path, "SCHEMA_TYPE", f"{child_path}: boolean", type(item).__name__)
+        elif json_type.startswith("array<"):
+            if not isinstance(item, list):
+                fail(path, "SCHEMA_TYPE", f"{child_path}: array", type(item).__name__)
+            minimum, maximum = parse_item_bounds(bounds)
+            if minimum is not None and len(item) < minimum or maximum is not None and len(item) > maximum:
+                fail(path, "ARRAY_BOUNDS", f"{child_path}: {minimum}..{maximum}", len(item))
+            element_type = json_type[6:-1]
+            for index, element in enumerate(item):
+                element_path = f"{child_path}[{index}]"
+                if element_type in schemas:
+                    validate_schema(path, element, element_type, schemas, coverage, task_type, element_path)
+                elif element_type in {"string", "string enum"}:
+                    if not isinstance(element, str):
+                        fail(path, "SCHEMA_TYPE", f"{element_path}: string", type(element).__name__)
+                    allowed = enum_values(field, bounds) if element_type == "string enum" else None
+                    if allowed is not None and element not in allowed:
+                        fail(path, "SCHEMA_ENUM", f"{element_path}: {sorted(allowed)}", element)
+                    each_range = re.search(r"each ([0-9,]+)[–-]([0-9,]+)", bounds)
+                    if each_range:
+                        low, high = (int(v.replace(",", "")) for v in each_range.groups())
+                        if not low <= len(element) <= high:
+                            fail(path, "STRING_BOUNDS", f"{element_path}: {low}..{high}", len(element))
+                    if "LocalKey" in bounds and not LOCAL_KEY_RE.fullmatch(element):
+                        fail(path, "LOCAL_KEY_FORMAT", f"{element_path}: LocalKey", "invalid")
+                    if "blank 금지" in bounds and not element.strip():
+                        fail(path, "STRING_BLANK", f"{element_path}: non-blank", "blank")
+            if "unique" in bounds and all(isinstance(element, (str, int)) and not isinstance(element, bool) for element in item):
+                if len(item) != len(set(item)):
+                    fail(path, "ARRAY_UNIQUENESS", f"{child_path}: unique", "duplicate")
+        elif json_type == "task-discriminated object":
+            if task_type not in TASK_SCHEMAS:
+                fail(path, "TASK_DISCRIMINATOR", "known taskType", task_type)
+            selected = TASK_SCHEMAS[task_type][0 if field == "input" else 1]
+            validate_schema(path, item, selected, schemas, coverage, task_type, child_path)
+        elif json_type in schemas:
+            validate_schema(path, item, json_type, schemas, coverage, task_type, child_path)
+        else:
+            fail(path, "SCHEMA_JSON_TYPE", "supported documented type", json_type)
 
 
 def validate_text_contents(path: str, request: dict[str, Any]) -> None:
@@ -250,7 +540,8 @@ def validate_text_contents(path: str, request: dict[str, Any]) -> None:
             fail(path, "CHUNK_COUNT", "1..64", len(chunks))
         indexes = [chunk.get("index") for chunk in chunks]
         if indexes != list(range(len(chunks))):
-            fail(path, "CHUNK_SEQUENCE_INVALID", list(range(len(chunks))), indexes)
+            rule = "CHUNK_INDEX_DUPLICATE" if len(set(indexes)) != len(indexes) else "CHUNK_INDEX_GAP"
+            fail(path, rule, list(range(len(chunks))), indexes)
         combined = ""
         count = 0
         for chunk in chunks:
@@ -258,15 +549,15 @@ def validate_text_contents(path: str, request: dict[str, Any]) -> None:
             if not text or len(text) > 16_384:
                 fail(path, "CHUNK_CHARACTERS", "1..16384", len(text))
             if chunk.get("characterCount") != len(text):
-                fail(path, "CHARACTER_COUNT", len(text), chunk.get("characterCount"))
+                fail(path, "CHARACTER_COUNT_MISMATCH", len(text), chunk.get("characterCount"))
             if chunk.get("chunkHash") != sha256_text(text):
-                fail(path, "CHUNK_HASH", sha256_text(text), chunk.get("chunkHash"))
+                fail(path, "CHUNK_HASH_MISMATCH", sha256_text(text), chunk.get("chunkHash"))
             combined += text
             count += len(text)
         if content.get("totalCharacters") != count:
             fail(path, "TOTAL_CHARACTERS", count, content.get("totalCharacters"))
         if content.get("contentHash") != sha256_text(combined):
-            fail(path, "CONTENT_HASH", sha256_text(combined), content.get("contentHash"))
+            fail(path, "CONTENT_HASH_MISMATCH", sha256_text(combined), content.get("contentHash"))
         total_chunks += len(chunks)
         total_chars += count
     if len(set(keys)) != len(keys):
@@ -277,7 +568,11 @@ def validate_text_contents(path: str, request: dict[str, Any]) -> None:
         fail(path, "TEXT_AGGREGATE_LIMIT", "<=500000", total_chars)
 
 
-def validate_request(path: str, obj: dict[str, Any]) -> None:
+def validate_request(
+    path: str, obj: dict[str, Any], schemas: dict[str, dict[str, dict[str, str]]], coverage: set[str],
+) -> None:
+    task_hint = obj.get("taskType") if isinstance(obj, dict) else None
+    validate_schema(path, obj, "InternalExecutionRequestV1", schemas, coverage, task_hint)
     if set(obj) != REQUEST_FIELDS:
         fail(path, "REQUEST_FIELDS", sorted(REQUEST_FIELDS), sorted(obj))
     if obj.get("contractVersion") != "1.0" or obj.get("taskSchemaVersion") != "1.0" or obj.get("locale") != "ko-KR":
@@ -297,6 +592,10 @@ def validate_request(path: str, obj: dict[str, Any]) -> None:
         fail(path, "CANONICAL_HASH", digest, obj.get("canonicalInputHash"))
     if not HASH_RE.fullmatch(obj["canonicalInputHash"]):
         fail(path, "HASH_FORMAT", "sha256 + 64 lowercase hex", obj["canonicalInputHash"])
+    deadline = validate_timestamp(path, obj["deadlineAt"], "DEADLINE_FORMAT")
+    fixture_now = validate_timestamp(path, FIXTURE_NOW, "FIXTURE_CLOCK")
+    if deadline <= fixture_now:
+        fail(path, "DEADLINE_EXPIRED", f"> {FIXTURE_NOW}", obj["deadlineAt"])
     if task == "IDEA_INTERPRETATION":
         validate_text_contents(path, obj)
         content_keys = {item["contentKey"] for item in obj["input"]["textContents"]}
@@ -340,7 +639,12 @@ def validate_usage(path: str, usage: Any) -> None:
         fail(path, "USAGE_TOTAL", "input+output", usage.get("totalUnits"))
 
 
-def validate_success(path: str, obj: dict[str, Any], request: dict[str, Any]) -> None:
+def validate_success(
+    path: str, obj: dict[str, Any], request: dict[str, Any],
+    schemas: dict[str, dict[str, dict[str, str]]], coverage: set[str],
+) -> None:
+    task_hint = obj.get("taskType") if isinstance(obj, dict) else None
+    validate_schema(path, obj, "InternalExecutionSuccessResponseV1", schemas, coverage, task_hint)
     if set(obj) != SUCCESS_FIELDS:
         fail(path, "SUCCESS_FIELDS", sorted(SUCCESS_FIELDS), sorted(obj))
     for field in ("contractVersion", "taskType", "taskSchemaVersion", "taskRunId", "taskAttemptId", "correlationId", "canonicalInputHash"):
@@ -374,14 +678,16 @@ def validate_success(path: str, obj: dict[str, Any], request: dict[str, Any]) ->
         if selected == "financialResult" and set(obj["result"][selected]) != {"inputSnapshotHash", "aiExplanation", "provenance"}:
             fail(path, "FINANCIAL_RESULT_FIELDS", "3 exact fields", sorted(obj["result"][selected]))
         if selected == "financialResult" and obj["result"][selected]["inputSnapshotHash"] != request["canonicalInputHash"]:
-            fail(path, "FINANCIAL_SNAPSHOT_HASH", request["canonicalInputHash"], obj["result"][selected]["inputSnapshotHash"])
+            fail(path, "FINANCIAL_SNAPSHOT_HASH_MISMATCH", request["canonicalInputHash"], obj["result"][selected]["inputSnapshotHash"])
     if task == "LEGAL_REVIEW":
         coverage = obj["result"]["sourceCoverage"]
         attempted, successful, missing = map(set, (coverage["attemptedChannels"], coverage["successfulChannels"], coverage["missingChannels"]))
+        if coverage["degraded"] and not missing:
+            fail(path, "LEGAL_DEGRADED_EMPTY_MISSING", "missingChannels non-empty", "empty")
         if successful | missing != attempted or successful & missing or coverage["degraded"] != bool(missing):
             fail(path, "LEGAL_SOURCE_COVERAGE", "partition and degraded iff missing", coverage)
         if any(source.get("authoritative") for source in obj["result"]["sourceReferences"]) and "MOLEG_API" not in successful:
-            fail(path, "LEGAL_AUTHORITY", "MOLEG_API successful", successful)
+            fail(path, "LEGAL_AUTHORITATIVE_WITHOUT_MOLEG", "MOLEG_API successful", successful)
         if not successful and obj["result"]["legalResult"] in {"PASS", "PASS_WITH_CONDITIONS"}:
             fail(path, "LEGAL_NO_SOURCE_PASS", "non-passing result", obj["result"]["legalResult"])
         for source in obj["result"]["sourceReferences"]:
@@ -398,7 +704,7 @@ def validate_success(path: str, obj: dict[str, Any], request: dict[str, Any]) ->
     if task == "MARKETING_COMPARISON" and not obj["result"].get("overallCaveats"):
         fail(path, "MARKETING_CAVEAT", ">=1", 0)
     if task == "FINAL_REPORT_GENERATION" and obj["result"]["reportDecision"] != request["input"]["reportDecision"]:
-        fail(path, "REPORT_DECISION_EQUALITY", request["input"]["reportDecision"], obj["result"]["reportDecision"])
+        fail(path, "FINAL_REPORT_DECISION_MISMATCH", request["input"]["reportDecision"], obj["result"]["reportDecision"])
     if len(json.dumps(obj, ensure_ascii=False).encode("utf-8")) > 2 * 1024 * 1024:
         fail(path, "RESPONSE_BYTES", "<=2MiB", "exceeded")
 
@@ -419,7 +725,12 @@ def parse_detail_names(cell: str) -> set[str]:
     return set(re.findall(r"`([A-Za-z]+)`", cell))
 
 
-def validate_error(path: str, obj: dict[str, Any], entry: dict[str, Any], registry: dict[tuple[str, str], dict[str, str]]) -> None:
+def validate_error(
+    path: str, obj: dict[str, Any], entry: dict[str, Any],
+    registry: dict[tuple[str, str], dict[str, str]],
+    schemas: dict[str, dict[str, dict[str, str]]], coverage: set[str],
+) -> None:
+    validate_schema(path, obj, "InternalErrorResponseV1", schemas, coverage)
     if set(obj) != {"error"} or set(obj.get("error", {})) != ERROR_BODY_FIELDS:
         fail(path, "ERROR_FIELDS", "exact InternalErrorResponseV1", sorted(obj.get("error", {})))
     error = obj["error"]
@@ -438,69 +749,129 @@ def validate_error(path: str, obj: dict[str, Any], entry: dict[str, Any], regist
     fields = set(details[0]) - {"reason"}
     if not required.issubset(fields) or not fields.issubset(required | optional):
         fail(path, "ERROR_DETAIL_CONTRACT", f"required={required}, optional={optional}", fields)
-    if error["code"] == "UNAUTHORIZED_INTERNAL_CALL" and (error["taskRunId"] is not None or error["taskAttemptId"] is not None):
-        fail(path, "UNAUTHORIZED_ID_ECHO", "null/null", f"{error['taskRunId']}/{error['taskAttemptId']}")
+    if reason in PREPARSE_REASONS and (error["taskRunId"] is not None or error["taskAttemptId"] is not None):
+        fail(path, "PREPARSE_ID_ECHO", "null/null", f"{error['taskRunId']}/{error['taskAttemptId']}")
     if entry.get("expectedErrorCode") != error["code"] or entry.get("expectedReason") != reason:
         fail(path, "MANIFEST_ERROR_EXPECTATION", f"{error['code']}/{reason}", f"{entry.get('expectedErrorCode')}/{entry.get('expectedReason')}")
 
 
-def negative_rule_holds(rule: str, obj: dict[str, Any]) -> bool:
-    data = json.dumps(obj, ensure_ascii=False)
-    checks = {
-        "CHUNK_INDEX_GAP": lambda: [c["index"] for c in obj["input"]["textContents"][0]["chunks"]] != list(range(len(obj["input"]["textContents"][0]["chunks"]))),
-        "CHUNK_INDEX_DUPLICATE": lambda: len({c["index"] for c in obj["input"]["textContents"][0]["chunks"]}) < len(obj["input"]["textContents"][0]["chunks"]),
-        "CHUNK_HASH_MISMATCH": lambda: any(c["chunkHash"] != sha256_text(c["text"]) for c in obj["input"]["textContents"][0]["chunks"]),
-        "CONTENT_HASH_MISMATCH": lambda: obj["input"]["textContents"][0]["contentHash"] != sha256_text("".join(c["text"] for c in obj["input"]["textContents"][0]["chunks"])),
-        "CHARACTER_COUNT_MISMATCH": lambda: any(c["characterCount"] != len(c["text"]) for c in obj["input"]["textContents"][0]["chunks"]),
-        "CHUNK_AGGREGATE_LIMIT": lambda: sum(len(x["chunks"]) for x in obj["input"]["textContents"]) > 64,
-        "TEXT_CONTENT_COUNT_LIMIT": lambda: len(obj["input"]["textContents"]) > 64,
-        "ERROR_UNKNOWN_REASON": lambda: obj["error"]["details"][0]["reason"] == "UNKNOWN_REASON",
-        "ERROR_RETRYABLE_MISMATCH": lambda: True,
-        "ERROR_REQUIRED_DETAIL_MISSING": lambda: True,
-        "ERROR_FORBIDDEN_DETAIL_PRESENT": lambda: "rawValue" in obj["error"]["details"][0],
-        "UNAUTHORIZED_ID_ECHO": lambda: obj["error"]["taskRunId"] is not None,
-        "LEGAL_DEGRADED_EMPTY_MISSING": lambda: obj["result"]["sourceCoverage"]["degraded"] and not obj["result"]["sourceCoverage"]["missingChannels"],
-        "LEGAL_AUTHORITATIVE_WITHOUT_MOLEG": lambda: any(s.get("authoritative") for s in obj["result"]["sourceReferences"]) and "MOLEG_API" not in obj["result"]["sourceCoverage"]["successfulChannels"],
-        "LEGAL_NO_SOURCE_PASS": lambda: obj["result"]["legalResult"] in {"PASS", "PASS_WITH_CONDITIONS"} and not obj["result"]["sourceCoverage"]["successfulChannels"],
-        "DETAILED_MULTIPLE_INPUT_SECTIONS": lambda: sum(k in obj["input"] for k in ("marketInput", "businessModelInput", "technicalOperationInput", "financialInput")) > 1,
-        "DETAILED_NULL_SECTION": lambda: any(k in obj["input"] and obj["input"][k] is None for k in ("marketInput", "businessModelInput", "technicalOperationInput", "financialInput")),
-        "DETAILED_RESULT_TYPE_MISMATCH": lambda: obj["result"]["analysisType"] == "MARKET" and "marketResult" not in obj["result"],
-        "FINANCIAL_RESULT_DETERMINISTIC_INPUTS": lambda: "deterministicInputs" in obj["result"]["financialResult"],
-        "FINANCIAL_RESULT_OUTER_DRIVERS": lambda: "drivers" in obj["result"]["financialResult"],
-        "FINANCIAL_SNAPSHOT_HASH_MISMATCH": lambda: obj["result"]["financialResult"]["inputSnapshotHash"] != obj["canonicalInputHash"],
-        "PERSONA_MULTIPLE_CARDS": lambda: "otherPersonaCard" in obj["input"],
-        "PERSONA_HIDDEN_OTHER_INTERVIEW": lambda: "hiddenOtherInterview" in obj["input"],
-        "PERSONA_MISSING_SYNTHETIC_DISCLOSURE": lambda: "syntheticDisclosure" not in obj["result"],
-        "PERSONA_PURCHASE_PROBABILITY": lambda: "purchaseProbability" in data,
-        "PERSONA_DEMOGRAPHIC_ONLY": lambda: "demographicOnly" in data,
-        "PERSONA_REAL_CUSTOMER_CLAIM": lambda: "actualCustomerResearch" in data,
-        "PERSONA_MARKET_SHARE": lambda: "marketShare" in data,
-        "PERSONA_POPULATION_STATISTIC": lambda: "populationStatistic" in data,
-        "MARKETING_BINARY_FIELD": lambda: "binary" in data,
-        "MARKETING_STORAGE_REFERENCE": lambda: "storageUrl" in data,
-        "MARKETING_CONVERSION_PROBABILITY": lambda: "conversionProbability" in data,
-        "MARKETING_WINNER_PROBABILITY": lambda: "winnerProbability" in data,
-        "MARKETING_STATISTICAL_AB": lambda: "statisticalAbClaim" in data,
-        "FINAL_REPORT_DECISION_MISMATCH": lambda: obj["result"]["reportDecision"] != "GO",
-        "FINAL_REPORT_MISSING_USER_DECISION": lambda: not obj["input"].get("userDecisions"),
-        "FINAL_REPORT_BINARY_OUTPUT": lambda: "binary" in data,
-        "FINAL_REPORT_MIXED_PROVENANCE": lambda: any(x["category"] != "USER_DECISION" for x in obj["input"]["userDecisions"]),
-        "REFERENCE_UNKNOWN_INPUT_KEY": lambda: "unknown-input" in data,
-        "REFERENCE_DUPLICATE_KEY": lambda: len(obj["references"]) != len({x["key"] for x in obj["references"]}),
-        "REFERENCE_WRONG_RESOURCE_TYPE": lambda: any(x["resourceType"] == "WRONG_TYPE" for x in obj["references"]),
-        "REFERENCE_OUTPUT_KEY_COLLISION": lambda: len(obj["outputKeys"]) != len(set(obj["outputKeys"])),
-        "REFERENCE_INVENTED_LEGAL_SOURCE": lambda: obj.get("observedByAdapter") is False,
+def values_for_key(value: Any, target: str) -> list[Any]:
+    return [item for key, item in iter_items(value) if key == target]
+
+
+def semantic_precheck(path: str, obj: Any, contract_object: str) -> None:
+    if not isinstance(obj, dict):
+        fail(path, "SCHEMA_TYPE", "object", type(obj).__name__)
+    keys = set(walk_keys(obj))
+    semantic_keys = {
+        "purchaseProbability": "PERSONA_PURCHASE_PROBABILITY",
+        "demographicOnly": "PERSONA_DEMOGRAPHIC_ONLY",
+        "actualCustomerResearch": "PERSONA_REAL_CUSTOMER_CLAIM",
+        "marketShare": "PERSONA_MARKET_SHARE",
+        "populationStatistic": "PERSONA_POPULATION_STATISTIC",
+        "conversionProbability": "MARKETING_CONVERSION_PROBABILITY",
+        "winnerProbability": "MARKETING_WINNER_PROBABILITY",
+        "statisticalAbClaim": "MARKETING_STATISTICAL_AB",
+        "storageUrl": "MARKETING_STORAGE_REFERENCE",
     }
-    return rule in checks and checks[rule]()
+    for key, rule in semantic_keys.items():
+        if key in keys:
+            fail(path, rule, "forbidden field absent", key)
+    task = obj.get("taskType")
+    if task == "IDEA_INTERPRETATION" and contract_object == "EXECUTION_REQUEST":
+        contents = obj.get("input", {}).get("textContents", [])
+        if isinstance(contents, list) and len(contents) > 64:
+            fail(path, "TEXT_CONTENT_COUNT_LIMIT", "<=64", len(contents))
+        if isinstance(contents, list):
+            total_chunks = sum(len(item.get("chunks", [])) for item in contents if isinstance(item, dict))
+            if total_chunks > 64:
+                fail(path, "CHUNK_AGGREGATE_LIMIT", "<=64", total_chunks)
+    if "binary" in keys:
+        rule = "FINAL_REPORT_BINARY_OUTPUT" if task == "FINAL_REPORT_GENERATION" else "MARKETING_BINARY_FIELD"
+        fail(path, rule, "binary field absent", "binary")
+    if "rawValue" in keys and contract_object == "INTERNAL_ERROR":
+        fail(path, "ERROR_FORBIDDEN_DETAIL_PRESENT", "safe detail fields", "rawValue")
+    if task == "PERSONA_INTERVIEW" and contract_object == "EXECUTION_REQUEST":
+        if "otherPersonaCard" in keys:
+            fail(path, "PERSONA_MULTIPLE_CARDS", "exactly one PersonaCardVersion", "otherPersonaCard")
+        if "hiddenOtherInterview" in keys:
+            fail(path, "PERSONA_HIDDEN_OTHER_INTERVIEW", "no other Persona context", "hiddenOtherInterview")
+    if task == "PERSONA_INTERVIEW" and contract_object == "EXECUTION_SUCCESS":
+        if "result" in obj and "syntheticDisclosure" not in obj["result"]:
+            fail(path, "PERSONA_MISSING_SYNTHETIC_DISCLOSURE", "required", "missing")
+    if task == "DETAILED_ANALYSIS":
+        body_name = "input" if contract_object == "EXECUTION_REQUEST" else "result"
+        body = obj.get(body_name, {})
+        sections = (
+            ("marketInput", "businessModelInput", "technicalOperationInput", "financialInput")
+            if body_name == "input" else
+            ("marketResult", "businessModelResult", "technicalOperationResult", "financialResult")
+        )
+        if any(name in body and body[name] is None for name in sections):
+            fail(path, "DETAILED_NULL_SECTION", "selected section non-null; others omitted", "null")
+        present = [name for name in sections if name in body]
+        if len(present) > 1:
+            fail(path, "DETAILED_MULTIPLE_INPUT_SECTIONS" if body_name == "input" else "DETAILED_RESULT_SECTION", "one section", present)
+        selected = {
+            "MARKET": sections[0], "BUSINESS_MODEL": sections[1],
+            "TECHNICAL_OPERATION": sections[2], "FINANCIAL": sections[3],
+        }.get(body.get("analysisType"))
+        if selected and present != [selected]:
+            fail(path, "DETAILED_RESULT_TYPE_MISMATCH" if body_name == "result" else "DETAILED_SECTION", [selected], present)
+        financial = body.get("financialResult") if isinstance(body, dict) else None
+        if isinstance(financial, dict):
+            if "deterministicInputs" in financial:
+                fail(path, "FINANCIAL_RESULT_DETERMINISTIC_INPUTS", "absent", "present")
+            if any(name in financial for name in ("drivers", "risks", "caveats")):
+                fail(path, "FINANCIAL_RESULT_OUTER_DRIVERS", "owned by aiExplanation", "outer field")
+    if task == "FINAL_REPORT_GENERATION":
+        if contract_object == "EXECUTION_REQUEST":
+            decisions = obj.get("input", {}).get("userDecisions", [])
+            if not decisions:
+                fail(path, "FINAL_REPORT_MISSING_USER_DECISION", ">=1", 0)
+            if any(item.get("category") != "USER_DECISION" for item in decisions):
+                fail(path, "FINAL_REPORT_MIXED_PROVENANCE", "USER_DECISION only", "mixed")
+    references = values_for_key(obj, "sourceReferences")
+    for reference_array in references:
+        if isinstance(reference_array, list):
+            reference_keys = [item.get("key") for item in reference_array if isinstance(item, dict) and "key" in item]
+            if len(reference_keys) != len(set(reference_keys)):
+                fail(path, "REFERENCE_DUPLICATE_KEY", "unique request-local keys", reference_keys)
+    if any(value == "unknown-input" for value in values_for_key(obj, "key") + values_for_key(obj, "reference")):
+        fail(path, "REFERENCE_UNKNOWN_INPUT_KEY", "registered INPUT key", "unknown-input")
+    resource_types = values_for_key(obj, "resourceType")
+    if any(value not in RESOURCE_TYPES for value in resource_types):
+        fail(path, "REFERENCE_WRONG_RESOURCE_TYPE", sorted(RESOURCE_TYPES), "unknown")
+    if "observedByAdapter" in keys and any(value is False for value in values_for_key(obj, "observedByAdapter")):
+        fail(path, "REFERENCE_INVENTED_LEGAL_SOURCE", "adapter-observed source", "invented")
+
+
+def validate_fixture(
+    path: str, obj: Any, entry: dict[str, Any],
+    schemas: dict[str, dict[str, dict[str, str]]],
+    reason_registry: dict[tuple[str, str], dict[str, str]], coverage: set[str],
+    paired_request: dict[str, Any] | None = None,
+) -> None:
+    semantic_precheck(path, obj, entry["contractObject"])
+    if entry["contractObject"] == "EXECUTION_REQUEST":
+        validate_request(path, obj, schemas, coverage)
+    elif entry["contractObject"] == "EXECUTION_SUCCESS":
+        if paired_request is None:
+            fail(path, "RESPONSE_PAIR", "matching positive request", "missing")
+        validate_success(path, obj, paired_request, schemas, coverage)
+    elif entry["contractObject"] == "INTERNAL_ERROR":
+        validate_error(path, obj, entry, reason_registry, schemas, coverage)
+    else:
+        fail(path, "MANIFEST_CONTRACT_OBJECT", "known object", entry["contractObject"])
 
 
 def main() -> int:
     try:
         internal = INTERNAL_DOC.read_text(encoding="utf-8")
         public = PUBLIC_DOC.read_text(encoding="utf-8")
-        reason_registry, schemas = parse_registries(internal, public)
+        reason_registry, schema_specs, schemas = parse_registries(internal, public)
         manifest = load_json_file(MANIFEST_PATH)
-        if set(manifest) != {"manifestVersion", "fixtures"} or manifest["manifestVersion"] != "1.0":
+        if set(manifest) != {"manifestVersion", "fixtures"} or manifest["manifestVersion"] != "1.1":
             fail("manifest.json", "MANIFEST_ROOT", "manifestVersion/fixtures", sorted(manifest))
         entries = manifest["fixtures"]
         ids = [entry.get("fixtureId") for entry in entries]
@@ -512,11 +883,40 @@ def main() -> int:
                 fail("manifest.json", "MANIFEST_ENTRY_FIELDS", sorted(MANIFEST_FIELDS), sorted(entry))
             if entry["category"] not in {"POSITIVE", "NEGATIVE"} or entry["contractObject"] not in {"EXECUTION_REQUEST", "EXECUTION_SUCCESS", "INTERNAL_ERROR"}:
                 fail("manifest.json", "MANIFEST_ENUM", "known category/object", entry)
+            if entry["expectedValid"] != (entry["category"] == "POSITIVE"):
+                fail("manifest.json", "MANIFEST_VALIDITY", "POSITIVE=true; NEGATIVE=false", entry["fixtureId"])
+            if not isinstance(entry["coveredSchemas"], list) or not entry["coveredSchemas"] or len(entry["coveredSchemas"]) != len(set(entry["coveredSchemas"])):
+                fail("manifest.json", "MANIFEST_COVERED_SCHEMAS", "non-empty unique array", entry["fixtureId"])
+            if not set(entry["coveredSchemas"]).issubset(schemas):
+                fail("manifest.json", "MANIFEST_COVERED_SCHEMAS", "known schemas", sorted(set(entry["coveredSchemas"]) - schemas))
+            if entry["category"] == "POSITIVE":
+                if entry["expectedValidatorRule"] is not None or entry["primaryInvariant"] is not None:
+                    fail("manifest.json", "MANIFEST_POSITIVE_RULE", "null/null", entry["fixtureId"])
+            else:
+                if not isinstance(entry["expectedValidatorRule"], str) or not entry["expectedValidatorRule"]:
+                    fail("manifest.json", "MANIFEST_NEGATIVE_RULE", "stable rule", entry["fixtureId"])
+                if not isinstance(entry["primaryInvariant"], str) or entry["invariants"] != [entry["primaryInvariant"]]:
+                    fail("manifest.json", "MANIFEST_PRIMARY_INVARIANT", "one matching invariant", entry["fixtureId"])
             if entry["schemaName"] not in schemas and entry["schemaName"] != "CanonicalInputExpectationV1":
                 fail("manifest.json", "MANIFEST_SCHEMA", "registered schema", entry["schemaName"])
+            if not isinstance(entry["matchingContractSection"], str) or entry["matchingContractSection"] not in internal:
+                fail("manifest.json", "MANIFEST_CONTRACT_SECTION", "existing section/registry name", entry["matchingContractSection"])
             if entry["expectedErrorCode"] is not None or entry["expectedReason"] is not None:
                 if (entry["expectedErrorCode"], entry["expectedReason"]) not in reason_registry:
                     fail("manifest.json", "MANIFEST_ERROR_REASON", "registered code/reason", f"{entry['expectedErrorCode']}/{entry['expectedReason']}")
+            relative = Path(entry["path"])
+            if relative.is_absolute() or ".." in relative.parts or relative.as_posix() != entry["path"]:
+                fail("manifest.json", "MANIFEST_PATH", "normalized relative path", entry["path"])
+            resolved = (HERE / relative).resolve()
+            try:
+                resolved.relative_to(HERE.resolve())
+            except ValueError:
+                fail("manifest.json", "MANIFEST_PATH_ESCAPE", "inside fixture root", entry["path"])
+            cursor = HERE
+            for part in relative.parts:
+                cursor /= part
+                if cursor.is_symlink():
+                    fail("manifest.json", "MANIFEST_SYMLINK_ESCAPE", "no symlink path", entry["path"])
         disk_json = {path.relative_to(HERE).as_posix() for path in HERE.rglob("*.json") if path != MANIFEST_PATH}
         if set(paths) != disk_json:
             fail("manifest.json", "MANIFEST_FILE_COVERAGE", sorted(disk_json), sorted(paths))
@@ -535,22 +935,22 @@ def main() -> int:
             fail("common/canonical-input.expected.json", "CANONICAL_EXPECTATION", digest, canonical_expected.get("canonicalInputHash"))
 
         positive_requests: dict[str, dict[str, Any]] = {}
+        actual_positive_coverage: set[str] = set()
         for entry in entries:
             obj = objects[entry["path"]]
-            if not entry["expectedValid"]:
-                rule = entry["invariants"][0]
-                if not negative_rule_holds(rule, obj):
-                    fail(entry["path"], rule, "violation present", "not detected")
-                continue
-            if entry["schemaName"] == "CanonicalInputExpectationV1":
+            if not entry["expectedValid"] or entry["schemaName"] == "CanonicalInputExpectationV1":
                 continue
             if entry["contractObject"] == "EXECUTION_REQUEST":
-                validate_request(entry["path"], obj)
+                fixture_coverage: set[str] = set()
+                validate_fixture(entry["path"], obj, entry, schema_specs, reason_registry, fixture_coverage)
+                actual_positive_coverage.update(fixture_coverage)
                 if entry["taskType"]:
                     key = entry["path"].replace(".request.valid.json", "").replace(".request.", ".")
                     positive_requests[key] = obj
             elif entry["contractObject"] == "INTERNAL_ERROR":
-                validate_error(entry["path"], obj, entry, reason_registry)
+                fixture_coverage = set()
+                validate_fixture(entry["path"], obj, entry, schema_specs, reason_registry, fixture_coverage)
+                actual_positive_coverage.update(fixture_coverage)
 
         for entry in entries:
             if not entry["expectedValid"] or entry["contractObject"] != "EXECUTION_SUCCESS":
@@ -563,7 +963,36 @@ def main() -> int:
                 request = objects.get(default_path)
             if request is None:
                 fail(entry["path"], "RESPONSE_PAIR", "matching request", "missing")
-            validate_success(entry["path"], obj, request)
+            fixture_coverage = set()
+            validate_fixture(entry["path"], obj, entry, schema_specs, reason_registry, fixture_coverage, request)
+            actual_positive_coverage.update(fixture_coverage)
+
+        negative_count = 0
+        for entry in entries:
+            if entry["expectedValid"]:
+                continue
+            obj = objects[entry["path"]]
+            request = None
+            if entry["contractObject"] == "EXECUTION_SUCCESS":
+                task_slug = entry["taskType"].lower().replace("_", "-")
+                if entry["taskType"] == "DETAILED_ANALYSIS":
+                    analysis_type = obj.get("result", {}).get("analysisType", "FINANCIAL")
+                    suffix = {
+                        "MARKET": "-market", "BUSINESS_MODEL": "-business-model",
+                        "TECHNICAL_OPERATION": "-technical-operation", "FINANCIAL": "",
+                    }.get(analysis_type, "")
+                    request = objects.get(f"tasks/detailed-analysis{suffix}.request.valid.json")
+                else:
+                    request = objects.get(f"tasks/{task_slug}.request.valid.json")
+            try:
+                fixture_coverage = set()
+                validate_fixture(entry["path"], obj, entry, schema_specs, reason_registry, fixture_coverage, request)
+            except ValidationFailure as exc:
+                if exc.rule != entry["expectedValidatorRule"]:
+                    fail(entry["path"], "NEGATIVE_RULE_MISMATCH", entry["expectedValidatorRule"], exc.rule)
+                negative_count += 1
+            else:
+                fail(entry["path"], "NEGATIVE_DID_NOT_FAIL", entry["expectedValidatorRule"], "PASS")
 
         task_request_coverage = {e["taskType"] for e in entries if e["expectedValid"] and e["contractObject"] == "EXECUTION_REQUEST" and e["taskType"] in TASK_TYPES}
         task_response_coverage = {e["taskType"] for e in entries if e["expectedValid"] and e["contractObject"] == "EXECUTION_SUCCESS" and e["taskType"] in TASK_TYPES}
@@ -571,12 +1000,50 @@ def main() -> int:
         error_reason_coverage = {e["expectedReason"] for e in entries if e["expectedValid"] and e["contractObject"] == "INTERNAL_ERROR"}
         if task_request_coverage != set(TASK_TYPES) or task_response_coverage != set(TASK_TYPES):
             fail("manifest.json", "TASK_COVERAGE", "11/11", f"{len(task_request_coverage)}/{len(task_response_coverage)}")
+        detailed_request_types = {
+            objects[e["path"]]["input"]["analysisType"] for e in entries
+            if e["expectedValid"] and e["taskType"] == "DETAILED_ANALYSIS" and e["contractObject"] == "EXECUTION_REQUEST"
+        }
+        detailed_response_types = {
+            objects[e["path"]]["result"]["analysisType"] for e in entries
+            if e["expectedValid"] and e["taskType"] == "DETAILED_ANALYSIS" and e["contractObject"] == "EXECUTION_SUCCESS"
+        }
+        if detailed_request_types != ANALYSIS_TYPES or detailed_response_types != ANALYSIS_TYPES:
+            fail("manifest.json", "DETAILED_ANALYSIS_TYPE_COVERAGE", "4/4 request and response", f"{len(detailed_request_types)}/{len(detailed_response_types)}")
         if error_code_coverage != set(INTERNAL_ERRORS) or error_reason_coverage != {reason for _, reason in reason_registry}:
             fail("manifest.json", "ERROR_COVERAGE", "12/12 and 33/33", f"{len(error_code_coverage)}/{len(error_reason_coverage)}")
         matrix = section(internal, "## 17. P2.6 fixture readiness matrix", "\0") if "\0" in internal else internal.split("## 17. P2.6 fixture readiness matrix", 1)[1]
         ready = set(re.findall(r"(?m)^\| ([A-Za-z][A-Za-z0-9]+V1) \| YES \| YES \|", matrix))
         if ready != schemas:
             fail(str(INTERNAL_DOC), "FIXTURE_READINESS", len(schemas), len(ready))
+        positive_schema_coverage = {
+            schema for entry in entries if entry["expectedValid"] for schema in entry["coveredSchemas"]
+        }
+        required_negative = ready
+        negative_schema_coverage = {
+            schema for entry in entries if not entry["expectedValid"] for schema in entry["coveredSchemas"]
+        }
+        if positive_schema_coverage != schemas:
+            fail("manifest.json", "SCHEMA_POSITIVE_COVERAGE", "65/65", len(positive_schema_coverage))
+        if actual_positive_coverage != schemas:
+            fail("manifest.json", "SCHEMA_POSITIVE_EXECUTION_COVERAGE", "65/65", f"{len(actual_positive_coverage)}/65 missing={sorted(schemas - actual_positive_coverage)}")
+        if negative_schema_coverage != required_negative:
+            fail("manifest.json", "SCHEMA_NEGATIVE_COVERAGE", f"{len(required_negative)}/{len(required_negative)}", len(negative_schema_coverage))
+
+        loader_self_tests = {
+            "DUPLICATE_JSON_KEY": b'{"a":1,"a":2}\n',
+            "NORMALIZED_KEY_COLLISION": '{"é":1,"é":2}\n'.encode("utf-8"),
+            "FLOAT_NUMBER_NOT_ALLOWED": b'{"value":1.5}\n',
+            "LINE_ENDING_INVALID": b'{"value":1}\r\n',
+        }
+        for expected_rule, raw in loader_self_tests.items():
+            try:
+                decode_json(raw, f"<self-test:{expected_rule}>")
+            except ValidationFailure as exc:
+                if exc.rule != expected_rule:
+                    fail("validator", "JSON_LOADER_SELF_TEST", expected_rule, exc.rule)
+            else:
+                fail("validator", "JSON_LOADER_SELF_TEST", expected_rule, "PASS")
 
         positives = sum(e["category"] == "POSITIVE" for e in entries)
         negatives = sum(e["category"] == "NEGATIVE" for e in entries)
@@ -590,8 +1057,22 @@ def main() -> int:
         print(f"NEGATIVE_FIXTURES={negatives}")
         print("TASK_REQUEST_COVERAGE=11/11")
         print("TASK_RESPONSE_COVERAGE=11/11")
+        print("DETAILED_ANALYSIS_TYPE_COVERAGE=4/4")
         print("ERROR_CODE_COVERAGE=12/12")
         print("ERROR_REASON_COVERAGE=33/33")
+        print("SCHEMA_POSITIVE_COVERAGE=65/65")
+        print(f"SCHEMA_NEGATIVE_COVERAGE={len(required_negative)}/{len(required_negative)}")
+        print(f"NEGATIVE_EXPECTED_RULES={negative_count}/{negative_count}")
+        print("PREPARSE_ID_RULES=PASS")
+        print("DEADLINE_VALIDATION=PASS")
+        print("JSON_DUPLICATE_KEY_SCAN=PASS")
+        print("EXACT_ENUM_CONSISTENCY=PASS")
+        print("LEGAL_RESULT_CONSISTENCY=PASS")
+        print("ANALYSIS_TYPE_CONSISTENCY=PASS")
+        print("REPORT_DECISION_CONSISTENCY=PASS")
+        print("PROVENANCE_CONSISTENCY=PASS")
+        print("MARKETING_ASSET_TYPE_CONSISTENCY=PASS")
+        print("ERROR_MAPPING_CONSISTENCY=PASS")
         print("PUBLIC_INTERNAL_CONSISTENCY=PASS")
         print("FORBIDDEN_FIELD_SCAN=PASS")
         print("CANONICAL_HASH=PASS")
