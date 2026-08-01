@@ -8,7 +8,9 @@
 - Supersedes: Terminology embedded in legacy product documents
 - Implementation Status: NOT_STARTED
 
-Project는 하나의 아이디어 검증 과정 전체다. IdeaSource logical type은 TEXT 또는 FILE이며 질문 응답 UI는 TEXT source capture 방식이다. ConceptCandidate는 생성된 후보 identity이고 ConceptVersion은 그 후보의 immutable 내용이다. Persona Interview는 하나의 exact PersonaCard를 기준으로 독립 수행한다. Marketing A/B Comparison은 실제 사용자 실험이 아닌 exact asset versions의 상대 비교다. Final Report는 저장·version 조회·HTML view·PDF export 가능한 immutable snapshot history다. TaskRun은 Spring이 관리하는 업무 요청, TaskAttempt는 개별 실행, TaskResult는 수신·검증·채택 evidence다.
+Project는 하나의 아이디어 검증 과정 전체다. IdeaSource logical type은 TEXT 또는 FILE이며 질문 응답 UI는 TEXT source capture 방식이다. ConceptCandidate는 생성된 후보 identity이고 ConceptVersion은 그 후보의 immutable 내용이다. Persona Interview는 하나의 exact PersonaCardVersion을 기준으로 독립 수행한다. Marketing A/B Comparison은 실제 사용자 실험이 아닌 exact asset versions의 상대 비교다. Final Report는 저장·version 조회·HTML view·PDF export 가능한 immutable snapshot history다. TaskRun은 Spring이 관리하는 업무 요청, TaskAttempt는 개별 실행, TaskResult는 수신·검증·채택 evidence다.
+
+`PersonaCardGenerationRun`은 exact PersonaStudy/ConceptSelection/ConceptVersion에서 synthetic Persona Card identity와 최초 version을 생성하는 AI-backed Domain Run이다. `PersonaCard`는 logical identity, `PersonaCardVersion`은 immutable Three-Layer content이며 PersonaInterview는 exact PersonaCardVersion을 입력으로 사용한다.
 
 `Domain Run`은 exact business input과 adopted business result/provenance를 묶는 업무 실행 record다. AI-backed Domain Run은 수락 시 TaskRun과 1:1로 결합하지만 execution lifecycle의 source of truth는 TaskRun이다. `Attempt`는 같은 TaskRun 안의 retry 가능한 개별 시도, `TaskResult`는 실행 응답과 validation/adoption evidence, `TaskArtifact`는 선택적인 Spring-owned artifact reference다.
 

@@ -43,7 +43,8 @@ Capability는 Spring이 Project lifecycle, owner scope, Service Policy, exact cu
 | Detailed analysis | `CAN_RUN_DETAILED_ANALYSIS` | current ShortlistDecision에 포함된 exact current ConceptVersion | shortlist 밖 또는 stale version 차단 |
 | Concept selection | `CAN_SELECT_CONCEPT` | USER가 exact ConceptVersion 하나 선택 | AI recommendation은 자동 selection 불가 |
 | Persona study | `CAN_CREATE_PERSONA_STUDY` | current ConceptSelection/selected ConceptVersion | stale selection 차단 |
-| Persona interview | `CAN_RUN_PERSONA_INTERVIEW` | confirmed exact current PersonaCard | Persona별 active task conflict; 다른 Persona는 독립 |
+| Persona Card generation | `CAN_GENERATE_PERSONA_CARDS` | current non-stale Study/Selection/selected ConceptVersion | AI policy 또는 conflicting generation Run 차단 |
+| Persona interview | `CAN_RUN_PERSONA_INTERVIEW` | confirmed exact current PersonaCardVersion | Persona별 active task conflict; 다른 Persona는 독립 |
 | Marketing | `CAN_USE_MARKETING_WORKSPACE` | current selection/persona/interview evidence | stale upstream이나 policy 차단 |
 | Final report generation | `CAN_GENERATE_FINAL_REPORT` | 포함할 exact current upstream set과 user decisions | missing/stale upstream, active generation task 차단 |
 | Final report export | `CAN_EXPORT_FINAL_REPORT` | persisted current available FinalReportVersion | runtime-only/browser 조립 결과는 허용하지 않음 |

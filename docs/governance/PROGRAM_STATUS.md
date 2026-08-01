@@ -29,7 +29,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.4 public API JSON contract 작성 및 consistency 검증; 이후 P2.5 internal Spring–AI contract와 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.4 Persona Card end-to-end flow와 accepted-Task HTTP semantics correction consistency 검증; 이후 P2.5 internal Spring–AI contract와 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -54,4 +54,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.3 workflow/task/status contract는 commit `cd1c9816a5b716533e3a79c459f42ce09bde3671`에서 12개 capability, 14개 error와 9개 AI-backed binding 검증을 완료했다. P2.4는 이를 `/api/v2` endpoint, JSON envelope, resource schema와 capability binding으로 고정한다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.4 baseline은 commit `ad94d6ba1fe92ebc98e81a69a399753f784c2997`에서 60개 endpoint, 12개 capability, 14개 error와 required schema 30개를 기록했다. Correction은 PersonaCardGenerationRun과 Card version endpoint를 추가하고 accepted TaskRun terminal failure를 GET 200 resource semantics로 분리한다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

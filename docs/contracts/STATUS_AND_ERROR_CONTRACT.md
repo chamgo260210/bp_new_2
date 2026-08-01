@@ -58,11 +58,19 @@ HTTP status, error envelope와 endpoint별 적용은 [Public API v2 Contract](PU
 | `TASK_ALREADY_RUNNING` | 같은 subject/input의 conflicting active TaskRun 존재 | 기존 task 종료 후 가능 | 새 중복 command 불필요 | 409 |
 | `IDEMPOTENCY_CONFLICT` | 같은 key가 다른 canonical input과 결합됨 | 동일 key/다른 input 재시도 불가 | 새 key 또는 원래 input 사용 | 409 |
 | `PAYLOAD_TOO_LARGE` | bounded inline/chunk 계약 상한 초과 | 같은 payload로 불가 | 축소 또는 허용 chunk contract 사용 | 413 |
-| `TASK_TIMEOUT` | TaskRun/Attempt가 timeout terminal 상태 | retry policy/capability에 따라 가능 | 보통 입력 수정 불필요 | 504 |
-| `AI_SERVICE_UNAVAILABLE` | AI Server 또는 required AI dependency 사용 불가 | backoff 후 가능 | 보통 입력 수정 불필요 | 503 |
-| `AI_RESULT_INVALID` | 응답 수신은 됐지만 schema/domain validation 또는 adoption 불가 | 정책에 따라 새 Attempt 가능 | 입력 보강이 필요할 수 있음 | 502 |
+| `TASK_TIMEOUT` | TaskRun timeout terminal summary 또는 public HTTP request/gateway timeout | Task retry policy에 따라 가능 | 보통 입력 수정 불필요 | TaskRun GET은 200; HTTP request 자체 timeout만 504 |
+| `AI_SERVICE_UNAVAILABLE` | Task 수락 전 required AI dependency 사용 불가 또는 accepted Task의 terminal failure summary | backoff 후 가능 | 보통 입력 수정 불필요 | 수락 전 command는 503; accepted TaskRun GET은 200 |
+| `AI_RESULT_INVALID` | accepted Task의 응답 schema/domain validation 또는 adoption 실패 summary | 정책에 따라 새 Attempt 가능 | 입력 보강이 필요할 수 있음 | accepted TaskRun GET은 200; synchronous pre-accept boundary에서만 502 방향 |
 
 Error code는 한 envelope에서 하나의 primary code로 사용하고 세부 field/gate/task 원인은 structured detail로 분리한다. Provider 이름, raw response/body, credential, stack trace, 내부 object key와 개인정보는 노출하지 않는다. 모든 오류는 request correlation identifier 방향을 지원하고, task가 이미 생성된 뒤 발생한 오류는 권한 확인 후 TaskRun identifier를 노출할 수 있다. TaskAttempt/provider identifier는 public 기본 응답에 노출하지 않는다.
+
+## Accepted asynchronous task semantics
+
+- Command가 TaskRun과 함께 202로 수락된 뒤의 업무 실패는 새로운 HTTP error response가 아니라 TaskRun resource state다.
+- `GET /api/v2/projects/{projectId}/task-runs/{taskRunId}`는 `FAILED`, `TIMED_OUT`, `CANCELLED` 등 terminal state에서도 200과 `TaskRunPublicView`를 반환한다.
+- `errorSummary.code`는 `TASK_TIMEOUT`, `AI_SERVICE_UNAVAILABLE`, `AI_RESULT_INVALID` 등을 가질 수 있다. GET을 502/503/504로 대체하지 않는다.
+- TaskRun 생성 전 AI dependency unavailable로 command 자체를 수락할 수 없을 때만 `AI_SERVICE_UNAVAILABLE`/503이며 `taskRunId`는 null이다.
+- `TASK_TIMEOUT`/504 HTTP response는 public HTTP request 자체가 gateway/request deadline을 넘긴 경우다. TaskRun 업무 timeout terminal state는 GET 200의 state/errorSummary로 표현한다.
 
 ## Gate-specific semantics
 

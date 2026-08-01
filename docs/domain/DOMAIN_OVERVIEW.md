@@ -70,8 +70,10 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | TaskResult | TaskRun | Immutable received result | received/validated/rejected/adopted | Adoption update required | exact TaskAttempt; adopted와 non-adopted evidence 구분 |
 | TaskArtifact | TaskRun | Metadata/lifecycle mutable; bytes immutable | pending/available/quarantined/deleted | Required | Spring StoredFile reference only |
 | PersonaStudy | Project | Mutable study root/current pointers | draft/in_progress/completed/archived + current/stale | Required | exact ConceptSelection/ConceptVersion |
-| PersonaCard | PersonaStudy | Immutable version record | draft/confirmed/archived + current/stale | Current card pointer required | synthetic AI/user-edited content 표시 |
-| PersonaInterview | PersonaStudy | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact PersonaCard와 independent 1:1 TaskRun |
+| PersonaCardGenerationRun | PersonaStudy | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact Study/Selection/ConceptVersion, 1:1 TaskRun |
+| PersonaCard | PersonaStudy | Mutable logical identity/current-version pointer | active/archived + current/stale | Required | source GenerationRun과 synthetic identity |
+| PersonaCardVersion | PersonaCard | Immutable version record | draft/confirmed/archived + current/stale | Current version pointer required | synthetic AI-generated/user-edited content 표시 |
+| PersonaInterview | PersonaStudy | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact PersonaCardVersion과 independent 1:1 TaskRun |
 | InterviewSynthesis | PersonaStudy | Immutable synthesis version | AI-backed이면 TaskRun projection + current/stale | Current pointer update required | source Interview 집합; AI-backed execution은 1:1 TaskRun |
 | MarketingWorkspace | Project | Mutable single logical workspace | active/on_hold/archived + current/stale | Required | current workspace version pointer |
 | MarketingWorkspaceVersion | MarketingWorkspace | Immutable context version | draft/confirmed/superseded + current/stale | Current pointer update required | exact ConceptVersion와 Persona evidence snapshot |
@@ -106,8 +108,12 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | ConceptVersion | 1:N | DetailedAnalysisRun | Reference/history | shortlisted exact version만 허용 |
 | Project | 1:N | ConceptSelection | Composition/selection history | selection마다 exact version 하나; current 최대 하나 |
 | ConceptSelection | 1:N | PersonaStudy | Reference/history | study는 exact selection과 selected ConceptVersion을 고정 |
-| PersonaStudy | 1:N | PersonaCard | Composition/version history | persona key별 version sequence/current 최대 하나 |
-| PersonaCard | 1:N | PersonaInterview | Reference/history | interview는 exact card version 하나 |
+| PersonaStudy | 1:N | PersonaCardGenerationRun | Composition/execution history | run은 exact Study/Selection/ConceptVersion을 고정 |
+| PersonaCardGenerationRun | 1:1 | TaskRun | Execution binding | retry는 같은 TaskRun, user rerun은 새 Run/TaskRun |
+| PersonaCardGenerationRun | 1:N | PersonaCard | Composition/generated identity | 성공한 Run은 Card identity 하나 이상 생성 |
+| PersonaStudy | 1:N | PersonaCard | Composition/identity history | Study 안 logical persona identity |
+| PersonaCard | 1:N | PersonaCardVersion | Composition/version history | version number 유일; current 최대 하나 |
+| PersonaCardVersion | 1:N | PersonaInterview | Reference/history | interview는 exact card version 하나 |
 | PersonaStudy | 1:N | InterviewSynthesis | Composition/version history | synthesis version은 source Interview 집합을 고정 |
 | Project | 1:0..1 | MarketingWorkspace | Composition/logical singleton | Project당 logical workspace 최대 하나 |
 | MarketingWorkspace | 1:N | MarketingWorkspaceVersion | Composition/version | current 최대 하나 |
@@ -124,7 +130,7 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | TaskAttempt | 1:0..N | TaskResult | Composition/response evidence | 지연·중복 response 보존; adopted result는 attempt당 최대 하나 |
 | TaskResult | 1:0..N | TaskArtifact | Composition/reference | JSON-only 정상 결과는 artifact가 없을 수 있고, 존재하면 Spring-owned StoredFile metadata만 참조 |
 
-AI-backed Domain Run 범위는 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaInterview, AI 실행으로 생성되는 InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다. 모든 TaskRun이 Domain Run을 필요로 하지는 않으며 platform task도 허용한다. 어느 경우든 TaskRun subject는 허용된 logical type이고 같은 Project owner scope여야 한다.
+AI-backed Domain Run 범위는 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaCardGenerationRun, PersonaInterview, AI 실행으로 생성되는 InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다. 모든 TaskRun이 Domain Run을 필요로 하지는 않으며 platform task도 허용한다. 어느 경우든 TaskRun subject는 허용된 logical type이고 같은 Project owner scope여야 한다.
 
 ## Version and current-reference rules
 
@@ -143,7 +149,7 @@ AI-backed Domain Run 범위는 LegalReviewRun, ConceptGenerationRun, QuickAssess
 | 새 current ConceptVersion | 해당 이전 version 기반 Quick/Detailed, ShortlistDecision, ConceptSelection과 그 downstream | exact version 기준으로 `STALE`; 다른 candidate chain은 영향 없음 | stale assessment/decision/selection pointer 해제 | 새 Quick/shortlist/detail/selection gate 재평가 |
 | 새 ShortlistDecision | 제외된 ConceptVersion의 기존 DetailedAnalysisRun | history는 보존하되 current shortlist 근거로는 `STALE`; 다시 포함돼도 자동 current 복구 안 함 | 제외된 version의 detailed current reference 해제 | 제외 항목의 `CAN_RUN_DETAILED_ANALYSIS` false; 재포함 시 재검증 |
 | 새 ConceptSelection | 이전 selection 기반 PersonaStudy, Interview, Synthesis, MarketingWorkspaceVersion/Run/Asset/Comparison, FinalReportVersion | 모두 `STALE`; 새 selection chain 생성 | 이전 persona/marketing/report current pointer 해제 | Persona/Marketing/Report capability를 새 selection 기준으로 재평가 |
-| 새 PersonaCard version | 이전 card 기반 PersonaInterview, 관련 InterviewSynthesis, Marketing evidence와 FinalReportVersion | 해당 persona branch부터 `STALE`; 다른 card/interview branch는 유지 | 해당 persona의 interview/synthesis 및 이를 쓰는 downstream pointer 해제 | 해당 card의 interview와 dependent Marketing/Report capability 차단 후 재평가 |
+| 새 PersonaCardVersion | 이전 version 기반 PersonaInterview, 관련 InterviewSynthesis, Marketing evidence와 FinalReportVersion | 해당 persona branch부터 `STALE`; 다른 card/interview branch는 유지 | 해당 Card의 current-version pointer 이동, 이전 interview/synthesis 및 downstream pointer 해제 | 새 version 기준 interview와 dependent Marketing/Report capability 재평가 |
 | 새 MarketingAssetVersion | 이전 asset version을 입력으로 한 MarketingComparisonRun과 FinalReportVersion | 해당 비교/report만 `STALE`; asset history 유지 | 해당 comparison/report current pointer 해제 | 새 comparison과 report generation capability 재평가 |
 | 새 MarketingWorkspaceVersion | 이전 workspace context 기반 generation/comparison/report | 이전 context chain `STALE`; asset version 자체는 provenance와 함께 유지 | 이전 workspace context 기반 run/comparison/report pointer 해제 | Marketing generation/comparison/report capability 재평가 |
 | 새 FinalReportVersion | 이전 FinalReportVersion | 이전 version은 immutable history로 유지하며 자동 수정하지 않음 | 검증된 새 version으로 current pointer만 이동 | `CAN_EXPORT_FINAL_REPORT`는 새 current version 기준; 재생성은 명시적 command만 허용 |

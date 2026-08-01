@@ -48,7 +48,8 @@ Capability는 Spring이 요청 시 계산하는 값이며 별도 업무 source o
 | `CAN_RUN_DETAILED_ANALYSIS` | current ShortlistDecision에 포함된 exact current ConceptVersion | AI policy 허용; 동일 analysis/input active TaskRun 없음 |
 | `CAN_SELECT_CONCEPT` | current ShortlistDecision과 요구된 Detailed result 검토 | USER gate; AI recommendation은 선택을 대체하지 않음 |
 | `CAN_CREATE_PERSONA_STUDY` | current ConceptSelection과 selected exact ConceptVersion | stale selection 차단; Project creation/AI 관련 policy 적용 |
-| `CAN_RUN_PERSONA_INTERVIEW` | current PersonaStudy의 confirmed exact PersonaCard | AI policy 허용; Persona별 conflicting TaskRun만 차단 |
+| `CAN_GENERATE_PERSONA_CARDS` | current non-stale PersonaStudy, ConceptSelection과 selected exact ConceptVersion | AI policy 허용; conflicting PersonaCardGenerationRun 없음 |
+| `CAN_RUN_PERSONA_INTERVIEW` | current PersonaStudy의 confirmed exact PersonaCardVersion | AI policy 허용; Persona별 conflicting TaskRun만 차단 |
 | `CAN_USE_MARKETING_WORKSPACE` | current ConceptSelection, PersonaStudy와 선택한 current evidence | stale upstream 차단; asset edit/generation별 policy와 conflict 확인 |
 | `CAN_GENERATE_FINAL_REPORT` | 포함할 exact current upstream reference 집합과 사용자 결정이 모두 준비됨 | report generation/AI policy 허용; active generation TaskRun 없음 |
 | `CAN_EXPORT_FINAL_REPORT` | current `AVAILABLE` FinalReportVersion | report generation/export와 file policy 허용; stale source라도 기존 version history export 허용 여부는 command contract에서 명시 |
@@ -57,7 +58,7 @@ Owner scope 실패는 capability false를 노출해 resource 존재를 추론하
 
 ## Domain Run–TaskRun binding
 
-AI-backed Domain Run은 실행 요청이 Spring에 수락되는 transaction에서 정확히 하나의 TaskRun과 결합한다. 대상은 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaInterview, AI-backed InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다.
+AI-backed Domain Run은 실행 요청이 Spring에 수락되는 transaction에서 정확히 하나의 TaskRun과 결합한다. 대상은 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaCardGenerationRun, PersonaInterview, AI-backed InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다.
 
 - Domain Run `1:1` TaskRun, TaskRun `1:N` TaskAttempt, TaskAttempt `1:0..N` TaskResult, TaskResult `1:0..N` TaskArtifact다.
 - retry는 동일 TaskRun에 단조 증가하는 새 TaskAttempt를 추가한다.
@@ -76,6 +77,8 @@ AI-backed Domain Run은 실행 요청이 Spring에 수락되는 transaction에�
 | Cancelled | `CANCELLED` | adopted business result 없음 | validity와 별도 |
 
 TaskRun `SUCCEEDED` 값만 읽어 Domain Run 성공을 확정하지 않는다. binding, exact input/hash, `ADOPTED` TaskResult와 domain validation을 함께 확인한다. 정상 transition은 이를 원자적으로 맞추지만 projection은 불완전하거나 오래된 상태를 성공으로 오인하지 않아야 한다.
+
+Public transport에서는 202 수락 후 TaskRun의 `FAILED`, `TIMED_OUT`, `CANCELLED`가 resource terminal state다. TaskRun GET은 이를 200 representation으로 반환하며 502/503/504 HTTP status로 바꾸지 않는다. HTTP 503은 TaskRun 생성 전 dependency 때문에 command를 수락하지 못한 경우, HTTP 504는 request/gateway deadline 자체가 초과된 경우다.
 
 ## TaskRun
 

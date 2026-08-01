@@ -3,7 +3,7 @@
 - Status: DRAFT_CONTRACT
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
 - Document Phase: P2
-- Introduced In Commit: P2.4 commit pending
+- Introduced In Commit: ad94d6ba1fe92ebc98e81a69a399753f784c2997
 - Scope: Implementation-ready public `/api/v2` workflow endpoint, JSON schema and transport contract
 - Supersedes: Legacy workflow portions of `docs/api/openapi.yaml`; that machine-consumed file remains unchanged until implementation replacement
 - Implementation Status: NOT_STARTED
@@ -131,9 +131,11 @@ Primary error code는 하나다. `details`에는 권한 확인된 identifier와 
 | `TASK_ALREADY_RUNNING` | 409 | 같은 subject/input active TaskRun 충돌 | `ACTIVE_TASK_EXISTS` |
 | `IDEMPOTENCY_CONFLICT` | 409 | 같은 key와 다른 canonical request | `IDEMPOTENCY_REQUEST_MISMATCH` |
 | `PAYLOAD_TOO_LARGE` | 413 | JSON/chunk, upload, bounded options | `REQUEST_LIMIT_EXCEEDED`, `FILE_TOO_LARGE` |
-| `TASK_TIMEOUT` | 504 | TaskRun 조회 또는 command 결과의 timeout terminal summary | `TASK_DEADLINE_EXCEEDED` |
-| `AI_SERVICE_UNAVAILABLE` | 503 | AI-backed command 실행 불가/실패 summary | `AI_SERVER_UNAVAILABLE` |
-| `AI_RESULT_INVALID` | 502 | received result schema/domain validation 실패 | `RESULT_SCHEMA_INVALID`, `RESULT_DOMAIN_INVALID` |
+| `TASK_TIMEOUT` | HTTP request 자체 timeout이면 504; accepted TaskRun GET은 200 | gateway/request deadline 또는 TaskRun terminal `errorSummary` | `HTTP_REQUEST_DEADLINE_EXCEEDED`, `TASK_DEADLINE_EXCEEDED` |
+| `AI_SERVICE_UNAVAILABLE` | Task 수락 전 503; accepted TaskRun GET은 200 | TaskRun 생성 전 dependency unavailable 또는 terminal `errorSummary` | `AI_SERVER_UNAVAILABLE` |
+| `AI_RESULT_INVALID` | accepted TaskRun GET은 200; synchronous pre-accept boundary에서만 502 | received result validation/adoption failure summary | `RESULT_SCHEMA_INVALID`, `RESULT_DOMAIN_INVALID` |
+
+202로 수락된 뒤 TaskRun이 `FAILED`, `TIMED_OUT`, `CANCELLED` 등 terminal state가 되어도 TaskRun GET은 200이다. 업무 실패는 `state`와 nullable `errorSummary.code`(`TASK_TIMEOUT`, `AI_SERVICE_UNAVAILABLE`, `AI_RESULT_INVALID`)로 표현하며 502/503/504로 resource 조회를 대체하지 않는다. TaskRun 생성 전 AI dependency unavailable로 command 자체를 수락할 수 없을 때만 503이고 `taskRunId`는 null이다. HTTP 504는 public request/gateway deadline 자체가 초과된 경우에만 사용한다.
 
 ## 5. Pagination, sorting and revisions
 
@@ -148,7 +150,7 @@ Primary error code는 하나다. `details`에는 권한 확인된 identifier와 
 
 `GET /api/v2/projects/{projectId}/workflow` → 200 `WorkflowSummaryResponse`.
 
-Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 12개 `capabilities`, `currentReferences`, `blockers`, `staleResourceSummary`, `activeTaskRuns`, `updatedAt`을 포함한다. Current references는 ideaVersion, legalReviewRun, shortlistDecision, conceptSelection, personaStudy, marketingWorkspaceVersion, finalReportVersion을 nullable `ResourceReference`로 표현한다. Capability는 Spring이 계산한 결과이며 저장된 business state가 아니다.
+Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 13개 `capabilities`, `currentReferences`, `blockers`, `staleResourceSummary`, `activeTaskRuns`, `updatedAt`을 포함한다. Current references는 ideaVersion, legalReviewRun, shortlistDecision, conceptSelection, personaStudy, marketingWorkspaceVersion, finalReportVersion을 nullable `ResourceReference`로 표현한다. Capability는 Spring이 계산한 결과이며 저장된 business state가 아니다.
 
 ## 7. Endpoint catalog and capability binding
 
@@ -173,7 +175,7 @@ Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 12
 | GET | `/api/v2/projects/{projectId}/concept-candidates` | candidate list | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/concept-candidates/{candidateId}` | candidate 조회 | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/concept-candidates/{candidateId}/versions` | concept versions | sync | 200 | N | authenticated owner |
-| POST | `/api/v2/projects/{projectId}/concept-candidates/{candidateId}/versions` | user-edited version | sync | 201 | R | `CAN_EDIT_IDEA` |
+| POST | `/api/v2/projects/{projectId}/concept-candidates/{candidateId}/versions` | user-edited version | sync | 201 | R | `CAN_GENERATE_CONCEPTS` |
 | POST | `/api/v2/projects/{projectId}/quick-assessment-runs` | single concept quick assessment | async | 202 | R | `CAN_RUN_QUICK_ASSESSMENT` |
 | GET | `/api/v2/projects/{projectId}/quick-assessment-runs` | quick history | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/quick-assessment-runs/{runId}` | quick run 조회 | sync | 200 | N | authenticated owner |
@@ -190,6 +192,10 @@ Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 12
 | GET | `/api/v2/projects/{projectId}/persona-studies` | study history | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/persona-studies/{studyId}` | study 조회 | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/persona-studies/{studyId}/persona-cards` | card versions 조회 | sync | 200 | N | authenticated owner |
+| POST | `/api/v2/projects/{projectId}/persona-card-generation-runs` | Persona Card generation | async | 202 | R | `CAN_GENERATE_PERSONA_CARDS` |
+| GET | `/api/v2/projects/{projectId}/persona-card-generation-runs` | generation history | sync | 200 | N | authenticated owner |
+| GET | `/api/v2/projects/{projectId}/persona-card-generation-runs/{runId}` | generation run 조회 | sync | 200 | N | authenticated owner |
+| POST | `/api/v2/projects/{projectId}/persona-studies/{studyId}/persona-cards/{personaCardId}/versions` | user-edited card version | sync | 201 | R | `CAN_GENERATE_PERSONA_CARDS` |
 | POST | `/api/v2/projects/{projectId}/persona-interview-runs` | independent interview | async | 202 | R | `CAN_RUN_PERSONA_INTERVIEW` |
 | GET | `/api/v2/projects/{projectId}/persona-interview-runs` | interview history | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/persona-interview-runs/{runId}` | interview 조회 | sync | 200 | N | authenticated owner |
@@ -316,11 +322,26 @@ Body는 required `selectedConceptVersionId`, `shortlistDecisionId`, `reviewedDet
 
 ### 8.7 Persona
 
-PersonaStudy create는 AI execution을 시작하지 않는 동기 201 command로 결정한다. Body는 exact current `conceptSelectionId`, selected `conceptVersionId`, `expectedProjectRevision`이다. 생성된 study는 빈 card collection을 가질 수 있다. Persona Card 생성/version command는 P7 구현 계약에서 이 public invariant를 깨지 않는 별도 endpoint로 추가하며 P2.5 AI contract/fixture 전에 shape를 검증한다.
+PersonaStudy create는 AI execution을 시작하지 않는 동기 201 command다. Body는 exact current `conceptSelectionId`, selected `conceptVersionId`, `expectedProjectRevision`이다. 생성된 Study는 빈 Card collection을 가질 수 있다.
 
-PersonaCard view는 required `roleAndContext`, `problemAndNeeds`, `behaviorAndDecision`, `syntheticDisclosure`, `provenance`, `validity`를 분리한다. 실제 고객 통계, 구매확률과 market share를 표현하지 않는다.
+PersonaCardGenerationRun create body:
 
-PersonaInterview body는 required `personaStudyId`, exact `personaCardId`, `questionSet`, optional non-null `interviewOptions`를 받는다. 다른 Persona context를 전달하지 않고 Persona별 독립 TaskRun을 만든다. Synthesis body는 같은 Study의 exact `interviewRunIds` 두 개 이상과 optional synthesis options를 받으며 원본 Interview를 수정하지 않는다.
+| Field | Presence | Contract |
+|---|---|---|
+| `personaStudyId` | required | current non-stale PersonaStudy |
+| `conceptSelectionId` | required | Study가 고정한 exact current ConceptSelection |
+| `conceptVersionId` | required | selection의 exact selected ConceptVersion |
+| `personaCount` | required | integer 1~10 |
+| `generationOptions` | optional, non-null | bounded allowlisted options; unknown option은 validation error |
+| `expectedStudyRevision` | required | Study concurrency guard |
+
+Command는 PersonaCardGenerationRun과 1:1 TaskRun을 만들고 202를 반환한다. 성공한 adopted result는 하나 이상의 PersonaCard logical identity와 각 identity의 initial PersonaCardVersion을 만든다. Retry는 같은 TaskRun의 새 TaskAttempt이고 user rerun은 새 GenerationRun/TaskRun이다.
+
+PersonaCardVersion create body는 `basePersonaCardId`, exact `baseVersion`, `roleAndContext`, `problemAndNeeds`, `behaviorAndDecision`, `editRationale`, `expectedStudyRevision`을 required non-null로 받는다. Path `personaCardId`는 `basePersonaCardId`와 같아야 한다. 새 version은 `USER_EDITED` provenance와 synthetic disclosure를 유지하고 기존 version을 수정하지 않는다.
+
+PersonaCard view는 logical identity/current version reference를 제공하고 PersonaCardVersion view는 required `roleAndContext`, `problemAndNeeds`, `behaviorAndDecision`, `syntheticDisclosure`, `provenance`, `validity`를 분리한다. 실제 고객 조사, 구매확률과 market share를 표현하지 않는다.
+
+PersonaInterview body는 required `personaStudyId`, exact `personaCardId`, exact `personaCardVersionId`, `questionSet`, optional non-null `interviewOptions`를 받는다. Version은 Card의 current confirmed non-stale version이어야 한다. 다른 Persona context를 전달하지 않고 Persona별 독립 TaskRun을 만든다. Synthesis body는 같은 Study의 exact `interviewRunIds` 두 개 이상과 optional synthesis options를 받으며 원본 Interview를 수정하지 않는다.
 
 ### 8.8 Marketing
 
@@ -350,6 +371,8 @@ PDF export POST 결정:
 
 Public TaskRun view는 id, taskType, subject, state, retryable, cancelable, timestamps, nullable errorSummary/resultResource와 correlationId를 제공한다. TaskAttempt, worker/lease, provider, prompt/raw body, credential과 object key는 금지한다.
 
+TaskRun GET은 terminal `FAILED`, `TIMED_OUT`, `CANCELLED`에서도 200이다. `errorSummary`는 public-safe `code`, `message`, `retryable`을 제공하며 `TASK_TIMEOUT`, `AI_SERVICE_UNAVAILABLE`, `AI_RESULT_INVALID`을 포함할 수 있다. 이 resource representation을 HTTP 502/503/504로 바꾸지 않는다.
+
 Retry POST는 `Idempotency-Key`가 required이고 같은 TaskRun에 새 TaskAttempt를 추가한 뒤 202를 반환한다. `retryable=false`이면 `CAPABILITY_NOT_AVAILABLE`/409 `RETRY_NOT_ALLOWED`다. Domain rerun은 원래 Domain command endpoint에 새 key로 요청해 새 Domain Run과 새 TaskRun을 만든다.
 
 Cancel POST는 idempotent하며 200 current TaskRun view를 반환한다. 이미 terminal이면 상태를 변경하지 않고 같은 current terminal view를 반환한다. Invalid owner/resource는 404다.
@@ -360,15 +383,16 @@ Cancel POST는 idempotent하며 200 current TaskRun view를 반환한다. 이미
 
 | Capability | Command endpoints | Required exact current references | Mode/status | Principal additional errors |
 |---|---|---|---|---|
-| `CAN_EDIT_IDEA` | idea source/version, ConceptVersion user edit | active editable Project; edit 대상이면 current candidate/base version | sync 201 | `CONFLICT`, `STALE_RESOURCE`, `PAYLOAD_TOO_LARGE` |
+| `CAN_EDIT_IDEA` | idea source/version POST | active editable Project와 current Idea context | sync 201 | `CONFLICT`, `STALE_RESOURCE`, `PAYLOAD_TOO_LARGE` |
 | `CAN_RUN_LEGAL_REVIEW` | legal-review-runs POST | confirmed current IdeaVersion | async 202 | `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `AI_SERVICE_UNAVAILABLE` |
-| `CAN_GENERATE_CONCEPTS` | concept-generation-runs POST | current IdeaVersion + passing current LegalReviewRun | async 202 | `LEGAL_GATE_BLOCKED`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING` |
+| `CAN_GENERATE_CONCEPTS` | concept-generation-runs와 ConceptVersion user-edit POST | current IdeaVersion + passing current LegalReviewRun; edit은 exact candidate/base version | async 202 또는 sync 201 | `LEGAL_GATE_BLOCKED`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `CONFLICT` |
 | `CAN_RUN_QUICK_ASSESSMENT` | quick-assessment-runs POST | exact current ConceptVersion | async 202 | `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `AI_RESULT_INVALID` |
 | `CAN_SET_SHORTLIST` | shortlist-decisions POST | exact current ConceptVersion set + reviewed Quick runs | sync 201 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `CONFLICT` |
 | `CAN_RUN_DETAILED_ANALYSIS` | detailed-analysis-runs POST | current ShortlistDecision + included ConceptVersion | async 202 | `CAPABILITY_NOT_AVAILABLE`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING` |
 | `CAN_SELECT_CONCEPT` | concept-selections POST | current ShortlistDecision + reviewed Detailed runs | sync 201 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `CONFLICT` |
 | `CAN_CREATE_PERSONA_STUDY` | persona-studies POST | current ConceptSelection + selected ConceptVersion | sync 201 | `STALE_RESOURCE`, `CONFLICT` |
-| `CAN_RUN_PERSONA_INTERVIEW` | persona-interview-runs, synthesis-runs POST | current Study + exact current PersonaCard; synthesis는 adopted Interview set | async 202 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING` |
+| `CAN_GENERATE_PERSONA_CARDS` | persona-card-generation-runs와 PersonaCardVersion POST | current non-stale Study/Selection/selected ConceptVersion; edit은 exact Card/base Version | async 202 또는 sync 201 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `CONFLICT` |
+| `CAN_RUN_PERSONA_INTERVIEW` | persona-interview-runs, synthesis-runs POST | current Study + exact current PersonaCardVersion; synthesis는 adopted Interview set | async 202 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING` |
 | `CAN_USE_MARKETING_WORKSPACE` | workspace/version/asset/generation/comparison POST | current ConceptSelection, PersonaStudy와 requested evidence/asset versions | sync 201 또는 async 202 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `CONFLICT` |
 | `CAN_GENERATE_FINAL_REPORT` | final-report-generation-runs POST | exact current upstream set + user decisions | async 202 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING` |
 | `CAN_EXPORT_FINAL_REPORT` | PDF export POST | persisted available FinalReportVersion | async 202 또는 existing 200 | `UPSTREAM_NOT_READY`, `TASK_ALREADY_RUNNING`, `AI_SERVICE_UNAVAILABLE` |
@@ -377,7 +401,7 @@ Task retry/cancel capability는 TaskRun의 `retryable`/`cancelable`, lifecycle, 
 
 ## 10. Resource schema registry
 
-아래 field 목록은 public representation만 정의한다. Domain 내부 field 전체를 자동 노출하지 않는다. `R`은 required/non-null, `O`는 optional/non-null if present, `N`은 required nullable을 뜻한다. 명시되지 않은 field는 허용하지 않는 방향이며 forward-compatible extension은 P2.4 fixture/schema 규칙에서 검증한다.
+아래 field 목록은 public representation만 정의한다. Domain 내부 field 전체를 자동 노출하지 않는다. `R`은 required/non-null, `O`는 optional/non-null if present, `N`은 required nullable을 뜻한다. 명시되지 않은 field는 허용하지 않는 방향이며 forward-compatible extension은 P2.6 fixture/schema consistency verification에서 검증한다.
 
 | Schema | Required / non-null | Optional / non-null if present | Required nullable |
 |---|---|---|---|
@@ -399,7 +423,11 @@ Task retry/cancel capability는 TaskRun의 `retryable`/`cancelable`, lifecycle, 
 | `DetailedAnalysisRunView` | `id`, `analysisType`, `conceptVersion`, `shortlistDecision`, `execution`, `validity`, `inputSnapshot`, `createdAt` | `warnings` | `result`, `adoptedResult` |
 | `ConceptSelectionView` | `id`, `selectedConceptVersion`, `shortlistDecision`, `reviewedDetailedAnalysisRuns`, `alternativesConsidered`, `rationale`, `decisionActor`, `validity`, `createdAt` | `aiRecommendationReferences` | none |
 | `PersonaStudyView` | `id`, `conceptSelection`, `conceptVersion`, `lifecycle`, `validity`, `personaCardReferences`, `createdAt` | none | none |
-| `PersonaCardView` | `id`, `studyId`, `version`, `roleAndContext`, `problemAndNeeds`, `behaviorAndDecision`, `syntheticDisclosure`, `provenance`, `validity`, `createdAt` | none | none |
+| `PersonaCardGenerationRunCreateRequest` | `personaStudyId`, `conceptSelectionId`, `conceptVersionId`, `personaCount`, `expectedStudyRevision` | `generationOptions` | none |
+| `PersonaCardGenerationRunView` | `id`, `personaStudy`, `conceptSelection`, `conceptVersion`, `execution`, `validity`, `personaCardReferences`, `createdAt` | `warnings` | `adoptedResult` |
+| `PersonaCardView` | `id`, `studyId`, `lifecycle`, `validity`, `createdAt` | none | `currentVersion` |
+| `PersonaCardVersionCreateRequest` | `basePersonaCardId`, `baseVersion`, `roleAndContext`, `problemAndNeeds`, `behaviorAndDecision`, `editRationale`, `expectedStudyRevision` | none | none |
+| `PersonaCardVersionView` | `id`, `personaCardId`, `version`, `roleAndContext`, `problemAndNeeds`, `behaviorAndDecision`, `syntheticDisclosure`, `provenance`, `validity`, `createdAt` | none | none |
 | `PersonaInterviewView` | `id`, `personaStudy`, `personaCard`, `execution`, `validity`, `questions`, `answers`, `interpretations`, `evidenceNeeds`, `syntheticDisclosure`, `createdAt` | `warnings` | `adoptedResult` |
 | `InterviewSynthesisView` | `id`, `studyId`, `sourceInterviewReferences`, `commonResponses`, `conflictingResponses`, `unresolvedQuestions`, `researchRecommendations`, `validity`, `createdAt` | `execution` for AI-backed synthesis | `adoptedResult` for AI-backed synthesis |
 | `MarketingWorkspaceView` | `id`, `lifecycle`, `revision`, `validity`, `createdAt`, `updatedAt` | none | `currentVersion` |
