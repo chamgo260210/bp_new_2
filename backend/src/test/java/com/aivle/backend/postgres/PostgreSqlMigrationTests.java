@@ -13,6 +13,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("postgres")
 class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
+    private static final String V25_USERNAME = "legacyv25user";
+
     @Test
     void upgradesLegacyLocalDocumentFromV25ToV26WithoutDataLoss()
         throws Exception {
@@ -22,7 +24,7 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
         assertThat(v25.migrate().migrationsExecuted).isEqualTo(25);
 
         try (Connection connection = connection(schema)) {
-            insertPhase1Rows(connection);
+            insertV25Rows(connection);
         }
 
         Flyway v26 = flyway(schema, "26");
@@ -32,17 +34,35 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
 
         try (Connection connection = connection(schema)) {
             var result = connection.createStatement().executeQuery("""
-                select sf.storage_type,
+                select u.username,
+                       u.email,
+                       p.title,
+                       pd.current_version,
+                       sf.original_filename,
+                       sf.storage_type,
                        dv.parser_artifact_stored_file_id,
                        dv.parser_block_count,
                        dv.parser_artifact_checksum_sha256,
                        dv.parser_artifact_schema_version,
                        dv.parsed_at
                 from document_versions dv
+                join project_documents pd on pd.id = dv.document_id
+                join projects p on p.id = pd.project_id
+                join users u on u.id = p.owner_id
                 join stored_files sf on sf.id = dv.stored_file_id
                 where dv.id = 1
                 """);
             assertThat(result.next()).isTrue();
+            assertThat(result.getString("username"))
+                .isEqualTo(V25_USERNAME);
+            assertThat(result.getString("email"))
+                .isEqualTo("legacy@example.com");
+            assertThat(result.getString("title"))
+                .isEqualTo("기존 프로젝트");
+            assertThat(result.getInt("current_version"))
+                .isEqualTo(1);
+            assertThat(result.getString("original_filename"))
+                .isEqualTo("기존.docx");
             assertThat(result.getString("storage_type"))
                 .isEqualTo("LOCAL");
             assertThat(result.getObject(
@@ -80,7 +100,7 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(26);
 
         try (Connection connection = connection(schema)) {
-            insertPhase1Rows(connection);
+            insertV25Rows(connection);
             insertStoredFile(connection, 2, "artifact-2");
 
             assertThat(connection.createStatement().executeUpdate("""
@@ -257,7 +277,7 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
             POSTGRES.getPassword()
         )) {
             connection.createStatement().execute("set search_path to " + schema);
-            insertPhase1Rows(connection);
+            insertPreUsernameRows(connection);
         }
 
         Flyway phase2 = flyway(schema, "6");
@@ -338,7 +358,7 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
             POSTGRES.getPassword()
         )) {
             connection.createStatement().execute("set search_path to " + schema);
-            insertPhase1Rows(connection);
+            insertPreUsernameRows(connection);
         }
 
         Flyway v6 = flyway(schema, "6");
@@ -446,7 +466,7 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
             """.formatted(id, versionNumber, storedFileId));
     }
 
-    private void insertPhase1Rows(Connection connection) throws Exception {
+    private void insertPreUsernameRows(Connection connection) throws Exception {
         connection.createStatement().executeUpdate("""
             insert into users (
                 id, email, password_hash, name, role, status, failed_login_count,
@@ -456,6 +476,23 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
                 current_timestamp, current_timestamp, 0
             )
             """);
+        insertCommonPhase1Rows(connection);
+    }
+
+    private void insertV25Rows(Connection connection) throws Exception {
+        connection.createStatement().executeUpdate("""
+            insert into users (
+                id, username, email, password_hash, name, role, status,
+                failed_login_count, created_at, updated_at, version
+            ) values (
+                1, '%s', 'legacy@example.com', 'hash', '기존 사용자',
+                'USER', 'ACTIVE', 0, current_timestamp, current_timestamp, 0
+            )
+            """.formatted(V25_USERNAME));
+        insertCommonPhase1Rows(connection);
+    }
+
+    private void insertCommonPhase1Rows(Connection connection) throws Exception {
         connection.createStatement().executeUpdate("""
             insert into projects (
                 id, owner_id, title, stage, status, created_at, updated_at, version
