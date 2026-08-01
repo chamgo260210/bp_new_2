@@ -2,7 +2,7 @@
 
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Document Phase: P1
+- Document Phase: P2
 - Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Trust boundaries, authorization, secrets and secure processing
 - Supersedes: Legacy security and admin policy documents
@@ -13,7 +13,7 @@
 | Boundary | Untrusted input | Enforcement |
 |---|---|---|
 | Browser → Spring | token, identifiers, text, file, request metadata | authentication, authorization, owner scope, validation |
-| Spring → AI | AI task request and correlation | internal auth, allowlist, size/schema |
+| Spring → AI | bounded JSON/text chunk와 correlation | internal auth, task allowlist, size/schema/chunk integrity; Storage URL 금지 |
 | AI → provider/MCP | prompt/context, external response | endpoint/credential control, timeout, output validation |
 | AI → Spring | generated JSON/binary/error | identity/schema/provenance/domain validation |
 | Spring → Storage | key, bytes, metadata | generated key, checksum, content allowlist |
@@ -24,11 +24,11 @@ JWT/refresh lifecycle, admin role, last active administrator protection, reauthe
 
 ## Secrets and privacy
 
-비밀값은 환경 또는 배포 secret mechanism으로 주입하고 코드·문서·client response·audit에 실제 값을 기록하지 않는다. password, token, API key, provider raw body와 불필요한 개인정보는 logging에서 제외한다. 업무 입력을 provider에 전달하는 최소화/redaction 정책은 P2 이후 확정한다.
+비밀값은 환경 또는 배포 secret mechanism으로 주입하고 코드·문서·client response·audit에 실제 값을 기록하지 않는다. 법령 MCP·법제처 API secret은 AI Server 환경변수로만 주입하고, 배포 secret mechanism을 사용하더라도 환경변수로 제공하며 Spring task payload에 포함하지 않는다. password, token, API key, provider raw body와 불필요한 개인정보는 logging에서 제외한다. 업무 입력을 provider에 전달하는 최소화/redaction 정책은 P2.2 이후 확정한다.
 
 ## Secure coding
 
-파일 path traversal, archive bomb, content spoofing, oversized input, SSRF, redirect, unsafe URL, injection, mass assignment와 stale owner check를 검증한다. AI/MCP 출력은 명령이나 신뢰된 schema가 아니라 untrusted data로 처리한다.
+DOCX/일반 텍스트 allowlist와 함께 파일 path traversal, archive bomb, content spoofing, oversized input, SSRF, redirect, unsafe URL, injection, mass assignment와 stale owner check를 검증한다. AI/MCP/API 출력은 명령이나 신뢰된 schema가 아니라 untrusted data로 처리한다.
 
 ## Audit and failure
 

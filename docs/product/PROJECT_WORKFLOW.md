@@ -2,7 +2,7 @@
 
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Document Phase: P1
+- Document Phase: P2
 - Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Ordered workflow, gates, version and stale principles
 - Supersedes: StructuredPlan-centered workflow documents
@@ -14,9 +14,9 @@ Idea Intake → Idea Normalization → Korean Legal Review → Concept Builder �
 
 ## Stage purposes
 
-Idea 단계는 입력 형식을 일반화하고 현재 IdeaVersion을 만든다. Legal 단계는 한국 법률 근거와 실패 가능성을 기록한다. Concept/Quick 단계는 넓게 대안을 만든 뒤 상세 분석 비용을 들일 shortlist를 정한다. Detailed 단계는 Quick 결과를 반복하는 것이 아니라 선택에 필요한 더 깊은 시장·BM·기술운영·재무 근거를 만든다.
+Idea 단계는 입력 형식을 일반화하고 현재 IdeaVersion을 만든다. 초기 FILE은 DOCX와 일반 텍스트이며 Spring이 검증·저장·추출한다. Legal 단계는 법제처 API의 공식 근거 확인과 법령 MCP 탐색 결과, degraded 상태와 전문가 검토 필요 여부를 기록한다. Concept/Quick 단계는 모든 후보를 저비용 공통 입력으로 평가한 뒤 상세 분석 비용을 들일 shortlist를 정한다. Detailed 단계는 shortlist 후보에 analysis-specific 입력을 적용하며 Quick 결과를 상세 분석의 사실로 자동 승격하지 않는다.
 
-Concept Selection은 AI 추천과 구별되는 사용자 gate다. Persona 단계는 선택된 concept에 종속되고 각 interview는 독립 실행한다. Marketing 단계는 asset workspace와 상대 비교를 제공한다. Report 단계는 선택된 input/result version을 고정한 snapshot이다.
+Concept Selection은 AI 추천과 구별되는 사용자 gate다. Persona 단계는 Role and Context, Problem and Needs, Behavior and Decision layer를 사용하고 선택된 concept에 종속되며 각 interview는 독립 실행한다. Marketing 단계는 asset workspace와 상대 비교를 제공한다. Report 단계는 선택된 input/result version을 고정한 RDB snapshot이며 HTML view와 Spring이 Storage에 저장한 PDF export를 제공한다.
 
 ## Gate directions
 
@@ -27,11 +27,11 @@ Concept Selection은 AI 추천과 구별되는 사용자 gate다. Persona 단계
 - Persona Card와 Marketing asset은 downstream 실행 전에 사용자가 검토할 수 있어야 한다.
 - Final Report 생성은 포함할 current versions를 Spring이 검증한 뒤 수행한다.
 
-정확한 필수/선택 gate와 상태 enum은 P2에서 결정한다.
+기본 여정은 순차적이지만 접근 가능성은 단일 Project stage enum만으로 결정하지 않는다. Project stage, resource/run status, 사용자 선택·확정 gate와 AI 실행 capability를 분리한다.
 
 ## Version and stale
 
-업무 결과는 생성 당시 upstream version을 참조한다. upstream 변경은 과거 결과를 삭제하지 않지만 current 후보에서 제외하거나 stale로 표시하는 방향이다. stale 결과의 재사용·복사·재실행 정책은 명시적이어야 한다.
+업무 결과는 생성 당시 upstream version을 참조한다. backtracking을 허용하며 upstream 변경은 과거 결과를 삭제하지 않고 관련 downstream을 `STALE`로 표시한다. stale 결과는 current 결과나 실행 gate 충족 근거로 자동 사용하지 않으며 재사용·복사·재실행은 명시적 capability와 사용자 결정으로 다룬다.
 
 ## Failure and retry
 

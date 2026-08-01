@@ -2,7 +2,7 @@
 
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Document Phase: P1
+- Document Phase: P2
 - Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Identified security, integrity, reliability and operability requirements
 - Supersedes: Legacy quality, security and operations documents
@@ -26,5 +26,8 @@
 | NFR-014 | health/readiness는 process, RDB, Storage, AI, 법령 연결 상태를 구분한다. | actuator/admin integration | P3/P11 |
 | NFR-015 | local evidence와 remote CI status를 구분하고 미실행 검사를 통과로 기록하지 않는다. | governance review | 모든 phase |
 | NFR-016 | current/target contract drift를 자동 또는 반복 가능한 검사로 탐지한다. | link/schema/route/contract gates | P2+ |
+| NFR-017 | Spring–AI 초기 payload는 bounded inline JSON과 순서가 보존된 text chunk로 제한하며 Storage/presigned URL 또는 임시 공유 Storage를 포함하지 않는다. | size/chunk/negative contract tests | P3/P4 |
+| NFR-018 | 외부 AI 호출 동안 DB transaction을 유지하지 않고 claim/lease 또는 동등한 동시성 제어, idempotency key와 input snapshot/hash로 중복 실행·채택을 방지한다. | transaction/concurrency/idempotency tests | P3 |
+| NFR-019 | 법령 연동 secret은 AI Server 환경변수로만 주입하고 배포 secret mechanism도 환경변수 공급원으로만 사용하며, 부분 장애는 출처가 포함된 degraded result로 격리한다. | secret/config/degraded integration tests | P4 |
 
-정량 SLO, payload 제한, retention, encryption/key management와 deployment topology는 후속 Phase에서 결정한다.
+정량 payload 상한과 chunk 크기, SLO, retention, encryption/key management와 deployment topology는 후속 Phase에서 결정한다.

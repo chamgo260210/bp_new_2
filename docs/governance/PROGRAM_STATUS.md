@@ -27,7 +27,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2 open decisions와 implementation-ready contract 미확정 |
+| Primary blocker | P2.2 implementation-ready logical schema, JSON contract와 fixtures 미확정; OD-008은 각 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -48,6 +48,7 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 - AnalysisJob 확장 대신 신규 TaskRun 계열을 도입한다.
 - Persona Card와 Independent Interview를 P7/P8로 분리한다.
 - Admin/Landing, legacy cutover, integrated release를 P11/P12/P13으로 분리한다.
+- P2.1에서 OD-001~OD-007과 OD-009를 ACCEPTED하고 OD-008을 provider-dependent slice 진입 전까지 DEFERRED했다.
 
 ## Recent verification
 

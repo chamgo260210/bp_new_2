@@ -55,7 +55,7 @@
 - 허용 schema/contract: logical domain schema, state and cardinality definitions, public/internal API JSON schema, contract examples and fixtures
 - 금지: Flyway migration, JPA entity implementation, physical production table creation, Controller/Service runtime implementation
 - 실행 검증: contract consistency/drift와 fixture/schema 정합성 검증 예정
-- 미해결 항목: P2 due open decisions와 implementation-ready schema/contract/fixture
+- 미해결 항목: P2.2 implementation-ready logical schema/JSON contract/fixture; OD-008 provider 선택은 각 provider-dependent slice 진입 전 decision gate
 - 완료 조건: P2 due decision 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증
 - 다음 조건: 완료 조건 충족 후 P3 시작
 - 받은 결정/전달 결정: P1.1 guardrails → P3 implementation-ready contract
