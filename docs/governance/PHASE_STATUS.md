@@ -1,0 +1,153 @@
+# Phase Status Register
+
+- Status: TARGET_CANONICAL
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1.1
+- Introduced In Commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
+- Scope: P0 through P13 status and handoff register
+- Supersedes: None
+- Implementation Status: PARTIAL
+
+상태 값은 NOT_STARTED, IN_PROGRESS, BLOCKED, CORRECTION_REQUIRED, COMPLETE_WITH_CARRYOVER, COMPLETE만 사용한다.
+
+## P0 — Repository Baseline and Re-foundation Audit
+
+- 상태: COMPLETE
+- 시작 branch/commit: main / e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- 완료 commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222에서 감사 문서 carryover 해결
+- 범위/산출물: code-based inventory, Stable Core/legacy 분류, [audit](PHASE0_REPOSITORY_AUDIT.md)
+- 실행 검증: branch/HEAD/status와 code/DB/API/document/test/CI 참조 검색
+- 미해결 항목: 없음
+- 다음 조건: 충족
+- 받은 결정/전달 결정: repository baseline → P1 canonical reset
+
+## P1 — Canonical Product and Architecture Documentation Reset
+
+- 상태: COMPLETE
+- 시작 branch/commit: refoundation/phase1-canonical-docs / e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- 완료 commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722, governance/detail 보완은 80ce95bbf53bcc5faeae894abc37c8a4cac02222에서 완료
+- 범위/산출물: canonical docs 구조, legacy 문서 제거, design reference 분리
+- 실행 검증: metadata/link/diff/machine input/design blob
+- 미해결 항목: 없음
+- 다음 조건: 충족
+- 받은 결정/전달 결정: P0 분류 → Target Workflow/system boundary/TaskRun/api v2/report
+
+## P1.1 — Documentation Hardening and Governance
+
+- 상태: COMPLETE_WITH_CARRYOVER
+- 시작 branch/commit: refoundation/phase1-canonical-docs / 1549a8efa0aeb2ca400f4795c1c44b34868e4722
+- 완료 commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
+- 범위/산출물: governance, operations, decision/change/evidence, canonical hardening
+- 실행 검증: 1549a8e→80ce95b compare, links, metadata, governance columns, protected paths
+- 미해결 항목: PR Remote CI와 main merge
+- 다음 조건: PR CI 성공 및 main merge 후 P2 시작
+- 받은 결정/전달 결정: P1 Target/P0 baseline → P2 open decisions와 P0~P13 guardrails
+
+## P2 — Domain and Contract Definition
+
+- 상태: BLOCKED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: domain, workflow state/gate, provenance, public/internal AI contracts
+- 실행 검증: contract consistency/drift 예정
+- 미해결 항목: P1.1 PR Remote CI와 main merge, P2 open decisions
+- 다음 조건: P1.1 PR CI 성공 및 main merge
+- 받은 결정/전달 결정: P1.1 guardrails → P3 implementation-ready contract
+
+## P3 — Stable Platform Guard and TaskRun Foundation
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: Stable Core regression, api v2 foundation, TaskRun, AI/data/storage boundary
+- 실행 검증: Stable Core/Flyway/Spring–AI/FastAPI 예정
+- 미해결/다음 조건: P2 contract / P2 COMPLETE
+- 받은/전달 결정: P2 contract → P4 platform foundation
+
+## P4 — Idea Intake, Normalization and Korean Legal Review
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: IdeaSource/IdeaVersion/Legal vertical slices
+- 실행 검증: owner/file/legal provenance/error/E2E 예정
+- 미해결/다음 조건: FILE·법령 integration / P3 COMPLETE
+- 받은/전달 결정: TaskRun/API foundation → verified idea/legal inputs
+
+## P5 — Concept Builder and Quick Assessment
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: concept/version/quick assessment slices
+- 실행 검증: provenance/AI/owner/frontend 예정
+- 미해결/다음 조건: Concept contract / P4 COMPLETE
+- 받은/전달 결정: idea/legal inputs → shortlist candidates
+
+## P6 — Shortlist, Detailed Analysis and Concept Selection
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: shortlist, detailed analysis, explicit user selection
+- 실행 검증: analysis contracts, stale, AI-vs-user decision 예정
+- 미해결/다음 조건: detailed inputs / P5 COMPLETE
+- 받은/전달 결정: candidates → selected ConceptVersion
+
+## P7 — Three-Layer Persona Cards
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: PersonaStudy와 Persona Card slice
+- 실행 검증: provenance/owner/card validation 예정
+- 미해결/다음 조건: Persona axes / P6 COMPLETE
+- 받은/전달 결정: selected concept → interview-ready cards
+
+## P8 — Independent Persona Interviews
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: Persona별 독립 interview TaskRun slices
+- 실행 검증: isolation/retry/stale/owner/E2E 예정
+- 미해결/다음 조건: interview contract / P7 COMPLETE
+- 받은/전달 결정: Persona Cards → independent interview evidence
+
+## P9 — Marketing Workspace and Persona-Based Comparison
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: asset workspace/version/comparison slices
+- 실행 검증: Storage/AI binary/relative-claim/UI 예정
+- 미해결/다음 조건: binary/asset contracts / P8 COMPLETE
+- 받은/전달 결정: interview evidence → report-ready marketing evidence
+
+## P10 — Persisted Final Report
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: report snapshot/version/view/export
+- 실행 검증: version/provenance/storage/export/E2E 예정
+- 미해결/다음 조건: initial export / P9 COMPLETE
+- 받은/전달 결정: workflow evidence → persisted report baseline
+
+## P11 — Admin and Landing Transition
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: Target Admin/Service Policy와 Landing content/workflow/demo/CTA 전환
+- 실행 검증: admin authorization/policy/audit/frontend/accessibility 예정
+- 미해결/다음 조건: Target slices ready / P10 COMPLETE
+- 받은/전달 결정: complete Target workflow → removal-ready consumers
+
+## P12 — Legacy Removal and Database Cutover
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: legacy API/route/code/test/artifact 제거와 신규 Flyway drop migration
+- 실행 검증: replacement tests, Flyway fresh/upgrade/validate, reference scan 예정
+- 미해결/다음 조건: FK/drop ordering / P11 COMPLETE와 대체 consumer/test
+- 받은/전달 결정: transitioned Admin/Landing → clean Target runtime/schema
+
+## P13 — Integrated Quality, Manual Testing and Release Hardening
+
+- 상태: NOT_STARTED
+- 시작/완료 branch·commit: 미정
+- 범위/산출물: full integration, manual UX/operations, security, deployment/release evidence
+- 실행 검증: full local suite, Docker E2E, manual scenarios, Remote CI/security 예정
+- 미해결/다음 조건: deployment/release evidence / P12 COMPLETE
+- 받은/전달 결정: clean Target system → release decision
