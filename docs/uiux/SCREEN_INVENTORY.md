@@ -1,7 +1,9 @@
 # Target Screen Inventory
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Required screen areas, not detailed UI
 - Supersedes: Legacy feature and screen inventories
 - Implementation Status: NOT_STARTED

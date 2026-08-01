@@ -1,11 +1,30 @@
 # Re-foundation Acceptance Criteria
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Scope: Cross-phase acceptance conditions
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
+- Scope: Cross-phase acceptance and evidence conditions
 - Supersedes: Legacy phase readiness documents
-- Implementation Status: NOT_STARTED
+- Implementation Status: PARTIAL
 
-각 Phase는 지정 범위만 구현하고 Target/Current 상태를 구분한다. 인증·owner scope·Spring의 RDB/Object Storage 소유권은 회귀하지 않아야 하며 AI Server의 RDB/Storage/로컬 업무 산출물 저장은 없어야 한다.
+## Every phase
 
-기존 migration은 불변이며 변경은 신규 migration으로 수행한다. legacy compatibility endpoint/redirect를 만들지 않는다. 코드·테스트·canonical 문서가 함께 일치하고 실제 검증 결과를 보고해야 완료다.
+- 범위와 금지 변경을 지킨다.
+- Target과 Current를 구분한다.
+- decision/change/open/evidence를 갱신한다.
+- code/test/canonical docs가 일치한다.
+- 실제 command/result를 기록하고 미실행을 성공으로 쓰지 않는다.
+- secret·개인정보·provider raw body를 evidence에서 제외한다.
+
+## Platform
+
+Auth/owner/admin/audit가 회귀하지 않고 Spring만 RDB/Storage를 관리해야 한다. AI Server의 DB/Storage/presigned/local artifact 접근이 없어야 한다. TaskRun 상태는 Spring source of truth이며 V1–V26은 불변이어야 한다.
+
+## Migration
+
+새 migration은 fresh, V26 upgrade, validate를 통과한다. 대체 test/consumer 전에 legacy table/entity/API를 삭제하지 않는다.
+
+## Workflow and release
+
+각 slice는 owner, version/provenance, stale, safe error, AI contract, frontend와 필요한 E2E를 포함한다. P11은 full local gate, 확인 가능한 remote CI/security/deployment evidence와 legacy 제거를 요구한다.

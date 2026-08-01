@@ -1,11 +1,37 @@
 # Test Strategy
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Scope: Regression, vertical slice and contract test strategy
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
+- Scope: Stable Core, vertical slice, contract and evidence strategy
 - Supersedes: Legacy testing and coverage documents
-- Implementation Status: NOT_STARTED
+- Implementation Status: PARTIAL
 
-테스트는 Stable Core Regression과 신규 Workflow vertical slice로 분리한다. legacy 테스트는 기능 삭제와 함께 제거하되 stable-core 또는 신규 대체 테스트가 먼저 존재해야 한다.
+## Layers
 
-신규 slice는 domain unit, Spring API/owner scope, persistence/migration, Spring↔AI contract, frontend state/UI와 필요 시 E2E를 함께 제공한다. mock 결과를 provider 품질 검증으로 간주하지 않는다.
+- Stable Core: auth/JWT/refresh/admin/Project owner/Storage/Flyway/error/audit.
+- Domain unit: version, state/gate, stale, selection and validation.
+- Spring integration: API/security/owner query/transaction/persistence.
+- Spring–AI/FastAPI: identity, timeout/error, forbidden data access.
+- Frontend: client, state/view model, route guard, UX/accessibility.
+- E2E/manual: critical path, recovery, export, operations.
+
+Legacy tests는 기능 삭제와 대체 test 존재 후 제거한다.
+
+| Phase | Minimum evidence |
+|---|---|
+| P1/P1.1 | Markdown link/metadata/table/diff/no-code |
+| P2 | contract cross-reference/drift fixtures |
+| P3 | full Stable Core, TaskRun concurrency, Spring–AI, FastAPI, Flyway |
+| P4–P10 | affected Stable Core + backend/frontend/AI + owner/stale/error + E2E |
+| P11 | full local suite, migration, Docker E2E, security, remote CI |
+
+## Local command set
+
+- Backend: cd backend; ./gradlew test; ./gradlew postgresTest; ./gradlew minioTest
+- Frontend: cd frontEnd; npm ci; npm run lint; npm run test:baseline; npm run build
+- AI: cd ai; python -m pytest
+- E2E: ./scripts/docker-e2e-smoke.ps1 -EnvFile .env.e2e.example
+
+실행 환경이 없으면 NOT_EXECUTED와 이유를 evidence에 기록한다.

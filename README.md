@@ -1,7 +1,9 @@
 # Venture Verify Re-foundation
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Repository entry point and documentation status
 - Supersedes: Previous root README
 - Implementation Status: NOT_STARTED
@@ -22,6 +24,10 @@ Venture Verify의 목표는 하나의 아이디어를 입력부터 법률 검토
 - 목표 시스템 경계: [SYSTEM_ARCHITECTURE](docs/architecture/SYSTEM_ARCHITECTURE.md)
 - 전환 계획: [IMPLEMENTATION_PHASES](docs/migration/IMPLEMENTATION_PHASES.md)
 - 미결정 항목: [OPEN_DECISIONS](docs/product/OPEN_DECISIONS.md)
+- 프로그램 상태: [PROGRAM_STATUS](docs/governance/PROGRAM_STATUS.md)
+- Phase 상태: [PHASE_STATUS](docs/governance/PHASE_STATUS.md)
+- 결정·변경·검증: [Governance index](docs/README.md#governance-and-operations)
+- Stable Core 운영 정책: [ADMINISTRATION_POLICY](docs/operations/ADMINISTRATION_POLICY.md)
 
 `docs/reference/design/`은 디자인 원본만 보관한다. `docs/api/openapi.yaml`, `docs/guide/`, `docs/example/`은 CI 또는 빌드 스크립트가 직접 읽기 때문에 임시 유지하는 legacy machine-consumed 입력이며 canonical 문서가 아니다.
 

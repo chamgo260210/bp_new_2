@@ -1,11 +1,28 @@
 # Quality Gates
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Scope: Required repository and delivery gates
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
+- Scope: Commands, success criteria, evidence and drift gates
 - Supersedes: Legacy quality gate documents
 - Implementation Status: PARTIAL
 
-필수 gate는 backend unit/integration, PostgreSQL Flyway, Object Storage integrity, frontend lint/test/build, AI contract/pytest, public contract 검증, Docker integration, secret/security/dependency scan이다.
+| Gate | Command/direction | Success | Evidence |
+|---|---|---|---|
+| Backend | ./gradlew test | exit 0/no failures | backend/build/test-results/test |
+| PostgreSQL/Flyway | ./gradlew postgresTest | fresh/upgrade/validate pass | backend/build/test-results/postgresTest |
+| Storage | ./gradlew minioTest | integrity/boundary pass | backend/build/test-results/minioTest |
+| Frontend lint | npm run lint | exit 0 | local/remote log |
+| Frontend test | npm run test:baseline | gate pass | command log |
+| Frontend build | npm run build | exit 0 | dist/log |
+| FastAPI | python -m pytest | selected tests pass | pytest output |
+| Public contract | Redocly + drift direction | syntax/expected paths agree | contract job |
+| Spring–AI | fixtures/integration | identity/schema/error/timeout/boundary pass | test reports |
+| Docker E2E | smoke script | critical flow/recovery pass | log/artifact |
+| Security | gitleaks/Trivy/dependency | configured gate pass | remote jobs |
+| Docs | diff/links/metadata/tables | zero failures | governance evidence |
 
-변경 Phase는 대응 문서·테스트를 함께 갱신하고 실행하지 못한 검사를 통과로 기록하지 않는다. 현재 CI에는 FastAPI pytest 전용 job이 없어 후속 보강이 필요하다.
+Public controller, frontend client, legacy OpenAPI와 Target contract의 상태를 구분한다. P2 이후 반복 가능한 drift 검사를 마련한다.
+
+Local exit 0과 remote CI를 구분한다. Remote 성공은 commit SHA와 job status/URL을 확인한 경우만 기록한다. 미실행은 이유와 영향, 후속 조건을 남기며 성공으로 기록하지 않는다.

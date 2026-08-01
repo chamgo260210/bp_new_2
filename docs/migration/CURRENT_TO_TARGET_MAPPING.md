@@ -1,19 +1,40 @@
 # Current to Target Mapping
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Scope: Reuse, replacement and deletion boundaries
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
+- Scope: Package, frontend, API, persistence, test and document transition
 - Supersedes: Phase 0 audit output and legacy code audits
 - Implementation Status: NOT_STARTED
 
-## Stable platform
+## Stable and reusable platform
 
-인증/JWT/refresh, admin authorization, Project owner scope, Spring JPA/Flyway, Spring Object Storage port, audit, 공통 오류는 유지한다. 문서 upload/version/parser, job claim/retry/recovery, AI task envelope와 artifact integrity는 신규 경계에 맞춰 재사용한다.
+| Current unit | Target treatment | Direction |
+|---|---|---|
+| backend auth/user/common security | KEEP_STABLE_CORE | JWT/refresh/admin/owner/cross-owner 404 regression |
+| backend project | KEEP_STABLE_CORE | Project remains owner-scoped root |
+| backend file/object/reconciliation | REUSE_WITH_CHANGE | Spring-only Storage; Idea/report artifacts |
+| backend job claim/retry/recovery | REUSE_WITH_CHANGE | policies inform TaskRun; AnalysisJob not expanded |
+| backend aitask result/artifact | REUSE_WITH_CHANGE | TaskResult/TaskArtifact direction |
+| frontend auth/projects/settings/admin base | REUSE_WITH_CHANGE | retain stable flows; remove legacy areas |
+| audit/service policy | REUSE_WITH_CHANGE | generic policy and TaskRun operations |
 
-## Replacement
+## Workflow mapping
 
-StructuredPlan/고정 12 section/FILLED·WAIVED 중심을 IdeaVersion/IdeaSource와 신규 domain run으로 대체한다. AnalysisJob을 신규 중심으로 확장하지 않고 TaskRun/TaskAttempt/TaskResult/TaskArtifact 방향을 채택한다. runtime report를 persisted FinalReportVersion으로 대체한다.
+| Backend/package | Frontend/route | API | Entity/table direction | Test direction | Document direction | Target |
+|---|---|---|---|---|---|---|
+| document upload/parser | documents, plan/documents | projects documents | DocumentVersion/StoredFile reuse review | keep parser/storage + add Idea | replace DOCX-centered | IdeaSource FILE |
+| document structure | structured-plan | structured-plans | Plan/Section/MissingField DELETE | replace after Idea/Concept tests | deleted legacy | normalization/Concept |
+| analysis.legal | legal-review | legal-reviews | legal tables DELETE | LegalReviewRun tests | new legal docs | Korean Legal |
+| analysis.feasibility | feasibility | feasibility-assessments | legacy/V8 tables DELETE | Quick/Detailed tests | new analysis docs | assessments |
+| analysis.financial | financial | financial-analyses | financial_analyses DELETE | detailed finance aspect | new analysis docs | Detailed Analysis |
+| persona catalog/recommendation | personas | persona APIs | V2/V9/V17 tables DELETE | PersonaCard tests | new Persona docs | Three-Layer cards |
+| validation.panel | interview | panel-interviews | panel table DELETE | independent interview tests | new Persona docs | PersonaInterview |
+| validation.market | market-response | market-responses | prediction table DELETE | remove | out of scope | none |
+| marketing | validate/marketing | marketing-contents | V18/V20/V25/V2 DELETE later | workspace/binary/comparison | new Marketing docs | MarketingWorkspace |
+| frontend report + V2 reports | report | no persisted report API | replace report entities | version/export tests | Final Report docs | FinalReportVersion |
+| integration.ai adapters | none | Spring direct provider | none | replace adapter tests | AI boundary | AI Server only |
+| AnalysisJob | polling/admin jobs | jobs/latest | analysis_jobs replace | carry claim policy + TaskRun | TaskRun direction | TaskRun family |
 
-## Deletion
-
-legal/feasibility/financial legacy slices, fixed-cluster Persona, persona recommendation, panel interview, market response, legacy marketing workflow와 compatibility route/API를 제거한다. 신규 기능이 같은 이름의 legacy 계약을 암묵적으로 승계하지 않는다.
+Stable /api/v1은 유지 가능하고 신규 Workflow는 /api/v2다. compatibility endpoint/redirect를 추가하지 않는다. V1–V26은 불변이며 신규 migration으로 legacy FK/index/table을 제거한다. 데이터는 이관하지 않는다.

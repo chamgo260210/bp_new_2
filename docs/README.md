@@ -1,7 +1,9 @@
 # Canonical Documentation Index
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Documentation authority, status and navigation
 - Supersedes: docs/current/README.md and docs/current/DOCUMENT_INDEX.md
 - Implementation Status: NOT_STARTED
@@ -25,6 +27,11 @@ Target과 Current가 충돌하면 제품 방향은 Target을 따르되, 실행 �
 - Quality: [테스트 전략](quality/TEST_STRATEGY.md), [Stable Core](quality/STABLE_CORE_REGRESSION.md), [품질 게이트](quality/QUALITY_GATES.md), [인수 기준](quality/ACCEPTANCE_CRITERIA.md)
 - Migration: [Current→Target](migration/CURRENT_TO_TARGET_MAPPING.md), [Legacy 제거](migration/LEGACY_REMOVAL_PLAN.md), [Phase 순서](migration/IMPLEMENTATION_PHASES.md), [문서 제거 manifest](migration/DOCUMENT_REMOVAL_MANIFEST.md)
 - Current implementation: [CURRENT_BASELINE](CURRENT_BASELINE.md)
+
+## Governance and operations
+
+- Governance: [Program status](governance/PROGRAM_STATUS.md), [Phase status](governance/PHASE_STATUS.md), [Phase 0 audit](governance/PHASE0_REPOSITORY_AUDIT.md), [Decision log](governance/DECISION_LOG.md), [Change impact](governance/CHANGE_IMPACT_LEDGER.md), [Verification evidence](governance/VERIFICATION_EVIDENCE.md)
+- Stable Core operations: [Administration](operations/ADMINISTRATION_POLICY.md), [Session and reauthentication](operations/SESSION_AND_REAUTH_POLICY.md), [Audit](operations/AUDIT_POLICY.md), [Service policy](operations/SERVICE_POLICY.md)
 
 ## Non-canonical retained inputs
 

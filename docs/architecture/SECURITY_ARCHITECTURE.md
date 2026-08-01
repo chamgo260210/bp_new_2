@@ -1,13 +1,35 @@
 # Security Architecture
 
 - Status: TARGET_CANONICAL
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Scope: Authentication, authorization, data protection and secure coding
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
+- Scope: Trust boundaries, authorization, secrets and secure processing
 - Supersedes: Legacy security and admin policy documents
 - Implementation Status: NOT_STARTED
 
-JWT/refresh, admin role, Project owner scope와 cross-owner 404를 유지한다. Controller뿐 아니라 repository/service 경계에서 소유권을 강제하고 식별자 존재를 누출하지 않는다.
+## Trust boundaries
 
-비밀값은 환경에서 주입하며 코드·문서·로그에 기록하지 않는다. 외부 응답, 파일명, content type, URL, prompt 입력과 AI 출력을 신뢰하지 않고 길이·schema·허용 목록을 검증한다. 오류 응답은 내부 stack, provider body, credential을 숨긴다.
+| Boundary | Untrusted input | Enforcement |
+|---|---|---|
+| Browser → Spring | token, identifiers, text, file, request metadata | authentication, authorization, owner scope, validation |
+| Spring → AI | AI task request and correlation | internal auth, allowlist, size/schema |
+| AI → provider/MCP | prompt/context, external response | endpoint/credential control, timeout, output validation |
+| AI → Spring | generated JSON/binary/error | identity/schema/provenance/domain validation |
+| Spring → Storage | key, bytes, metadata | generated key, checksum, content allowlist |
 
-RDB와 Object Storage는 Spring만 접근한다. 감사 로그는 보안·관리 동작의 actor, target, result, request correlation을 남기되 민감정보를 최소화한다.
+## Stable Core controls
+
+JWT/refresh lifecycle, admin role, last active administrator protection, reauthentication/action token, session revocation, Project owner scope와 cross-owner 404를 유지한다. Controller뿐 아니라 service/repository query에서 소유권을 강제한다.
+
+## Secrets and privacy
+
+비밀값은 환경 또는 배포 secret mechanism으로 주입하고 코드·문서·client response·audit에 실제 값을 기록하지 않는다. password, token, API key, provider raw body와 불필요한 개인정보는 logging에서 제외한다. 업무 입력을 provider에 전달하는 최소화/redaction 정책은 P2 이후 확정한다.
+
+## Secure coding
+
+파일 path traversal, archive bomb, content spoofing, oversized input, SSRF, redirect, unsafe URL, injection, mass assignment와 stale owner check를 검증한다. AI/MCP 출력은 명령이나 신뢰된 schema가 아니라 untrusted data로 처리한다.
+
+## Audit and failure
+
+보안·관리 action은 actor/target/result/request correlation을 감사하되 secret을 제외한다. public 오류는 resource existence와 내부 topology를 누출하지 않는다. 상세 운영 정책은 [operations](../operations/ADMINISTRATION_POLICY.md)를 따른다.

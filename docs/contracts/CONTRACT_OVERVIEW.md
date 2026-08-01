@@ -1,7 +1,9 @@
 # Contract Overview
 
 - Status: DRAFT_CONTRACT
-- Last Reviewed Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
+- Document Phase: P1
+- Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Contract layers and Phase 2 boundaries
 - Supersedes: Legacy API and AI contracts
 - Implementation Status: NOT_STARTED
