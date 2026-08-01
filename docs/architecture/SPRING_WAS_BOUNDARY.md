@@ -18,7 +18,7 @@ TaskRun은 업무 요청과 현재 최종 상태의 source of truth다. TaskAtte
 
 사용자 파일은 Spring multipart 또는 후속 public upload contract를 통해 들어온다. 초기 allowlist는 DOCX와 일반 텍스트다. Spring이 owner, policy, filename, content type, size, checksum을 검증하고 metadata와 bytes를 각각 RDB/Storage에 저장한 뒤 내용을 추출한다. AI Server에는 추출 text만 전달한다.
 
-AI JSON 작업은 Spring이 특정 input version을 snapshot/reference하여 bounded inline request와 필요한 text chunk 배열을 만들고 TaskAttempt identity, idempotency key, input hash와 함께 AI Server에 전달한다. 상한을 넘고 chunk contract로 표현할 수 없는 입력은 `PAYLOAD_TOO_LARGE`로 종료한다. 응답은 identity, type/version, size/schema, provenance, domain invariants를 검증한 뒤에만 채택한다.
+AI JSON 작업은 Spring이 특정 input version을 snapshot/reference하여 bounded inline request와 필요한 text chunk 배열을 만들고 TaskAttempt identity, canonical input hash와 함께 [Internal Spring–AI API v1 Contract](../contracts/INTERNAL_AI_API_V1_CONTRACT.md)로 전달한다. 상한을 넘고 chunk contract로 표현할 수 없는 입력은 `PAYLOAD_TOO_LARGE`로 종료한다. 응답은 identity, type/version, size/schema, provenance, domain invariants를 독립 검증한 뒤에만 한 번 채택한다. Network ambiguity에 따른 at-least-once 실행 가능성을 허용하되 AI Server durable idempotency를 전제로 하지 않는다.
 
 초기 계약은 AI binary/streaming transport를 정의하지 않는다. 후속 확장에서도 Storage URL, presigned URL 또는 임시 공유 Storage를 AI Server에 제공하지 않으며 Spring이 bytes를 받아 검증하고 Storage에 기록해야 한다.
 

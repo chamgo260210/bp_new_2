@@ -12,6 +12,8 @@
 
 AI Server는 Agent, MCP, model, prompt, AI 평가, provider client와 provider 오류 정규화를 관리한다. Korean Legal Review에서는 coordinated source adapter로 법제처 API의 공식 근거 확인과 법령 MCP의 검색·탐색을 조정한다. 법령 연동 secret은 AI Server 환경변수로만 주입하며 배포 secret mechanism을 사용하더라도 환경변수로 제공한다.
 
+[Internal Spring–AI API v1 Contract](../contracts/INTERNAL_AI_API_V1_CONTRACT.md)에 따라 AI Server는 `/internal/v1/ai/executions`에서 한 TaskAttempt를 동기 실행하는 stateless service다. 업무 queue, callback, webhook 또는 durable idempotency를 소유하지 않는다. 실행은 network ambiguity로 중복될 수 있고 Spring만 결과를 단일 채택한다.
+
 Spring이 bounded inline JSON으로 전달한 task input과 추출 text/chunk만 사용하며 Project, owner, DB entity, FILE bytes 또는 Storage object를 직접 조회하지 않는다. 결과는 Spring이 검증할 수 있는 identity, contract version, provenance, warning/error 방향을 포함한다. 법률 결과는 source channel, 조회 시각, 법령 식별자, 조문, degraded 상태와 전문가 검토 필요 방향을 반환한다.
 
 ## Hard prohibitions
@@ -22,6 +24,8 @@ Spring이 bounded inline JSON으로 전달한 task input과 추출 text/chunk만
 - 업무 입력·결과의 local file persistence
 - browser가 호출하는 public endpoint
 - TaskRun 최종 상태나 사용자 결정을 자체 확정
+- 사용자 JWT/session과 Spring entity serialization 수신
+- FILE bytes/base64/binary payload 수신 또는 반환
 
 ## Trust boundary
 

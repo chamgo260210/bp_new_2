@@ -24,7 +24,7 @@ Spring이 RDB와 Object Storage의 유일한 관리 주체다. RDB는 aggregate 
 
 ## AI JSON result
 
-AI Server가 JSON을 Spring response로 반환한다. Spring은 task identity, contract version, body size, schema, provenance와 domain invariant를 검증한다. 검증 실패 결과는 domain table에 채택하지 않고 TaskAttempt 실패 evidence로 제한한다.
+AI Server가 [internal v1 contract](../contracts/INTERNAL_AI_API_V1_CONTRACT.md)의 bounded JSON을 Spring response로 반환한다. Spring은 task identity, canonical input hash, contract version, body size, schema, request-local reference, provenance와 domain invariant를 검증한다. 검증 실패 결과는 domain table에 채택하지 않고 TaskAttempt 실패 evidence로 제한한다. AI Server는 RDB/Storage lookup을 하지 않으며 request-local key를 Spring이 실제 Domain reference로 매핑한다.
 
 ## AI binary result
 

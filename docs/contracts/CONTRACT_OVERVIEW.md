@@ -8,6 +8,6 @@
 - Supersedes: Legacy API and AI contracts
 - Implementation Status: NOT_STARTED
 
-계약은 public `/api/v2`, Spring↔AI internal API, 상태·오류, provenance로 분리한다. P2 계약은 provider/model/SDK/library-neutral이며 bounded inline JSON, state + capability, shared input snapshot과 TaskRun/TaskAttempt 분리를 전제로 한다. Logical field semantics와 cardinality는 P2.2, workflow/task/status/error semantics는 P2.3, public endpoint/JSON schema는 [Public API v2 Contract](PUBLIC_API_V2_CONTRACT.md)에서 정의한다. Internal Spring–AI JSON은 P2.5, fixture/consistency는 P2.6에서 완성한다. 물리 DB schema는 구현 migration Phase 전 별도 검토한다.
+계약은 public `/api/v2`, Spring↔AI internal API, 상태·오류, provenance로 분리한다. P2 계약은 provider/model/SDK/library-neutral이며 bounded inline JSON, state + capability, shared input snapshot과 TaskRun/TaskAttempt 분리를 전제로 한다. Logical field semantics와 cardinality는 P2.2, workflow/task/status/error semantics는 P2.3, public endpoint/JSON schema는 [Public API v2 Contract](PUBLIC_API_V2_CONTRACT.md), 동기 TaskAttempt 실행과 11개 AI task schema는 [Internal Spring–AI API v1 Contract](INTERNAL_AI_API_V1_CONTRACT.md)에서 정의한다. Fixture/consistency는 P2.6에서 완성한다. 물리 DB schema는 구현 migration Phase 전 별도 검토한다.
 
 불변조건은 Frontend→Spring, AI Server→Spring-only, Spring data/storage ownership, owner scope, TaskRun source of truth, version/provenance 보존이다. AI 제안, 사용자 결정, 외부 출처 사실과 가정은 구분한다.

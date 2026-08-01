@@ -82,3 +82,7 @@ Error code는 한 envelope에서 하나의 primary code로 사용하고 세부 f
 - 동일 subject/input active TaskRun 충돌은 `TASK_ALREADY_RUNNING`; idempotency key/input 불일치는 `IDEMPOTENCY_CONFLICT`로 구분한다.
 
 상세 JSON error envelope, field error shape, command/query별 error subset과 response example은 [Public API v2 Contract](PUBLIC_API_V2_CONTRACT.md)를 따른다. 이 문서는 `docs/api/openapi.yaml`을 변경하거나 현재 구현 계약으로 선언하지 않는다.
+
+## Internal AI error mapping
+
+Spring–AI 내부 오류는 [Internal Spring–AI API v1 Contract](INTERNAL_AI_API_V1_CONTRACT.md)의 12개 provider-neutral code를 사용한다. `PAYLOAD_TOO_LARGE`는 public 동명 code, `DEADLINE_EXCEEDED`는 `TASK_TIMEOUT`, dependency/rate/retryable execution 실패는 `AI_SERVICE_UNAVAILABLE`, result/unsupported contract 오류는 `AI_RESULT_INVALID`로 안전하게 정규화한다. 이미 수락된 TaskRun의 내부 HTTP 오류는 public TaskRun terminal state/errorSummary로 저장되고 조회는 계속 200이다.
