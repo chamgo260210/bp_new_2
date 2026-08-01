@@ -2,7 +2,7 @@
 
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Document Phase: P1.1
+- Document Phase: P2
 - Introduced In Commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
 - Scope: P0 through P13 status and handoff register
 - Supersedes: None
@@ -34,23 +34,29 @@
 
 ## P1.1 — Documentation Hardening and Governance
 
-- 상태: COMPLETE_WITH_CARRYOVER
+- 상태: COMPLETE
 - 시작 branch/commit: refoundation/phase1-canonical-docs / 1549a8efa0aeb2ca400f4795c1c44b34868e4722
-- 완료 commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
+- 문서 hardening commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
+- closure commit: 41fd90e9fbbe63751ca42025551f11d17375d864
+- PostgreSQL baseline test fix: PR #15 / commit c7baa9b4b466c9872dd66dc51526099e1a820412 / merge commit 19687dc0ae385d87c2369abd074eaf5cb32ffb89
+- canonical docs merge: PR #14 / merge commit 6c43f97c884127257a5a733025475d60fd81ca21
 - 범위/산출물: governance, operations, decision/change/evidence, canonical hardening
-- 실행 검증: 1549a8e→80ce95b compare, links, metadata, governance columns, protected paths
-- 미해결 항목: PR Remote CI와 main merge
-- 다음 조건: PR CI 성공 및 main merge 후 P2 시작
+- 실행 검증: 1549a8e→80ce95b compare, links, metadata, governance columns, protected paths; PR #15의 backend, PostgreSQL, frontend, Docker E2E, contract-and-security, dependency-review 성공; PR #14 최종 CI 성공
+- 미해결 항목: 없음
+- 다음 조건: 충족
 - 받은 결정/전달 결정: P1 Target/P0 baseline → P2 open decisions와 P0~P13 guardrails
 
 ## P2 — Domain and Contract Definition
 
-- 상태: BLOCKED
-- 시작/완료 branch·commit: 미정
-- 범위/산출물: domain, workflow state/gate, provenance, public/internal AI contracts
-- 실행 검증: contract consistency/drift 예정
-- 미해결 항목: P1.1 PR Remote CI와 main merge, P2 open decisions
-- 다음 조건: P1.1 PR CI 성공 및 main merge
+- 상태: IN_PROGRESS
+- 시작 branch/commit: refoundation/phase2-domain-contracts / 6c43f97c884127257a5a733025475d60fd81ca21
+- 완료 branch/commit: 미정
+- 범위/산출물: domain, workflow state/gate, provenance, public API contract, internal AI API contract, analysis input/output contract
+- 금지: production feature implementation 및 신규 migration
+- 실행 검증: contract consistency/drift와 fixture/schema 정합성 검증 예정
+- 미해결 항목: P2 due open decisions와 implementation-ready schema/contract/fixture
+- 완료 조건: P2 due decision 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증
+- 다음 조건: 완료 조건 충족 후 P3 시작
 - 받은 결정/전달 결정: P1.1 guardrails → P3 implementation-ready contract
 
 ## P3 — Stable Platform Guard and TaskRun Foundation

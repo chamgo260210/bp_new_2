@@ -2,7 +2,7 @@
 
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Document Phase: P1
+- Document Phase: P2
 - Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: P0 through P13 delivery guardrails
 - Supersedes: Legacy phase readiness and changelog documents
@@ -12,8 +12,8 @@
 |---|---|---|---|---|---|---|---|---|---|
 | P0 | code-based baseline audit | repository access | read-only inspection | file/code/schema change | inventory/classification/risk | branch/HEAD/status/reference searches | audit reported with clean tree | audit document initially absent | P1 decisions available |
 | P1 | canonical documentation reset | P0 findings | docs deletion/addition, design move | product code, migration, CI, OpenAPI | canonical doc sets | links, metadata, diff, machine inputs | canonical structure committed | governance/detail correction | P1.1 complete |
-| P1.1 | governance and hardening | P1 commit 1549a8e | docs except design/OpenAPI | code, migration, CI, OpenAPI, legacy restore | governance/operations/detail | links/metadata/tables/diff/no-code | commit 80ce95b complete | PR CI/main merge | P2 blocked until merge |
-| P2 | domain and contract definition | P1.1 PR CI/main merge | contract decisions/docs/fixtures | production feature implementation | implementation-ready contracts | consistency/drift review | due decisions resolved | implementation choices | P3 ready |
+| P1.1 | governance and hardening | P1 commit 1549a8e | docs except design/OpenAPI | code, migration, CI, OpenAPI, legacy restore | governance/operations/detail | links/metadata/tables/diff/no-code, PR #14/#15 Remote CI | hardening·closure·CI remediation가 main merge commit 6c43f97에 포함 | 없음 | P2 entry condition 충족 |
+| P2 | domain and contract definition | P1.1 COMPLETE, main merge commit 6c43f97 | contract decisions/docs/schema/fixtures | production feature implementation, 신규 migration | domain/workflow/provenance/public API/internal AI/analysis implementation-ready contracts와 fixtures | consistency/drift/fixture review | P2 due decisions 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증 | provider/model 등 slice별 구현 선택 | P3 ready |
 | P3 | Stable Platform/TaskRun | P2 COMPLETE | tests, /api/v2 base, TaskRun, boundary | P4+ product slices | platform migration/code/contracts | Stable Core/Flyway/AI/FastAPI | forbidden connections and state ownership verified | performance tuning | P4 ready |
 | P4 | Idea/Normalization/Legal | P3, OD-001/002/009 | Idea/Legal slices | Concept+ ahead | API/domain/UI/AI/provenance | owner/file/legal/error/E2E | correction loop/sources verified | optional formats | P5 inputs ready |
 | P5 | Concept/Quick | P4, Concept contract | concept/version/quick | detailed/selection ahead | candidate/quick slices | provenance/AI/owner/frontend | shortlist inputs verified | scoring refinement | P6 ready |
