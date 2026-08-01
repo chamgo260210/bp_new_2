@@ -52,7 +52,8 @@
 - 시작 branch/commit: refoundation/phase2-domain-contracts / 6c43f97c884127257a5a733025475d60fd81ca21
 - 완료 branch/commit: 미정
 - 범위/산출물: domain, workflow state/gate, provenance, public API contract, internal AI API contract, analysis input/output contract
-- 금지: production feature implementation 및 신규 migration
+- 허용 schema/contract: logical domain schema, state and cardinality definitions, public/internal API JSON schema, contract examples and fixtures
+- 금지: Flyway migration, JPA entity implementation, physical production table creation, Controller/Service runtime implementation
 - 실행 검증: contract consistency/drift와 fixture/schema 정합성 검증 예정
 - 미해결 항목: P2 due open decisions와 implementation-ready schema/contract/fixture
 - 완료 조건: P2 due decision 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증
