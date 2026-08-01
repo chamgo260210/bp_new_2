@@ -54,7 +54,8 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | Project | Project | Mutable root revision | Project status + stage | Required | current references는 사용자 gate와 검증된 결과만 가리킴 |
 | IdeaSource | Project | Content immutable; lifecycle mutable | received/validated/extracted/rejected/quarantined/archived | Lifecycle update required | USER source; FILE bytes/metadata는 Spring 소유 |
 | IdeaSourceExtraction | IdeaSource | Immutable extraction version | succeeded/failed + current/stale | No content update | parser/version/checksum과 source reference |
-| IdeaVersion | Project | Immutable, Project-local version sequence | draft/confirmed/superseded + current/stale | Current pointer update required | USER 또는 AI_ASSISTED와 user confirmation 구분 |
+| IdeaInterpretationRun | Project | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact Extraction set, 1:1 TaskRun; AI proposal |
+| IdeaVersion | Project | Immutable, Project-local version sequence | confirmed/superseded + current/stale | Current pointer update required | USER_AUTHORED/AI_ASSISTED와 authenticated confirmation 구분 |
 | LegalReviewRun | Project | Input immutable; adopted business result reference mutable | TaskRun state projection + legal result + current/stale | Required | exact IdeaVersion, 1:1 TaskRun과 legal sources |
 | LegalFinding | LegalReviewRun | Immutable after run completion | active/superseded-by-new-run + current/stale | No content update | assumption과 confirmed source fact 구분 |
 | LegalSourceReference | LegalReviewRun | Immutable observation | authoritative/degraded, freshness/currentness | No content update | MOLEG_API 또는 LEGAL_MCP; secret 제외 |
@@ -92,8 +93,13 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 |---|---:|---|---|---|
 | Project | 1:N | IdeaSource | Composition/history | source는 정확히 한 Project에 속함 |
 | IdeaSource | 1:N | IdeaSourceExtraction | Composition/version | extraction version은 source 안에서 유일; current successful extraction 최대 하나 |
+| Project | 1:N | IdeaInterpretationRun | Composition/execution history | Run은 같은 Project의 exact extraction set을 고정 |
+| IdeaInterpretationRun | N:M | IdeaSourceExtraction | Reference/snapshot | Run은 extraction 하나 이상; extraction은 여러 Run의 입력 가능 |
+| IdeaInterpretationRun | 1:1 | TaskRun | Execution binding | retry는 같은 TaskRun, user rerun은 새 Run/TaskRun |
+| IdeaInterpretationRun | 1:0..1 | TaskResult | Adopted result reference | validated/domain-adopted result 최대 하나 |
 | Project | 1:N | IdeaVersion | Composition/history | version number는 Project 안에서 유일; current 최대 하나 |
 | IdeaVersion | N:M | IdeaSource | Reference | 한 version은 하나 이상 source를 참조할 수 있고 source는 여러 version의 근거가 될 수 있음 |
+| IdeaInterpretationRun | 1:N | IdeaVersion | Confirmation reference | AI_ASSISTED Version은 source Run 하나 필수; USER_AUTHORED는 Run 없이 가능 |
 | IdeaVersion | 1:N | LegalReviewRun | Reference/history | Run은 exact IdeaVersion 하나를 참조 |
 | LegalReviewRun | 1:N | LegalFinding | Composition | finding은 정확히 한 Run 소유 |
 | LegalReviewRun | 1:N | LegalSourceReference | Composition | run-level source registry |
@@ -130,7 +136,7 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | TaskAttempt | 1:0..N | TaskResult | Composition/response evidence | 지연·중복 response 보존; adopted result는 attempt당 최대 하나 |
 | TaskResult | 1:0..N | TaskArtifact | Composition/reference | JSON-only 정상 결과는 artifact가 없을 수 있고, 존재하면 Spring-owned StoredFile metadata만 참조 |
 
-AI-backed Domain Run 범위는 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaCardGenerationRun, PersonaInterview, AI 실행으로 생성되는 InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다. 모든 TaskRun이 Domain Run을 필요로 하지는 않으며 platform task도 허용한다. 어느 경우든 TaskRun subject는 허용된 logical type이고 같은 Project owner scope여야 한다.
+AI-backed Domain Run 범위는 IdeaInterpretationRun, LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaCardGenerationRun, PersonaInterview, AI 실행으로 생성되는 InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다. 모든 TaskRun이 Domain Run을 필요로 하지는 않으며 platform task도 허용한다. 어느 경우든 TaskRun subject는 허용된 logical type이고 같은 Project owner scope여야 한다.
 
 ## Version and current-reference rules
 
@@ -145,6 +151,7 @@ AI-backed Domain Run 범위는 LegalReviewRun, ConceptGenerationRun, QuickAssess
 | Trigger | Affected downstream | Validity/history rule | Current pointer rule | Capability effect |
 |---|---|---|---|---|
 | 새 current IdeaVersion | 이전 IdeaVersion 기반 LegalReviewRun, ConceptGenerationRun과 모든 후속 assessment/decision/persona/marketing/report | 이전 chain을 유지하고 `STALE`; 새 chain은 새 IdeaVersion에서 시작 | 이전 legal 및 모든 downstream current pointer 해제 | 새 legal review 전 concept 이후 capability 차단 |
+| 새 current IdeaSourceExtraction 또는 사용자 source 변경 | 이전 extraction set 기반 IdeaInterpretationRun | 기존 AI proposal/result를 보존하고 input mismatch 시 `STALE` | stale Interpretation은 IdeaVersion confirmation source로 사용하지 않음 | 새 exact input에 대해 `CAN_INTERPRET_IDEA` 재평가 |
 | LegalReview correction으로 새 IdeaVersion | 이전 legal/concept chain 전체 | 기존 결과를 수정하지 않고 보존; correction source를 참조하는 새 IdeaVersion과 새 LegalReviewRun 생성 | accepted legal/concept downstream pointer 해제 | 새 legal result가 gate를 통과할 때까지 `CAN_GENERATE_CONCEPTS` false |
 | 새 current ConceptVersion | 해당 이전 version 기반 Quick/Detailed, ShortlistDecision, ConceptSelection과 그 downstream | exact version 기준으로 `STALE`; 다른 candidate chain은 영향 없음 | stale assessment/decision/selection pointer 해제 | 새 Quick/shortlist/detail/selection gate 재평가 |
 | 새 ShortlistDecision | 제외된 ConceptVersion의 기존 DetailedAnalysisRun | history는 보존하되 current shortlist 근거로는 `STALE`; 다시 포함돼도 자동 current 복구 안 함 | 제외된 version의 detailed current reference 해제 | 제외 항목의 `CAN_RUN_DETAILED_ANALYSIS` false; 재포함 시 재검증 |

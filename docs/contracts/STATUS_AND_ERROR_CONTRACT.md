@@ -74,6 +74,7 @@ Error code는 한 envelope에서 하나의 primary code로 사용하고 세부 f
 
 ## Gate-specific semantics
 
+- Idea interpretation은 same-Project의 current validated extraction 하나 이상, AI policy와 bounded payload를 요구한다. Missing/unfinished extraction은 `UPSTREAM_NOT_READY`, stale extraction은 `STALE_RESOURCE`, 같은 exact input의 active Task는 `TASK_ALREADY_RUNNING`이다.
 - Legal gate는 exact current IdeaVersion의 adopted `PASS` 또는 `PASS_WITH_CONDITIONS`만 concept generation을 허용한다. 나머지 legal result는 `LEGAL_GATE_BLOCKED`다.
 - Shortlist/Selection은 USER decision이다. AI rank/recommendation 부재나 존재가 자동 결정으로 전환되지 않는다.
 - Detailed command의 ConceptVersion이 current ShortlistDecision에 없으면 `CAPABILITY_NOT_AVAILABLE` 또는 stale exact reference이면 `STALE_RESOURCE`다.

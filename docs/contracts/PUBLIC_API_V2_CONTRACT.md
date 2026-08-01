@@ -150,7 +150,7 @@ Primary error code는 하나다. `details`에는 권한 확인된 identifier와 
 
 `GET /api/v2/projects/{projectId}/workflow` → 200 `WorkflowSummaryResponse`.
 
-Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 13개 `capabilities`, `currentReferences`, `blockers`, `staleResourceSummary`, `activeTaskRuns`, `updatedAt`을 포함한다. Current references는 ideaVersion, legalReviewRun, shortlistDecision, conceptSelection, personaStudy, marketingWorkspaceVersion, finalReportVersion을 nullable `ResourceReference`로 표현한다. Capability는 Spring이 계산한 결과이며 저장된 business state가 아니다.
+Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 14개 `capabilities`, `currentReferences`, `blockers`, `staleResourceSummary`, `activeTaskRuns`, `updatedAt`을 포함한다. Current references는 ideaVersion, legalReviewRun, shortlistDecision, conceptSelection, personaStudy, marketingWorkspaceVersion, finalReportVersion을 nullable `ResourceReference`로 표현한다. Capability는 Spring이 계산한 결과이며 저장된 business state가 아니다.
 
 ## 7. Endpoint catalog and capability binding
 
@@ -163,6 +163,9 @@ Response는 `projectId`, `projectStatus`, `workflowStage`, `projectRevision`, 13
 | POST | `/api/v2/projects/{projectId}/idea-sources/files` | FILE source upload | sync | 201 | R | `CAN_EDIT_IDEA` |
 | GET | `/api/v2/projects/{projectId}/idea-sources` | source history | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/idea-sources/{ideaSourceId}` | source 조회 | sync | 200 | N | authenticated owner |
+| POST | `/api/v2/projects/{projectId}/idea-interpretation-runs` | AI interpretation/normalization proposal | async | 202 | R | `CAN_INTERPRET_IDEA` |
+| GET | `/api/v2/projects/{projectId}/idea-interpretation-runs` | interpretation history | sync | 200 | N | authenticated owner |
+| GET | `/api/v2/projects/{projectId}/idea-interpretation-runs/{runId}` | interpretation run 조회 | sync | 200 | N | authenticated owner |
 | POST | `/api/v2/projects/{projectId}/idea-versions` | immutable IdeaVersion 생성 | sync | 201 | R | `CAN_EDIT_IDEA` |
 | GET | `/api/v2/projects/{projectId}/idea-versions` | version history | sync | 200 | N | authenticated owner |
 | GET | `/api/v2/projects/{projectId}/idea-versions/{ideaVersionId}` | version 조회 | sync | 200 | N | authenticated owner |
@@ -238,20 +241,53 @@ TEXT source command body:
 
 FILE source는 `file` part가 required이고 `metadata` JSON part는 optional이다. 초기 media type은 DOCX와 `text/plain`만 허용한다. Spring이 size, filename normalization, content type/magic bytes, checksum, malware policy를 검증하고 저장·추출한다. Response는 `IdeaSourceView`와 `IdeaSourceExtractionView`만 포함하며 object key, local path, Storage/presigned URL을 포함하지 않는다.
 
-IdeaVersion create body:
+Idea Interpretation command body:
+
+```json
+{
+  "ideaSourceExtractionIds": ["extraction-id"],
+  "interpretationOptions": {},
+  "expectedProjectRevision": 12
+}
+```
+
+Extraction id는 같은 Project의 exact `CURRENT` validated record 하나 이상이고 중복할 수 없다. `interpretationOptions`는 optional bounded allowlist이며 unknown option은 `VALIDATION_ERROR`다. FILE bytes, Storage URL/object key/presigned URL/local path는 받지 않는다. Spring이 verified extracted text/chunks만 internal AI request로 전달한다.
+
+Principal command errors는 `VALIDATION_ERROR`, `RESOURCE_NOT_FOUND`, `STALE_RESOURCE`, `CAPABILITY_NOT_AVAILABLE`, `POLICY_BLOCKED`, `UPSTREAM_NOT_READY`, `TASK_ALREADY_RUNNING`, `IDEMPOTENCY_CONFLICT`, `PAYLOAD_TOO_LARGE`, `AI_SERVICE_UNAVAILABLE`다. 202 accepted 이후 실패는 TaskRun GET 200의 terminal state와 `errorSummary`로 표현한다.
+
+IdeaInterpretationRun은 TaskRun과 1:1로 생성되고 AI proposal만 만든다. Adopted result 전에는 readiness와 normalized content가 nullable이다. Result는 original source summary, normalizedDescription, structured facts/assumptions/constraints/openQuestions, readiness, warnings, evidenceNeeds와 provenance를 구분한다. `UNDER_SPECIFIED`는 필요한 정보/open question, `APPROPRIATE`는 적정 정규화, `OVER_SPECIFIED`는 사용자 제약을 보존하면서 과도한 세부를 정리한다. AI는 불명확한 항목을 fact로 승격하거나 사용자 constraint를 임의 삭제하지 않는다.
+
+IdeaVersion create는 `creationMode`에 따라 분리된다. 공통 required field는 `ideaSourceIds`, `ideaSourceExtractionIds`, `expectedProjectRevision`, `confirmation`이다. `confirmation`은 authenticated user가 수행하며 client actor id를 받지 않는다.
+
+```json
+{
+  "accepted": true,
+  "editRationale": "optional bounded text"
+}
+```
+
+`accepted`는 항상 true여야 한다. Proposal 거절은 Version 생성 없이 종료한다. `editRationale`은 optional non-null bounded text다.
+
+| Creation mode | Required fields | Forbidden fields | Server-derived provenance |
+|---|---|---|---|
+| `USER_AUTHORED` | `normalizedDescription`, structured `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness` | `interpretationRunId`, `adoptedInterpretationResultId`, `createdBy`, `confirmedByUser`, actor id | `createdBy=USER`, authenticated confirmation actor/time |
+| `AI_ASSISTED` | `interpretationRunId`, `adoptedInterpretationResultId`, final `normalizedDescription`, structured `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness` | `createdBy`, `confirmedByUser`, actor id | `createdBy=AI_ASSISTED`, exact proposal/result, authenticated confirmation과 proposal 대비 변경 |
+
+AI_ASSISTED는 exact `CURRENT` IdeaInterpretationRun의 validated/adopted result만 허용한다. Proposal을 그대로 또는 수정해 확정할 수 있지만 final snapshot 전체를 전송하고 변경 provenance를 보존한다. USER_AUTHORED는 InterpretationRun 없이 가능하다. IdeaVersion은 항상 immutable이며 새 확정은 새 Version과 downstream stale propagation을 만든다.
+
+Structured idea item 공통 shape:
 
 | Field | Presence | Contract |
 |---|---|---|
-| `ideaSourceIds` | required, non-null | 같은 Project의 opaque ids, 1개 이상, 중복 금지 |
-| `originalUserInput` | required, non-null | source를 기반으로 확정할 사용자 입력 snapshot |
-| `normalizedDescription` | required, non-null | normalized description |
-| `facts`, `assumptions`, `constraints`, `openQuestions` | required, non-null arrays | 각 원소는 bounded text + provenance reference 방향; 0개는 empty array |
-| `readiness` | required | `UNDER_SPECIFIED`, `APPROPRIATE`, `OVER_SPECIFIED` |
-| `createdBy` | required | `USER`, `AI_ASSISTED`; AI-assisted도 user confirmation을 대체하지 않음 |
-| `confirmedByUser` | required | boolean |
-| `expectedProjectRevision` | required | non-negative integer representation |
+| `key` | required, non-null | response/request snapshot 안에서 안정적인 bounded local key |
+| `text` | required, non-null | bounded statement |
+| `provenanceCategory` | required | `USER_INPUT`, `EXTERNAL_SOURCE_FACT`, `ASSUMPTION`, `AI_PROPOSAL`, `USER_DECISION` 중 해당 값 |
+| `sourceReferences` | required, non-null array | exact public-safe ResourceReference; 근거 없음은 empty array |
+| `confidence` | optional, non-null | bounded qualitative enum direction; fact 확정 의미가 아님 |
+| `uncertainty` | optional, non-null | bounded explanation |
+| `verificationNeeded` | required | boolean |
 
-새 IdeaVersion은 이전 immutable version을 수정하지 않고 downstream stale propagation을 적용한다.
+P2.5 internal contract와 P2.6 fixtures는 이 `IdeaStatementItem` 의미를 동일하게 재사용한다.
 
 ### 8.2 Legal review
 
@@ -383,7 +419,8 @@ Cancel POST는 idempotent하며 200 current TaskRun view를 반환한다. 이미
 
 | Capability | Command endpoints | Required exact current references | Mode/status | Principal additional errors |
 |---|---|---|---|---|
-| `CAN_EDIT_IDEA` | idea source/version POST | active editable Project와 current Idea context | sync 201 | `CONFLICT`, `STALE_RESOURCE`, `PAYLOAD_TOO_LARGE` |
+| `CAN_EDIT_IDEA` | idea source와 user-authored/final IdeaVersion confirmation POST | active owner-scoped Project와 exact source/extraction context | sync 201 | `CONFLICT`, `STALE_RESOURCE`, `PAYLOAD_TOO_LARGE` |
+| `CAN_INTERPRET_IDEA` | idea-interpretation-runs POST | 하나 이상의 current validated IdeaSourceExtraction | async 202 | `UPSTREAM_NOT_READY`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `PAYLOAD_TOO_LARGE`, `AI_SERVICE_UNAVAILABLE` |
 | `CAN_RUN_LEGAL_REVIEW` | legal-review-runs POST | confirmed current IdeaVersion | async 202 | `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `AI_SERVICE_UNAVAILABLE` |
 | `CAN_GENERATE_CONCEPTS` | concept-generation-runs와 ConceptVersion user-edit POST | current IdeaVersion + passing current LegalReviewRun; edit은 exact candidate/base version | async 202 또는 sync 201 | `LEGAL_GATE_BLOCKED`, `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `CONFLICT` |
 | `CAN_RUN_QUICK_ASSESSMENT` | quick-assessment-runs POST | exact current ConceptVersion | async 202 | `STALE_RESOURCE`, `TASK_ALREADY_RUNNING`, `AI_RESULT_INVALID` |
@@ -411,7 +448,13 @@ Task retry/cancel capability는 TaskRun의 `retryable`/`cancelable`, lifecycle, 
 | `TaskRunPublicView` | `id`, `taskType`, `subject`, `state`, `retryable`, `cancelable`, `correlationId`, `createdAt` | none | `startedAt`, `finishedAt`, `errorSummary`, `resultResource` |
 | `IdeaSourceView` | `id`, `sourceType`, `lifecycle`, `createdAt` | FILE이면 sanitized `fileName`, `mediaType`, `size` | `sourceLabel` |
 | `IdeaSourceExtractionView` | `id`, `ideaSourceId`, `state`, `extractionVersion`, `createdAt` | `warnings` | `finishedAt`, `failureSummary` |
-| `IdeaVersionView` | `id`, `version`, `sourceReferences`, `originalUserInput`, `normalizedDescription`, `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness`, `createdBy`, `confirmedByUser`, `validity`, `createdAt` | none | none |
+| `IdeaInterpretationRunCreateRequest` | `ideaSourceExtractionIds`, `expectedProjectRevision` | `interpretationOptions` | none |
+| `IdeaInterpretationResultView` | `originalSourceSummary`, `normalizedDescription`, `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness`, `warnings`, `evidenceNeeds`, `provenance` | none | none |
+| `IdeaInterpretationRunView` | `id`, `sourceExtractions`, `execution`, `validity`, `facts`, `assumptions`, `constraints`, `openQuestions`, `warnings`, `evidenceNeeds`, `provenance`, `createdAt` | none | `readiness`, `normalizedDescription`, `adoptedResult` |
+| `IdeaStatementItem` | `key`, `text`, `provenanceCategory`, `sourceReferences`, `verificationNeeded` | `confidence`, `uncertainty` | none |
+| `IdeaVersionConfirmation` | `accepted` | `editRationale` | none |
+| `IdeaVersionCreateRequest` | `creationMode`, `ideaSourceIds`, `ideaSourceExtractionIds`, `normalizedDescription`, `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness`, `expectedProjectRevision`, `confirmation` | mode-dependent `interpretationRunId`, `adoptedInterpretationResultId` | none |
+| `IdeaVersionView` | `id`, `version`, `creationMode`, `sourceReferences`, `sourceExtractionReferences`, `normalizedDescription`, `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness`, `createdBy`, `confirmation`, `validity`, `createdAt` | `proposalChanges` | `interpretationRun`, `adoptedInterpretationResult` |
 | `LegalReviewRunView` | `id`, `ideaVersion`, `execution`, `validity`, `findings`, `sourceReferences`, `sourceCoverage`, `warnings`, `createdAt` | none | `legalResult`, `adoptedResult` |
 | `LegalFindingView` | `id`, `findingType`, `severity`, `claim`, `affectedIdeaElement`, `requiredAction`, `provenanceCategory` | `sourceReferenceIds` | none |
 | `LegalSourceReferenceView` | `id`, `sourceChannel`, `lawIdentifier`, `lawName`, `article`, `observedAt`, `currentness`, `authoritative`, `degraded` | `officialSourceUrl` | none |
@@ -454,4 +497,8 @@ All list responses wrap the corresponding view array with `CursorPage`. `executi
 
 ## 12. P2.5 and P2.6 handoff
 
-P2.5는 이 public command를 Spring–AI bounded inline JSON request/result contract에 매핑한다. Public identifier나 owner context를 AI Server가 RDB에서 resolve하게 하지 않는다. P2.6은 schema examples/fixtures, canonical request hashing, enum/status/error drift, endpoint-capability matrix와 nullable/omitted behavior를 자동 검증한다. OD-008 provider/model/SDK/library 선택은 provider-dependent implementation slice 전 decision gate로 유지한다.
+P2.5는 `IDEA_INTERPRETATION` Task type을 포함해 이 public command를 Spring–AI bounded inline JSON request/result contract에 매핑한다. Spring은 exact extracted text/chunks, source-safe labels, readiness/normalization options, contract version, correlation/execution identifier, deadline과 canonical input hash만 전달한다.
+
+AI Server에 RDB identifier lookup, Object Storage URL/object key/presigned URL/local path, FILE bytes, JWT, user credential 또는 Spring DB entity serialization을 전달하지 않는다. AI Server는 Spring RDB/Object Storage를 조회하지 않는다. Public identifier나 owner context를 AI Server가 resolve하게 하지 않는다.
+
+P2.6은 schema examples/fixtures, canonical request hashing, `IdeaStatementItem`, enum/status/error drift, endpoint-capability matrix와 nullable/omitted behavior를 자동 검증한다. OD-008 provider/model/SDK/library 선택은 provider-dependent implementation slice 전 decision gate로 유지한다.

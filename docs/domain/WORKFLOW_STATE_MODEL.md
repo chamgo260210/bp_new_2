@@ -40,7 +40,8 @@ Capability는 Spring이 요청 시 계산하는 값이며 별도 업무 source o
 
 | Capability | Required exact current reference / user gate | Policy and conflict direction |
 |---|---|---|
-| `CAN_EDIT_IDEA` | owner-scoped Project가 `ACTIVE` 또는 편집을 허용한 `ON_HOLD`이고 Idea edit lock 없음 | maintenance/project policy와 conflicting normalization command 확인 |
+| `CAN_EDIT_IDEA` | owner-scoped `ACTIVE` Project에서 IdeaSource 또는 user-authored/final IdeaVersion confirmation 가능 | maintenance/project policy와 conflicting confirmation command 확인 |
+| `CAN_INTERPRET_IDEA` | 같은 Project의 `CURRENT` validated IdeaSourceExtraction 하나 이상 | AI policy, bounded payload와 같은 exact input의 conflicting TaskRun 확인; `ARCHIVED` 차단 |
 | `CAN_RUN_LEGAL_REVIEW` | confirmed current IdeaVersion, `CURRENT` | AI execution/legal connection policy 허용; 같은 input의 active TaskRun 없음 |
 | `CAN_GENERATE_CONCEPTS` | current IdeaVersion과 그 version의 adopted `PASS`/`PASS_WITH_CONDITIONS` LegalReviewRun | AI policy 허용; 다른 legal status와 stale legal result는 차단 |
 | `CAN_RUN_QUICK_ASSESSMENT` | current non-stale ConceptVersion | AI policy 허용; 동일 subject/input active TaskRun 없음 |
@@ -58,7 +59,7 @@ Owner scope 실패는 capability false를 노출해 resource 존재를 추론하
 
 ## Domain Run–TaskRun binding
 
-AI-backed Domain Run은 실행 요청이 Spring에 수락되는 transaction에서 정확히 하나의 TaskRun과 결합한다. 대상은 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaCardGenerationRun, PersonaInterview, AI-backed InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다.
+AI-backed Domain Run은 실행 요청이 Spring에 수락되는 transaction에서 정확히 하나의 TaskRun과 결합한다. 대상은 IdeaInterpretationRun, LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaCardGenerationRun, PersonaInterview, AI-backed InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다.
 
 - Domain Run `1:1` TaskRun, TaskRun `1:N` TaskAttempt, TaskAttempt `1:0..N` TaskResult, TaskResult `1:0..N` TaskArtifact다.
 - retry는 동일 TaskRun에 단조 증가하는 새 TaskAttempt를 추가한다.

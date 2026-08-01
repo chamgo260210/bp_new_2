@@ -8,7 +8,7 @@
 - Supersedes: Legacy snapshot and hash contracts
 - Implementation Status: NOT_STARTED
 
-IdeaSource, 외부 법령 근거, Concept/분석/Persona/Marketing 실행, AI 권고, 사용자 선택과 FinalReportVersion의 연결을 추적해야 한다. versioned 결과는 생성 당시 input snapshot/hash와 TaskRun/TaskAttempt를 식별할 수 있어야 한다. AI 제안, 사용자 결정, 외부 출처 사실과 가정을 서로 다른 provenance category로 구분한다.
+IdeaSource/Extraction, IdeaInterpretationRun의 AI proposal, 사용자 IdeaVersion confirmation, 외부 법령 근거, Concept/분석/Persona/Marketing 실행, AI 권고, 사용자 선택과 FinalReportVersion의 연결을 추적해야 한다. versioned 결과는 생성 당시 input snapshot/hash와 TaskRun/TaskAttempt를 식별할 수 있어야 한다. AI 제안, 사용자 결정, 외부 출처 사실과 가정을 서로 다른 provenance category로 구분한다.
 
 Quick와 Detailed는 shared core input provenance를 참조하되 각 analysis-specific 입력·결과를 구분한다. 법률 provenance는 조회 시각, 법령 식별자, 조문과 source channel을 보존하고 한쪽 출처 실패 시 degraded 상태와 누락 출처를 표시한다. provenance는 audit와 다르지만 correlation할 수 있어야 한다.
 

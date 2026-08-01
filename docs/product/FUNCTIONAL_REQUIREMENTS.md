@@ -14,7 +14,7 @@
 | FR-002 | Project는 여러 IdeaVersion과 IdeaSource provenance를 보유한다. | P4 |
 | FR-003 | IdeaSource logical type은 TEXT와 FILE이며 질문 응답 UI 입력은 TEXT source로 기록한다. 초기 FILE allowlist는 DOCX와 일반 텍스트로 제한한다. | P2/P4 |
 | FR-004 | 사용자 입력 수정은 과거 version을 덮어쓰지 않고 새 IdeaVersion을 만든다. | P4 |
-| FR-005 | 시스템은 특정 IdeaVersion을 정규화하고 사용자 확인을 받는다. | P4 |
+| FR-005 | 시스템은 exact IdeaSourceExtraction을 AI로 해석·정규화한 proposal을 제공하고, 인증된 사용자는 이를 그대로 또는 수정해 별도 immutable IdeaVersion으로 확정한다. | P4 |
 | FR-006 | 법률 검토는 법제처 API의 원문·식별자·현재성 확인과 법령 MCP의 검색·탐색을 조정하고 source channel, 조회 시각, 조문, degraded 상태와 `EXPERT_REVIEW_REQUIRED`를 추적한다. | P4 |
 | FR-007 | 법률 실패·수정 후 새 IdeaVersion 또는 LegalReviewRun으로 반복한다. | P4 |
 | FR-008 | 복수 ConceptCandidate와 ConceptVersion을 생성·조회한다. | P5 |
@@ -36,10 +36,11 @@
 | FR-024 | legacy Workflow API/route에 신규 compatibility 경로를 만들지 않고 P12에서 제거한다. | P3–P12 |
 | FR-025 | TaskRun은 업무 요청과 현재 최종 상태를, TaskAttempt는 개별 실행·retry·timeout·오류·응답을 소유하고 polling/event wake에 중립적인 실행 계약을 제공한다. | P3 |
 | FR-026 | AI-backed Domain Run은 요청 수락 후 정확히 하나의 TaskRun과 연결하며 retry는 같은 TaskRun의 새 TaskAttempt, 사용자 rerun은 새 Domain Run과 새 TaskRun으로 기록한다. | P2/P3–P10 |
-| FR-027 | Spring은 Project status, owner scope, Service Policy, exact current reference, lifecycle, validity, user gate와 conflicting TaskRun으로 13개 canonical capability를 계산한다. Capability는 업무 source of truth로 별도 저장하지 않는다. | P2/P3–P10 |
+| FR-027 | Spring은 Project status, owner scope, Service Policy, exact current reference, lifecycle, validity, user gate와 conflicting TaskRun으로 14개 canonical capability를 계산한다. Capability는 업무 source of truth로 별도 저장하지 않는다. | P2/P3–P10 |
 | FR-028 | Domain Run 성공은 TaskRun `SUCCEEDED`만으로 확정하지 않고 exact binding/input, 검증·채택된 TaskResult와 domain validation을 요구한다. Execution lifecycle과 `CURRENT`/`STALE` validity를 분리한다. | P2/P3–P10 |
 | FR-029 | Legal, shortlist, detailed, selection, persona, marketing과 report gate는 exact current non-stale reference와 명시적인 사용자 결정을 적용한다. | P2/P4–P10 |
 | FR-030 | Public/domain 오류는 validation, missing, conflict, stale, capability/policy/gate, task/idempotency, payload, timeout, AI unavailable/invalid 결과를 stable code로 구분하고 provider raw body와 비밀값을 노출하지 않는다. | P2/P3–P10 |
 | FR-031 | PersonaStudy 생성 후 별도 PersonaCardGenerationRun이 exact Study/Selection/ConceptVersion을 입력으로 하나 이상의 versioned synthetic PersonaCard를 생성하며, 사용자 편집은 새 PersonaCardVersion으로 기록한다. | P2/P7 |
+| FR-032 | IdeaVersion creation은 USER_AUTHORED와 AI_ASSISTED를 구분하고, client-supplied createdBy/confirmedByUser가 아니라 authenticated confirmation command를 확정 근거로 사용한다. | P2/P4 |
 
 Logical field semantics와 cardinality는 P2.2, workflow/task/status/error semantics는 P2.3에서 정의한다. 상세 public command/query JSON schema와 error envelope는 P2.4, internal Spring–AI JSON contract는 P2.5에서 결정한다.

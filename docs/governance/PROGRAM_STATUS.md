@@ -21,7 +21,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2.4 — Public API v2 JSON Contract |
+| Current phase | P2.4 Final Correction — Idea Interpretation and Confirmation Flow |
 | P2.3 status | COMPLETE at `cd1c9816a5b716533e3a79c459f42ce09bde3671` |
 | P2.4 status | IN_PROGRESS |
 | Next phase | P3 — Stable Platform Guard and TaskRun Foundation |
@@ -29,7 +29,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.4 Persona Card end-to-end flow와 accepted-Task HTTP semantics correction consistency 검증; 이후 P2.5 internal Spring–AI contract와 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.4 Idea Interpretation와 authenticated IdeaVersion confirmation final correction consistency 검증; 이후 P2.5 internal Spring–AI contract와 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -54,4 +54,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.4 baseline은 commit `ad94d6ba1fe92ebc98e81a69a399753f784c2997`에서 60개 endpoint, 12개 capability, 14개 error와 required schema 30개를 기록했다. Correction은 PersonaCardGenerationRun과 Card version endpoint를 추가하고 accepted TaskRun terminal failure를 GET 200 resource semantics로 분리한다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.4 Persona/async correction은 commit `649bdd950ea728eb1db136f14f4cc4fc119c6c65`에서 64개 endpoint, 13개 capability, Persona Card chain과 accepted TaskRun GET 200 semantics를 기록했다. Final correction은 IdeaInterpretationRun과 authenticated IdeaVersion confirmation을 연결한다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

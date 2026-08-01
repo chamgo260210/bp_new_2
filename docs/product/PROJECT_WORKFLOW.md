@@ -14,13 +14,13 @@ Idea Intake → Idea Normalization → Korean Legal Review → Concept Builder �
 
 ## Stage purposes
 
-Idea 단계는 입력 형식을 일반화하고 현재 IdeaVersion을 만든다. 초기 FILE은 DOCX와 일반 텍스트이며 Spring이 검증·저장·추출한다. Legal 단계는 법제처 API의 공식 근거 확인과 법령 MCP 탐색 결과, degraded 상태와 전문가 검토 필요 여부를 기록한다. Concept/Quick 단계는 모든 후보를 저비용 공통 입력으로 평가한 뒤 상세 분석 비용을 들일 shortlist를 정한다. Detailed 단계는 shortlist 후보에 analysis-specific 입력을 적용하며 Quick 결과를 상세 분석의 사실로 자동 승격하지 않는다.
+Idea 단계는 Source를 수집·추출한 뒤 optional AI Interpretation proposal을 생성하고, 사용자가 검토·수정·확정한 immutable IdeaVersion을 만든다. 초기 FILE은 DOCX와 일반 텍스트이며 Spring이 검증·저장·추출한다. InterpretationRun은 IdeaVersion을 자동 생성하지 않는다. Legal 단계는 법제처 API의 공식 근거 확인과 법령 MCP 탐색 결과, degraded 상태와 전문가 검토 필요 여부를 기록한다. Concept/Quick 단계는 모든 후보를 저비용 공통 입력으로 평가한 뒤 상세 분석 비용을 들일 shortlist를 정한다. Detailed 단계는 shortlist 후보에 analysis-specific 입력을 적용하며 Quick 결과를 상세 분석의 사실로 자동 승격하지 않는다.
 
 Concept Selection은 AI 추천과 구별되는 사용자 gate다. Persona 단계는 Role and Context, Problem and Needs, Behavior and Decision layer를 사용하고 선택된 concept에 종속되며 각 interview는 독립 실행한다. Marketing 단계는 asset workspace와 상대 비교를 제공한다. Report 단계는 선택된 input/result version을 고정한 RDB snapshot이며 HTML view와 Spring이 Storage에 저장한 PDF export를 제공한다.
 
 ## Gate directions
 
-- Idea Normalization 이후 사용자가 현재 아이디어를 확인한다.
+- IdeaSource/Extraction 이후 사용자는 직접 USER_AUTHORED IdeaVersion을 확정하거나 AI Interpretation proposal을 검토·수정해 AI_ASSISTED IdeaVersion을 확정한다.
 - 법률 실패 또는 수정 권고 후 입력 수정과 새 review run을 허용한다.
 - Quick Assessment 이후 사용자가 shortlist를 확정한다.
 - Detailed Analysis 이후 사용자가 concept를 선택한다.
@@ -36,6 +36,7 @@ Capability는 Spring이 Project lifecycle, owner scope, Service Policy, exact cu
 | Workflow gate | Required capability | Required gate/reference | Blocking direction |
 |---|---|---|---|
 | Idea edit | `CAN_EDIT_IDEA` | owner-scoped active/editable Project | maintenance, archive, edit conflict |
+| Idea interpretation | `CAN_INTERPRET_IDEA` | current validated IdeaSourceExtraction 하나 이상 | AI policy, bounded payload, same-input active TaskRun |
 | Legal review | `CAN_RUN_LEGAL_REVIEW` | confirmed current IdeaVersion | stale/missing idea, policy, active same-input task |
 | Concept generation | `CAN_GENERATE_CONCEPTS` | exact current IdeaVersion의 current `PASS` 또는 `PASS_WITH_CONDITIONS` LegalReviewRun | 다른 legal result는 legal gate 차단 |
 | Quick assessment | `CAN_RUN_QUICK_ASSESSMENT` | current exact ConceptVersion | stale candidate/version 또는 task conflict |
