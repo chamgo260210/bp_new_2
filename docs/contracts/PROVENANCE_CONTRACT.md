@@ -25,6 +25,6 @@ Quick와 Detailed는 shared core input provenance를 참조하되 각 analysis-s
 
 모든 Run은 exact input Version/Decision/reference와 snapshot/hash를 가진다. immutable Version은 source set을 고정하고 current pointer를 동적으로 따라가지 않는다. FinalReportVersion은 포함한 upstream reference 집합과 위 category를 snapshot 안에서 구분한다.
 
-Internal result는 `category`, `statementKey`, request-local `sourceKeys`, external source references, 생성 시각, optional confidence/uncertainty, verification 필요 여부와 optional caveat를 분리한다. AI Server는 `USER_DECISION`을 새로 생성하지 않고 요청에 이미 포함된 결정을 echo/reference할 수만 있다. Request-local key는 요청 안에서만 의미가 있으며 Spring이 Domain reference로 매핑한다.
+Internal result는 `category`, `statementKey`, request-local `sourceKeys`, external source references, 생성 시각, optional confidence/uncertainty, verification 필요 여부와 optional caveat를 분리한다. AI Server는 `USER_DECISION`을 새로 생성하지 않고 요청에 이미 포함된 결정을 echo/reference할 수만 있다. Request-local key는 1–64자 bounded syntax와 `INPUT`/`OUTPUT_PROPOSAL` namespace를 사용하고 Spring이 Domain reference로 매핑한다. 외부 authoritative identifier는 별도 schema이며 AI가 입력에 없던 source identity를 임의 생성하지 않는다.
 
 상세 public 표현은 [Public API v2 Contract](PUBLIC_API_V2_CONTRACT.md), internal 표현과 canonical input hash는 [Internal Spring–AI API v1 Contract](INTERNAL_AI_API_V1_CONTRACT.md)를 따른다. Fixture와 hash/재현성 검증은 P2.6에서 결정한다. Retention 기간은 후속 operations/migration Phase에서 확정한다.

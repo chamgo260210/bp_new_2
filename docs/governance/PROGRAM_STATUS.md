@@ -21,7 +21,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2.5 — Internal Spring–AI JSON Contract |
+| Current phase | P2.5 Correction — Exact Internal Schema Registry |
 | P2.3 status | COMPLETE at `cd1c9816a5b716533e3a79c459f42ce09bde3671` |
 | P2.4 status | COMPLETE at `2a667479ba37b3e6c0649124e750ff47f9718188` |
 | P2.5 status | IN_PROGRESS |
@@ -31,7 +31,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.5 internal Spring–AI JSON contract 작성과 consistency 검증; 이후 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.5 exact common/shared/task schema consistency와 review; 이후 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -56,4 +56,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.4는 commit `2a667479ba37b3e6c0649124e750ff47f9718188`에서 IdeaSource → Extraction → InterpretationRun → User Confirmation → IdeaVersion 흐름과 67개 endpoint, 14개 capability를 검증하고 완료했다. P2.5는 provider-neutral internal JSON, 11개 task, bounded chunk/hash, 오류 mapping과 단일 adoption 계약을 작성 중이다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.5 baseline commit `ca22117fd9da65f1b232b9aa34e9d6e085e7ee06`은 provider-neutral internal endpoint, 11개 task, 12개 error와 Spring 단일 adoption 경계를 확정했다. 현재 correction은 Spring DTO와 FastAPI/Pydantic model을 독립 구현할 수 있도록 exact field/presence/nullability/bounds와 P2.6 fixture readiness를 작성 중이다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

@@ -85,4 +85,4 @@ Error code는 한 envelope에서 하나의 primary code로 사용하고 세부 f
 
 ## Internal AI error mapping
 
-Spring–AI 내부 오류는 [Internal Spring–AI API v1 Contract](INTERNAL_AI_API_V1_CONTRACT.md)의 12개 provider-neutral code를 사용한다. `PAYLOAD_TOO_LARGE`는 public 동명 code, `DEADLINE_EXCEEDED`는 `TASK_TIMEOUT`, dependency/rate/retryable execution 실패는 `AI_SERVICE_UNAVAILABLE`, result/unsupported contract 오류는 `AI_RESULT_INVALID`로 안전하게 정규화한다. 이미 수락된 TaskRun의 내부 HTTP 오류는 public TaskRun terminal state/errorSummary로 저장되고 조회는 계속 200이다.
+Spring–AI 내부 오류는 [Internal Spring–AI API v1 Contract](INTERNAL_AI_API_V1_CONTRACT.md)의 12개 provider-neutral code를 사용한다. `PAYLOAD_TOO_LARGE`는 public 동명 code, `DEADLINE_EXCEEDED`는 `TASK_TIMEOUT`, dependency/rate/transient execution 실패는 `AI_SERVICE_UNAVAILABLE`, result/unsupported contract 오류는 `AI_RESULT_INVALID`로 안전하게 정규화한다. Retryable은 stable code/reason으로 고정하고 실제 새 Attempt 생성은 Spring RetryPolicy와 attempt limit가 결정한다. 인증/parse/size pre-parse 실패는 신뢰하지 못한 task identifier를 null로 반환한다. 이미 수락된 TaskRun의 내부 HTTP 오류는 public TaskRun terminal state/errorSummary로 저장되고 조회는 계속 200이다.
