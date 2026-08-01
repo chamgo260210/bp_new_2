@@ -1,0 +1,8 @@
+{
+  "references": [
+    {
+      "key": "ref-1",
+      "resourceType": "WRONG_TYPE"
+    }
+  ]
+}

@@ -228,9 +228,15 @@ Input은 exact immutable upstream snapshots, facts, legalSources, AI proposals, 
 
 기본 log 허용값은 correlationId, taskType, taskSchemaVersion, duration, HTTP/status, canonical input hash prefix, safe error code다. 사용자 전체 text, prompt, raw model response, JWT, service token, credential, legal API secret, FILE content, 개인정보, Storage identifier는 기록하지 않는다. Debug content logging은 기본 비활성화다. AI Server는 RDB/Object Storage를 조회하지 않고 FILE bytes, Storage URL/key, presigned URL, local path, base64/binary를 받거나 반환하지 않는다.
 
-## 13. P2.6 fixture case manifest
+## 13. P2.6 fixture and validator source
 
-P2.6은 fixture 파일과 자동 consistency check를 만든다. 최소 case는 다음과 같다.
+P2.6 verification source는 [fixture root](fixtures/internal-ai-v1/README.md), `manifest.json`과 `validate_fixtures.py`다. Validator는 다음 명령으로 실행한다.
+
+```text
+python docs/contracts/fixtures/internal-ai-v1/validate_fixtures.py
+```
+
+Fixture case manifest는 다음 범위를 포함한다.
 
 - common execution request success와 common internal error
 - chunk order/hash success, chunk gap failure, canonical input hash fixture
@@ -1034,7 +1040,7 @@ Spring은 `reportDecision` value equality, exact upstream references와 category
 
 ## 17. P2.6 fixture readiness matrix
 
-`required`는 P2.6에서 실제 JSON fixture를 생성해야 한다는 뜻이며 이번 correction에서는 파일을 만들지 않는다. Final correction 기준 named field-table schema는 common 13개, shared 30개, task input/result 22개로 총 65개다.
+`required`는 P2.6 fixture/validator coverage gate에 포함되어야 한다는 뜻이다. Final correction 기준 named field-table schema는 common 13개, shared 30개, task input/result 22개로 총 65개다. 실제 실행 결과는 이 narrative에 복사하지 않고 validator 출력과 [fixture root](fixtures/internal-ai-v1/README.md)를 verification source로 사용한다.
 
 | Schema | Positive fixture required | Negative fixture required | Critical invariant | Public/domain matching source | P2.6 file name direction |
 |---|---|---|---|---|---|
