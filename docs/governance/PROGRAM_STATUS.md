@@ -21,7 +21,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2.5 Correction — Exact Internal Schema Registry |
+| Current phase | P2.5 Final Correction — Nested Schema and Error Reason Closure |
 | P2.3 status | COMPLETE at `cd1c9816a5b716533e3a79c459f42ce09bde3671` |
 | P2.4 status | COMPLETE at `2a667479ba37b3e6c0649124e750ff47f9718188` |
 | P2.5 status | IN_PROGRESS |
@@ -31,7 +31,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.5 exact common/shared/task schema consistency와 review; 이후 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.5 named nested schema/error reason closure와 외부 검토; 이후 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -56,4 +56,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.5 baseline commit `ca22117fd9da65f1b232b9aa34e9d6e085e7ee06`은 provider-neutral internal endpoint, 11개 task, 12개 error와 Spring 단일 adoption 경계를 확정했다. 현재 correction은 Spring DTO와 FastAPI/Pydantic model을 독립 구현할 수 있도록 exact field/presence/nullability/bounds와 P2.6 fixture readiness를 작성 중이다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.5 exact schema commit `cc04d7a85fee6f74da312272d9ab3a9d53593d38`은 52개 field-table schema와 fixture readiness를 확정했다. 현재 final correction은 anonymous nested object를 named schema로 교체하고 financial ownership과 12개 internal error의 stable reason/retryability 조합을 닫는 중이다. 구현 진행률과 vertical slice는 여전히 0이며 OD-008은 DEFERRED다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

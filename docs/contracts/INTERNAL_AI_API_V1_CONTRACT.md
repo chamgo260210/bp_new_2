@@ -70,7 +70,7 @@ Service token은 환경변수 또는 deployment Secret으로만 공급하며 bod
 
 Provider effective limit가 더 작으면 Spring Service Policy가 command 수락 전에 capability 또는 payload를 차단한다. Contract 상한을 넘으면 `PAYLOAD_TOO_LARGE`다.
 
-`TextContent` required fields는 `contentKey`, `contentType`=`TEXT`, `language`, `totalCharacters`, `contentHash`, `chunks`다. `TextChunk` required fields는 `index`, `text`, `characterCount`, `chunkHash`다. Character는 Unicode scalar value(code point) 단위로 계산한다. Index는 TextContent별 0부터 연속이어야 하고 누락·중복·순서 변경을 허용하지 않는다. `totalCharacters`는 chunk count의 합이고 `contentHash`는 chunk text를 index 순서대로 separator 없이 결합한 UTF-8 bytes의 hash다. Execution 전체의 TextContent는 최대 64개, 모든 TextContent에 걸친 TextChunk 합계도 최대 64개이므로 4,096 chunk로 해석할 수 없다. Empty chunk, duplicate contentKey/index와 선언값 불일치는 `INVALID_REQUEST`, 크기 초과는 `PAYLOAD_TOO_LARGE`다. HTML, binary, base64 FILE payload, FILE bytes는 허용하지 않는다.
+`TextContent` required fields는 `contentKey`, `contentType`=`TEXT`, `language`, `totalCharacters`, `contentHash`, `chunks`다. `TextChunk` required fields는 `index`, `text`, `characterCount`, `chunkHash`다. Character는 Unicode scalar value(code point) 단위로 계산한다. Index는 TextContent별 0부터 연속이어야 하고 누락·중복·순서 변경을 허용하지 않는다. `totalCharacters`는 모든 chunk `characterCount`의 합이고 `contentHash`는 chunk text를 index 순서대로 separator 없이 결합한 UTF-8 bytes의 hash다. Execution 전체의 TextContent는 최대 64개, 모든 TextContent에 걸친 TextChunk 합계도 최대 64개이므로 4,096 chunk로 해석할 수 없다. Empty chunk, duplicate contentKey/index와 선언값 불일치는 `INVALID_REQUEST`, 크기 초과는 `PAYLOAD_TOO_LARGE`다. HTML, binary, base64 FILE payload, FILE bytes는 허용하지 않는다.
 
 ## 5. Common success response
 
@@ -256,7 +256,7 @@ Canonical JSON은 UTF-8, Unicode NFC, object key Unicode code point 오름차순
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
 | contractVersion | string | REQUIRED | NO | `1.0` | envelope version |
-| taskType | string enum | REQUIRED | NO | 11개 Task registry 값 | input discriminator |
+| taskType | string enum | REQUIRED | NO | §7 Task Registry의 11개 `Task type` 값 | input discriminator |
 | taskSchemaVersion | string | REQUIRED | NO | `1.0` | selected task schema version |
 | taskRunId | string | REQUIRED | NO | 1–128 | echo-only opaque execution reference |
 | taskAttemptId | string | REQUIRED | NO | 1–128 | echo-only opaque attempt reference |
@@ -271,7 +271,7 @@ Canonical JSON은 UTF-8, Unicode NFC, object key Unicode code point 오름차순
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
 | contractVersion | string | REQUIRED | NO | `1.0` | request echo |
-| taskType | string enum | REQUIRED | NO | request value | request echo |
+| taskType | string enum | REQUIRED | NO | §7 Task Registry의 11개 `Task type` 값 | request `taskType`과 equality |
 | taskSchemaVersion | string | REQUIRED | NO | `1.0` | request echo |
 | taskRunId | string | REQUIRED | NO | 1–128 | request echo |
 | taskAttemptId | string | REQUIRED | NO | 1–128 | request echo |
@@ -293,7 +293,7 @@ Canonical JSON은 UTF-8, Unicode NFC, object key Unicode code point 오름차순
 
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
-| code | string enum | REQUIRED | NO | 12개 internal error code | primary code 하나 |
+| code | string enum | REQUIRED | NO | §6 Internal Error Mapping의 12개 `Internal code` 값 | primary code 하나; reason registry와 일치 |
 | message | string | REQUIRED | NO | 1–512, blank 금지 | safe localized-neutral summary |
 | correlationId | string | REQUIRED | NO | 1–128 | valid header value 또는 server-generated safe value |
 | taskRunId | string | REQUIRED | YES | null 또는 1–128 | trusted parse 이후만 echo |
@@ -311,8 +311,51 @@ Canonical JSON은 UTF-8, Unicode NFC, object key Unicode code point 오름차순
 | field | string | OPTIONAL | NO | 1–128 | safe JSON field path; raw value 금지 |
 | limitName | string | OPTIONAL | NO | 1–64 | violated named limit |
 | supportedValues | array<string> | OPTIONAL | NO | minItems 1, maxItems 20; each 1–64 | safe enum/version values only |
+| retryAfterSeconds | integer | OPTIONAL | NO | 0–86,400 | `RATE_LIMITED` safe backoff hint only |
 
-`EXECUTION_FAILED` reason은 `TRANSIENT_EXECUTION_FAILURE`(retryable=true), `PERMANENT_EXECUTION_FAILURE`(false), `SAFETY_POLICY_BLOCKED`(false)만 허용한다. 다른 code의 retryable 기본값은 error mapping 표와 정확히 같고 Spring RetryPolicy/attempt limit가 실제 새 Attempt 생성을 최종 결정한다.
+Provider raw reason, 자유문장 또는 HTTP body로 retryability를 결정하지 않는다. 아래 registry 조합만 유효하고 Spring RetryPolicy/attempt limit가 실제 새 Attempt 생성을 최종 결정한다.
+
+### Internal Error Reason Registry
+
+`none`은 해당 detail field가 존재해서는 안 된다는 뜻이다. 모든 행에서 raw request value, provider raw reason/body, prompt, secret, stack trace는 forbidden detail이다.
+
+| Internal code | Allowed reason | retryable | Required detail field | Optional detail field | Forbidden detail | TaskAttempt direction | Public mapping |
+|---|---|---|---|---|---|---|---|
+| `INVALID_REQUEST` | `JSON_PARSE_FAILED` | false | none | none | body identifiers/raw fragment | FAILED | `AI_RESULT_INVALID` |
+| `INVALID_REQUEST` | `HEADER_BODY_CORRELATION_MISMATCH` | false | `field` | none | compared raw values | FAILED | `AI_RESULT_INVALID` |
+| `INVALID_REQUEST` | `UNKNOWN_FIELD` | false | `field` | none | rejected value | FAILED | `AI_RESULT_INVALID` |
+| `INVALID_REQUEST` | `FIELD_CONSTRAINT_VIOLATION` | false | `field` | `limitName` | rejected value | FAILED | `AI_RESULT_INVALID` |
+| `INVALID_REQUEST` | `HASH_MISMATCH` | false | `field` | none | expected/actual digest | FAILED | `AI_RESULT_INVALID` |
+| `INVALID_REQUEST` | `CHUNK_SEQUENCE_INVALID` | false | `field` | `limitName` | chunk text | FAILED | `AI_RESULT_INVALID` |
+| `INVALID_REQUEST` | `REFERENCE_RESOLUTION_FAILED` | false | `field` | none | unresolved raw identifier | FAILED | `AI_RESULT_INVALID` |
+| `UNAUTHORIZED_INTERNAL_CALL` | `SERVICE_TOKEN_MISSING` | false | none | none | request identifiers/token | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `UNAUTHORIZED_INTERNAL_CALL` | `SERVICE_TOKEN_INVALID` | false | none | none | request identifiers/token | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `UNAUTHORIZED_INTERNAL_CALL` | `INTERNAL_PRINCIPAL_FORBIDDEN` | false | none | none | principal/token detail | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `UNSUPPORTED_CONTRACT_VERSION` | `CONTRACT_VERSION_UNSUPPORTED` | false | `field`, `supportedValues` | none | raw body | FAILED | `AI_RESULT_INVALID` |
+| `UNSUPPORTED_TASK_TYPE` | `TASK_TYPE_UNSUPPORTED` | false | `field`, `supportedValues` | none | raw body | FAILED | `AI_RESULT_INVALID` |
+| `UNSUPPORTED_TASK_SCHEMA_VERSION` | `TASK_SCHEMA_VERSION_UNSUPPORTED` | false | `field`, `supportedValues` | none | raw body | FAILED | `AI_RESULT_INVALID` |
+| `PAYLOAD_TOO_LARGE` | `REQUEST_BYTES_EXCEEDED` | false | `limitName` | none | payload/body | FAILED | `PAYLOAD_TOO_LARGE` |
+| `PAYLOAD_TOO_LARGE` | `RESPONSE_BYTES_EXCEEDED` | false | `limitName` | none | response body | FAILED | `PAYLOAD_TOO_LARGE` |
+| `PAYLOAD_TOO_LARGE` | `TEXT_CONTENT_COUNT_EXCEEDED` | false | `limitName` | `field` | text content | FAILED | `PAYLOAD_TOO_LARGE` |
+| `PAYLOAD_TOO_LARGE` | `CHUNK_COUNT_EXCEEDED` | false | `limitName` | `field` | chunk text | FAILED | `PAYLOAD_TOO_LARGE` |
+| `PAYLOAD_TOO_LARGE` | `CHUNK_CHARACTERS_EXCEEDED` | false | `limitName` | `field` | chunk text | FAILED | `PAYLOAD_TOO_LARGE` |
+| `PAYLOAD_TOO_LARGE` | `TOTAL_CHARACTERS_EXCEEDED` | false | `limitName` | `field` | extracted text | FAILED | `PAYLOAD_TOO_LARGE` |
+| `PAYLOAD_TOO_LARGE` | `TASK_COLLECTION_LIMIT_EXCEEDED` | false | `limitName` | `field` | collection content | FAILED | `PAYLOAD_TOO_LARGE` |
+| `DEADLINE_EXCEEDED` | `REQUEST_DEADLINE_EXCEEDED` | true | none | none | dependency timing detail | TIMED_OUT | `TASK_TIMEOUT` |
+| `DEPENDENCY_UNAVAILABLE` | `MODEL_DEPENDENCY_UNAVAILABLE` | true | none | none | dependency identity/raw body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `DEPENDENCY_UNAVAILABLE` | `MCP_DEPENDENCY_UNAVAILABLE` | true | none | none | MCP identity/raw body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `DEPENDENCY_UNAVAILABLE` | `LEGAL_SOURCE_DEPENDENCY_UNAVAILABLE` | true | none | none | secret/raw body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `RATE_LIMITED` | `DEPENDENCY_RATE_LIMITED` | true | none | `retryAfterSeconds` | provider quota/body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `EXECUTION_FAILED` | `TRANSIENT_EXECUTION_FAILURE` | true | none | none | provider raw reason/body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `EXECUTION_FAILED` | `PERMANENT_EXECUTION_FAILURE` | false | none | none | provider raw reason/body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `EXECUTION_FAILED` | `SAFETY_POLICY_BLOCKED` | false | none | none | policy/provider raw body | FAILED | `AI_SERVICE_UNAVAILABLE` |
+| `RESULT_SCHEMA_INVALID` | `RESULT_UNKNOWN_FIELD` | false | `field` | none | result raw value | FAILED | `AI_RESULT_INVALID` |
+| `RESULT_SCHEMA_INVALID` | `RESULT_FIELD_CONSTRAINT_VIOLATION` | false | `field` | `limitName` | result raw value | FAILED | `AI_RESULT_INVALID` |
+| `RESULT_SCHEMA_INVALID` | `RESULT_REFERENCE_INVALID` | false | `field` | none | unresolved raw identifier | FAILED | `AI_RESULT_INVALID` |
+| `RESULT_SCHEMA_INVALID` | `RESULT_DOMAIN_INVARIANT_VIOLATION` | false | `field` | none | result content | FAILED | `AI_RESULT_INVALID` |
+| `INTERNAL_ERROR` | `UNEXPECTED_INTERNAL_ERROR` | true | none | none | stack trace/internal topology | FAILED | `AI_SERVICE_UNAVAILABLE` |
+
+12개 internal code 각각 하나 이상의 reason을 가진다. 같은 code/reason의 retryable 값은 고정이며 다른 조합은 `InternalErrorResponseV1` validation 실패다. `DEADLINE_EXCEEDED`의 현재 Attempt는 terminal이고 `retryable=true`는 새 Attempt가 정책상 가능할 수 있다는 의미뿐이다.
 
 ### UsageSummaryV1
 
@@ -320,8 +363,8 @@ Canonical JSON은 UTF-8, Unicode NFC, object key Unicode code point 오름차순
 |---|---|---|---|---|---|
 | unit | string enum | REQUIRED | NO | `TOKENS`, `CHARACTERS`, `OTHER` | provider-neutral unit |
 | inputUnits | integer | REQUIRED | NO | 0–9,007,199,254,740,991 | non-negative |
-| outputUnits | integer | REQUIRED | NO | same | non-negative |
-| totalUnits | integer | REQUIRED | NO | same | inputUnits + outputUnits와 같아야 함 |
+| outputUnits | integer | REQUIRED | NO | 0–9,007,199,254,740,991 | non-negative |
+| totalUnits | integer | REQUIRED | NO | 0–9,007,199,254,740,991 | inputUnits + outputUnits와 같아야 함 |
 | estimated | boolean | REQUIRED | NO | true/false | 측정치 추정 여부 |
 
 Provider/model 이름과 비용·가격은 포함하지 않는다. 일부 unit도 측정할 수 없으면 전체 `usage`가 null이다.
@@ -361,7 +404,11 @@ Provider/model 이름과 비용·가격은 포함하지 않는다. 일부 unit�
 |---|---|---|---|---|---|
 | key | string | REQUIRED | NO | 1–64, `[A-Za-z0-9][A-Za-z0-9._-]{0,63}` | namespace 안에서 unique |
 | namespace | string enum | REQUIRED | NO | `INPUT`, `OUTPUT_PROPOSAL` | input과 proposal identity 분리 |
-| resourceType | string enum | REQUIRED | NO | task별 allowlist | DB type/identifier가 아님 |
+| resourceType | string enum | REQUIRED | NO | Request-local Resource Type Registry | DB type/identifier가 아님 |
+
+### Request-local Resource Type Registry
+
+허용값은 `SOURCE_EXTRACTION`, `SOURCE_STATEMENT`, `IDEA_VERSION`, `LEGAL_REVIEW_RUN`, `CONCEPT_VERSION`, `SHORTLIST_DECISION`, `CONCEPT_SELECTION`, `EVIDENCE_ITEM`, `PERSONA_STUDY`, `PERSONA_CARD_VERSION`, `PERSONA_INTERVIEW_RESULT`, `MARKETING_WORKSPACE_VERSION`, `MARKETING_ASSET_VERSION`, `QUESTION`, `COMPARISON_DIMENSION`, `REPORT_UPSTREAM_RESOURCE`다. 각 task field가 지정한 type만 사용할 수 있고 같은 key/namespace의 중복은 금지한다.
 
 Result는 등록된 `INPUT` key만 참조할 수 있다. 새 concept/persona/asset proposal을 만드는 task만 result에서 unique `OUTPUT_PROPOSAL` key를 선언할 수 있다. 외부 authoritative identifier는 이 schema가 아니라 `ExternalSourceReferenceV1`을 사용한다.
 
@@ -401,7 +448,7 @@ AI는 입력에 없던 local source reference를 임의 생성하지 않는다. 
 |---|---|---|---|---|---|
 | key | string | REQUIRED | NO | LocalKey | stable request-local statement key |
 | text | string | REQUIRED | NO | 1–4,000 | blank 금지 |
-| provenanceCategory | string enum | REQUIRED | NO | provenance category enum | fact/assumption 구분 |
+| provenanceCategory | string enum | REQUIRED | NO | `USER_INPUT`, `EXTERNAL_SOURCE_FACT`, `ASSUMPTION`, `AI_PROPOSAL`, `USER_DECISION` | fact/assumption 구분 |
 | sourceReferences | array<string> | REQUIRED | NO | minItems 0, maxItems 50 | registered input keys |
 | confidence | decimal string | OPTIONAL | NO | 0–1 | optional uncertainty signal |
 | uncertainty | string | OPTIONAL | NO | 1–512 | optional explanation |
@@ -506,7 +553,7 @@ AI는 입력에 없던 local source reference를 임의 생성하지 않는다. 
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
 | findingKey | string | REQUIRED | NO | LocalKey | result identity |
-| category | string | REQUIRED | NO | 1–64 uppercase snake case | analysis-type allowlist |
+| category | string enum | REQUIRED | NO | `MARKET`, `BUSINESS_MODEL`, `TECHNICAL_OPERATION`, `FINANCIAL` | analysis type finding category |
 | summary | string | REQUIRED | NO | 1–4,000 | bounded finding |
 | impact | string enum | REQUIRED | NO | `POSITIVE`, `NEGATIVE`, `MIXED`, `UNKNOWN` | non-probabilistic direction |
 | evidenceKeys | array<string> | REQUIRED | NO | minItems 0, maxItems 50 | evidence references |
@@ -608,6 +655,111 @@ AI는 입력에 없던 local source reference를 임의 생성하지 않는다. 
 | findings | array<ReportFindingV1> | REQUIRED | NO | minItems 0, maxItems 200 | empty allowed |
 | caveats | array<string> | REQUIRED | NO | minItems 0, maxItems 100 | limitations |
 
+### MarketAnalysisInputV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| context | string | REQUIRED | NO | 1–8,000, blank 금지 | market analysis context only |
+| evidenceKeys | array<string> | REQUIRED | NO | minItems 0, maxItems 100; unique INPUT/EVIDENCE_ITEM LocalKey | unknown/duplicate key 금지 |
+
+### BusinessModelAnalysisInputV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| constraints | array<string> | REQUIRED | NO | minItems 0, maxItems 100; each 1–1,000 | blank/duplicate constraint 금지 |
+| evidenceKeys | array<string> | REQUIRED | NO | minItems 0, maxItems 100; unique INPUT/EVIDENCE_ITEM LocalKey | registered keys only |
+
+### TechnicalOperationAnalysisInputV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| operatingConstraints | array<string> | REQUIRED | NO | minItems 0, maxItems 100; each 1–1,000 | blank/duplicate constraint 금지 |
+| evidenceKeys | array<string> | REQUIRED | NO | minItems 0, maxItems 100; unique INPUT/EVIDENCE_ITEM LocalKey | registered keys only |
+
+### FinancialMetricV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| metricCode | string | REQUIRED | NO | 1–64, `[A-Z][A-Z0-9_]*` | array 내 unique metric/period tuple |
+| value | decimal string | REQUIRED | NO | maxLength 128; canonical decimal regex | JSON number 금지; leading plus/zero와 exponent 금지 |
+| currencyCode | string | OPTIONAL | NO | exactly 3 uppercase ASCII letters | monetary value only |
+| unit | string | OPTIONAL | NO | 1–32, blank 금지 | currencyCode와 동시 존재 금지 |
+| period | string | OPTIONAL | NO | 1–64, blank 금지 | metric period label |
+
+`currencyCode`와 `unit` 중 정확히 하나가 필요하다. Metric tuple 중복과 non-canonical decimal은 validation error다.
+
+### FinancialAnalysisInputV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| deterministicInputs | array<FinancialMetricV1> | REQUIRED | NO | minItems 1, maxItems 200 | Spring-calculated input snapshot |
+| calculationRuleVersion | string | REQUIRED | NO | 1–64, `[A-Za-z0-9._-]+` | Spring deterministic rule version |
+| deterministicResults | array<FinancialMetricV1> | REQUIRED | NO | minItems 1, maxItems 200 | Spring-calculated results |
+| assumptions | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 100 | explicit assumptions |
+| evidenceNeeds | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 100 | unresolved evidence |
+
+### MarketAnalysisResultV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| findings | array<DetailedFindingV1> | REQUIRED | NO | minItems 0, maxItems 200 | MARKET category only |
+| caveats | array<string> | REQUIRED | NO | minItems 0, maxItems 100; each 1–1,000 | bounded limitations |
+
+### BusinessModelAnalysisResultV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| findings | array<DetailedFindingV1> | REQUIRED | NO | minItems 0, maxItems 200 | BUSINESS_MODEL category only |
+| caveats | array<string> | REQUIRED | NO | minItems 0, maxItems 100; each 1–1,000 | bounded limitations |
+
+### TechnicalOperationAnalysisResultV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| findings | array<DetailedFindingV1> | REQUIRED | NO | minItems 0, maxItems 200 | TECHNICAL_OPERATION category only |
+| caveats | array<string> | REQUIRED | NO | minItems 0, maxItems 100; each 1–1,000 | bounded limitations |
+
+### FinancialAnalysisResultV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| inputSnapshotHash | string | REQUIRED | NO | `sha256:` + lowercase hex 64자 | request financial input snapshot hash equality |
+| aiExplanation | FinancialExplanationV1 | REQUIRED | NO | one named object | drivers/risks/caveats sole owner |
+| provenance | array<ProvenanceItemV1> | REQUIRED | NO | minItems 1, maxItems 200 | deterministic references and AI proposal |
+
+`deterministicInputs`, `calculationRuleVersion`, `deterministicResults`와 outer `drivers`, `risks`, `caveats`는 forbidden fields다.
+
+### PersonaInterviewQuestionV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| questionKey | string | REQUIRED | NO | 1–64 LocalKey; INPUT/QUESTION namespace | questions array 내 unique |
+| text | string | REQUIRED | NO | 1–2,000, blank 금지 | exact interview question |
+
+### IncludedInterviewResultV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| interviewKey | string | REQUIRED | NO | 1–64 LocalKey; INPUT/PERSONA_INTERVIEW_RESULT | includedInterviews 내 unique; same Study |
+| responses | array<InterviewQuestionAnswerV1> | REQUIRED | NO | minItems 1, maxItems 50; unique questionKey | adopted result snapshot |
+
+### MarketingAssetSnapshotV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| assetVersionKey | string | REQUIRED | NO | 1–64 LocalKey; INPUT/MARKETING_ASSET_VERSION | assets array 내 unique |
+| assetType | string enum | REQUIRED | NO | Marketing Asset Type Registry: `HEADLINE`, `BODY_COPY`, `CTA`, `CAMPAIGN_CONCEPT` | exact version type |
+| content | string | REQUIRED | NO | 1–16,000, blank 금지 | text only; binary/path 금지 |
+
+### MarketingComparisonDimensionV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| dimensionKey | string | REQUIRED | NO | 1–64 LocalKey; INPUT/COMPARISON_DIMENSION | dimensions array 내 unique |
+| label | string | REQUIRED | NO | 1–128, blank 금지 | relative comparison dimension |
+
+모든 위 named object도 unknown field를 REJECT한다. Key uniqueness는 enclosing execution input 전체와 각 array 모두에서 검증한다.
+
 ## 16. Exact task input/result schema registry
 
 각 Input/Result object는 unknown field를 REJECT한다. Common success의 provenance와 warnings가 있어도 아래 result-level provenance/warnings는 해당 business content에 대한 채택 대상이며 생략할 수 없다.
@@ -655,7 +807,7 @@ Adoption은 fact/assumption 분리, constraint 보존, 모든 key resolution을 
 
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
-| legalResult | string enum | REQUIRED | NO | six canonical legal results | business result, not transport status |
+| legalResult | string enum | REQUIRED | NO | `PASS`, `PASS_WITH_CONDITIONS`, `REVISION_REQUIRED`, `PROHIBITED`, `INSUFFICIENT_INFORMATION`, `EXPERT_REVIEW_REQUIRED` | business result, not transport status |
 | findings | array<LegalFindingV1> | REQUIRED | NO | minItems 0, maxItems 100 | source keys resolve |
 | sourceReferences | array<LegalSourceReferenceV1> | REQUIRED | NO | minItems 0, maxItems 200 | external citations |
 | sourceCoverage | SourceCoverageV1 | REQUIRED | NO | exact object | degraded invariants apply |
@@ -722,27 +874,27 @@ Shortlist/User Decision field가 없어야 채택한다.
 | shortlistDecisionKey | string | REQUIRED | NO | INPUT/SHORTLIST_DECISION LocalKey | user decision reference |
 | analysisType | string enum | REQUIRED | NO | `MARKET`, `BUSINESS_MODEL`, `TECHNICAL_OPERATION`, `FINANCIAL` | discriminator |
 | sharedEvidence | array<EvidenceItemV1> | REQUIRED | NO | minItems 0, maxItems 200 | shared snapshot |
-| marketInput | object | OPTIONAL | NO | exact fields: context 1–8,000; evidenceKeys 0–100 | present iff MARKET |
-| businessModelInput | object | OPTIONAL | NO | exact fields: constraints 0–100 strings; evidenceKeys 0–100 | present iff BUSINESS_MODEL |
-| technicalOperationInput | object | OPTIONAL | NO | exact fields: operatingConstraints 0–100 strings; evidenceKeys 0–100 | present iff TECHNICAL_OPERATION |
-| financialInput | object | OPTIONAL | NO | exact fields below | present iff FINANCIAL |
+| marketInput | MarketAnalysisInputV1 | OPTIONAL | NO | one named object | present iff `analysisType=MARKET`; otherwise omitted |
+| businessModelInput | BusinessModelAnalysisInputV1 | OPTIONAL | NO | one named object | present iff `analysisType=BUSINESS_MODEL`; otherwise omitted |
+| technicalOperationInput | TechnicalOperationAnalysisInputV1 | OPTIONAL | NO | one named object | present iff `analysisType=TECHNICAL_OPERATION`; otherwise omitted |
+| financialInput | FinancialAnalysisInputV1 | OPTIONAL | NO | one named object | present iff `analysisType=FINANCIAL`; otherwise omitted |
 
-`financialInput` required fields는 `deterministicInputs`(array of `{metricCode:string 1–64, value:decimal string, currencyCode?:3 uppercase, unit?:string 1–32, period?:string 1–64}`, 1–200), `calculationRuleVersion`(string 1–64), `deterministicResults`(같은 metric shape, 1–200), `assumptions`(IdeaStatementItemV1 0–100), `evidenceNeeds`(IdeaStatementItemV1 0–100)다. Nested object unknown field도 REJECT한다. Discriminator에 맞는 section 정확히 하나만 존재해야 한다.
+Discriminator에 맞는 section 정확히 하나만 존재해야 한다. 비선택 section은 omitted이어야 하고 explicit null은 허용하지 않는다.
 
 ### DetailedAnalysisResultV1
 
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
-| analysisType | string enum | REQUIRED | NO | request echo | discriminator |
+| analysisType | string enum | REQUIRED | NO | Analysis Type Registry: `MARKET`, `BUSINESS_MODEL`, `TECHNICAL_OPERATION`, `FINANCIAL` | request `analysisType`과 equality |
 | findings | array<DetailedFindingV1> | REQUIRED | NO | minItems 0, maxItems 200 | non-financial/financial common findings |
-| marketResult | object | OPTIONAL | NO | exact fields: findings 0–200, caveats 0–100 | present iff MARKET |
-| businessModelResult | object | OPTIONAL | NO | exact fields: findings 0–200, caveats 0–100 | present iff BUSINESS_MODEL |
-| technicalOperationResult | object | OPTIONAL | NO | exact fields: findings 0–200, caveats 0–100 | present iff TECHNICAL_OPERATION |
-| financialResult | object | OPTIONAL | NO | exact fields below | present iff FINANCIAL |
+| marketResult | MarketAnalysisResultV1 | OPTIONAL | NO | one named object | present iff `analysisType=MARKET`; otherwise omitted |
+| businessModelResult | BusinessModelAnalysisResultV1 | OPTIONAL | NO | one named object | present iff `analysisType=BUSINESS_MODEL`; otherwise omitted |
+| technicalOperationResult | TechnicalOperationAnalysisResultV1 | OPTIONAL | NO | one named object | present iff `analysisType=TECHNICAL_OPERATION`; otherwise omitted |
+| financialResult | FinancialAnalysisResultV1 | OPTIONAL | NO | one named object | present iff `analysisType=FINANCIAL`; otherwise omitted |
 | warnings | array<WarningV1> | REQUIRED | NO | minItems 0, maxItems 100 | empty allowed |
 | provenance | array<ProvenanceItemV1> | REQUIRED | NO | minItems 1, maxItems 500 | traceability |
 
-`financialResult` required fields는 `inputSnapshotHash`(SHA-256 format), `aiExplanation`(FinancialExplanationV1), `drivers`(string 0–100), `risks`(string 0–100), `caveats`(string 0–100), `provenance`(1–200)다. `deterministicInputs`, `calculationRuleVersion`, `deterministicResults`는 result에서 금지한다. `inputSnapshotHash`만 echo reference로 허용하며 Spring canonical input hash와 equality를 검증한다. Discriminator section은 정확히 하나다.
+`FinancialAnalysisResultV1`은 `inputSnapshotHash`, `aiExplanation`, `provenance`만 소유한다. Deterministic fields와 outer drivers/risks/caveats는 금지한다. `inputSnapshotHash`는 Spring이 계산한 financial input snapshot hash와 equality를 검증한다. Discriminator section은 정확히 하나이고 비선택 result section은 omitted이어야 한다.
 
 ### PersonaCardGenerationInputV1
 
@@ -773,7 +925,7 @@ Shortlist/User Decision field가 없어야 채택한다.
 | personaCardVersionKey | string | REQUIRED | NO | INPUT/PERSONA_CARD_VERSION LocalKey | exactly one card |
 | personaCard | PersonaCardSnapshotV1 | REQUIRED | NO | one object | selected card snapshot only |
 | selectedConceptVersionKey | string | REQUIRED | NO | INPUT/CONCEPT_VERSION LocalKey | concept context |
-| questions | array<object> | REQUIRED | NO | minItems 1, maxItems 50 | each exact `{questionKey: LocalKey, text: string 1–2,000}` |
+| questions | array<PersonaInterviewQuestionV1> | REQUIRED | NO | minItems 1, maxItems 50; unique questionKey | named question objects only |
 | responseStyle | string enum | REQUIRED | NO | `CONCISE`, `STANDARD`, `DETAILED` | bounded option |
 
 다른 Persona key/card/interview/answer context가 있으면 schema/domain validation을 거부한다.
@@ -792,7 +944,7 @@ Shortlist/User Decision field가 없어야 채택한다.
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
 | personaStudyKey | string | REQUIRED | NO | INPUT/PERSONA_STUDY LocalKey | common study |
-| includedInterviews | array<object> | REQUIRED | NO | minItems 2, maxItems 100 | each exact `{interviewKey: LocalKey, responses: InterviewQuestionAnswerV1[1..50]}` |
+| includedInterviews | array<IncludedInterviewResultV1> | REQUIRED | NO | minItems 2, maxItems 100; unique interviewKey | same-study adopted results only |
 | excludedInterviewKeys | array<string> | REQUIRED | NO | minItems 0, maxItems 100 | disjoint from included |
 | synthesisFocuses | array<string enum> | REQUIRED | NO | minItems 1, maxItems 4; `COMMON`, `CONFLICT`, `UNRESOLVED`, `RESEARCH` | unique |
 
@@ -816,7 +968,7 @@ Adoption은 모든 interview key가 같은 Study의 adopted result인지 확인�
 | workspaceVersionKey | string | REQUIRED | NO | INPUT/MARKETING_WORKSPACE_VERSION LocalKey | exact workspace version |
 | selectedConceptVersionKey | string | REQUIRED | NO | INPUT/CONCEPT_VERSION LocalKey | exact selected concept |
 | personaEvidence | array<EvidenceItemV1> | REQUIRED | NO | minItems 1, maxItems 200 | Persona/interview/synthesis evidence |
-| assetType | string enum | REQUIRED | NO | MarketingAssetProposalV1 enum | text/structured only |
+| assetType | string enum | REQUIRED | NO | Marketing Asset Type Registry: `HEADLINE`, `BODY_COPY`, `CTA`, `CAMPAIGN_CONCEPT` | text/structured only |
 | targetPersonaKeys | array<string> | REQUIRED | NO | minItems 1, maxItems 10 | exact Persona keys |
 | generationBrief | string | REQUIRED | NO | 1–8,000 | bounded user brief |
 | tone | string enum | REQUIRED | NO | `INFORMATIVE`, `EMPATHETIC`, `DIRECT`, `PROFESSIONAL` | bounded option |
@@ -836,9 +988,9 @@ Binary/base64, file/path/Storage reference와 conversion probability content는 
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
 | workspaceVersionKey | string | REQUIRED | NO | INPUT/MARKETING_WORKSPACE_VERSION LocalKey | exact workspace version |
-| assets | array<object> | REQUIRED | NO | minItems 2, maxItems 20 | each exact `{assetVersionKey: LocalKey, assetType: enum, content: string 1–16,000}`; keys distinct |
+| assets | array<MarketingAssetSnapshotV1> | REQUIRED | NO | minItems 2, maxItems 20; unique assetVersionKey | exact immutable asset versions |
 | personaEvidence | array<EvidenceItemV1> | REQUIRED | NO | minItems 1, maxItems 200 | exact evidence |
-| comparisonDimensions | array<object> | REQUIRED | NO | minItems 1, maxItems 30 | each exact `{dimensionKey: LocalKey, label: string 1–128}` |
+| comparisonDimensions | array<MarketingComparisonDimensionV1> | REQUIRED | NO | minItems 1, maxItems 30; unique dimensionKey | named comparison dimensions |
 
 ### MarketingComparisonResultV1
 
@@ -869,7 +1021,7 @@ Binary/base64, file/path/Storage reference와 conversion probability content는 
 
 | Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
 |---|---|---|---|---|---|
-| reportDecision | string enum | REQUIRED | NO | request value | exact echo; 변경 금지 |
+| reportDecision | string enum | REQUIRED | NO | Report Decision Registry: `GO`, `CONDITIONAL_GO`, `REWORK`, `HOLD`, `STOP` | request `reportDecision`과 equality; 변경 금지 |
 | executiveSummary | string | REQUIRED | NO | 1–16,000 | structured proposal |
 | sections | array<ReportSectionV1> | REQUIRED | NO | minItems 1, maxItems 50 | unique section keys |
 | supportingFindings | array<ReportFindingV1> | REQUIRED | NO | minItems 0, maxItems 500 | exact sources |
@@ -882,7 +1034,7 @@ Spring은 `reportDecision` value equality, exact upstream references와 category
 
 ## 17. P2.6 fixture readiness matrix
 
-`required`는 P2.6에서 실제 JSON fixture를 생성해야 한다는 뜻이며 이번 correction에서는 파일을 만들지 않는다.
+`required`는 P2.6에서 실제 JSON fixture를 생성해야 한다는 뜻이며 이번 correction에서는 파일을 만들지 않는다. Final correction 기준 named field-table schema는 common 13개, shared 30개, task input/result 22개로 총 65개다.
 
 | Schema | Positive fixture required | Negative fixture required | Critical invariant | Public/domain matching source | P2.6 file name direction |
 |---|---|---|---|---|---|
@@ -916,6 +1068,19 @@ Spring은 `reportDecision` value equality, exact upstream references와 category
 | MarketingComparisonAssessmentV1 | YES | YES | relative non-statistical | MarketingComparisonRunView | `shared/marketing-comparison.*.json` |
 | ReportSectionV1 | YES | YES | structured persisted section | FinalReportVersionView | `shared/report-section.*.json` |
 | ReportFindingV1 | YES | YES | category/source separation | FinalReportVersionView | `shared/report-finding.*.json` |
+| MarketAnalysisInputV1 | YES | YES | unique evidence keys/unknown reject | DetailedAnalysis request | `shared/market-analysis-input.*.json` |
+| BusinessModelAnalysisInputV1 | YES | YES | bounded constraints/evidence | DetailedAnalysis request | `shared/business-model-input.*.json` |
+| TechnicalOperationAnalysisInputV1 | YES | YES | bounded operating constraints | DetailedAnalysis request | `shared/technical-operation-input.*.json` |
+| FinancialMetricV1 | YES | YES | canonical decimal and currency/unit XOR | Financial public contract | `shared/financial-metric.*.json` |
+| FinancialAnalysisInputV1 | YES | YES | Spring deterministic snapshot | Financial public contract | `shared/financial-analysis-input.*.json` |
+| MarketAnalysisResultV1 | YES | YES | MARKET findings only | DetailedAnalysisRunView | `shared/market-analysis-result.*.json` |
+| BusinessModelAnalysisResultV1 | YES | YES | BUSINESS_MODEL findings only | DetailedAnalysisRunView | `shared/business-model-result.*.json` |
+| TechnicalOperationAnalysisResultV1 | YES | YES | TECHNICAL_OPERATION findings only | DetailedAnalysisRunView | `shared/technical-operation-result.*.json` |
+| FinancialAnalysisResultV1 | YES | YES | explanation sole ownership/no deterministic fields | Financial public contract | `shared/financial-analysis-result.*.json` |
+| PersonaInterviewQuestionV1 | YES | YES | unique QUESTION key | Persona Interview request | `shared/persona-interview-question.*.json` |
+| IncludedInterviewResultV1 | YES | YES | same-study adopted interview | Interview Synthesis model | `shared/included-interview-result.*.json` |
+| MarketingAssetSnapshotV1 | YES | YES | exact text asset/version key | Marketing comparison request | `shared/marketing-asset-snapshot.*.json` |
+| MarketingComparisonDimensionV1 | YES | YES | unique comparison dimension key | Marketing comparison request | `shared/marketing-comparison-dimension.*.json` |
 | IdeaInterpretationInputV1 | YES | YES | verified chunks/local sources | interpretation create request | `tasks/idea-interpretation.input.*.json` |
 | IdeaInterpretationResultV1 | YES | YES | facts/assumptions/constraints | IdeaInterpretationResultView | `tasks/idea-interpretation.result.*.json` |
 | LegalReviewInputV1 | YES | YES | exact confirmed idea/KR | LegalReviewRun model | `tasks/legal-review.input.*.json` |
