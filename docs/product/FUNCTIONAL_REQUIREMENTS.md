@@ -12,7 +12,7 @@
 |---|---|---|
 | FR-001 | 인증 사용자는 owner-scoped Project를 생성·조회·수정·삭제한다. | Stable Core/P3 |
 | FR-002 | Project는 여러 IdeaVersion과 IdeaSource provenance를 보유한다. | P4 |
-| FR-003 | IdeaSource는 TEXT, FILE, QUESTION_RESPONSE를 지원하고 초기 FILE allowlist는 DOCX와 일반 텍스트로 제한한다. | P2/P4 |
+| FR-003 | IdeaSource logical type은 TEXT와 FILE이며 질문 응답 UI 입력은 TEXT source로 기록한다. 초기 FILE allowlist는 DOCX와 일반 텍스트로 제한한다. | P2/P4 |
 | FR-004 | 사용자 입력 수정은 과거 version을 덮어쓰지 않고 새 IdeaVersion을 만든다. | P4 |
 | FR-005 | 시스템은 특정 IdeaVersion을 정규화하고 사용자 확인을 받는다. | P4 |
 | FR-006 | 법률 검토는 법제처 API의 원문·식별자·현재성 확인과 법령 MCP의 검색·탐색을 조정하고 source channel, 조회 시각, 조문, degraded 상태와 `EXPERT_REVIEW_REQUIRED`를 추적한다. | P4 |
@@ -36,4 +36,4 @@
 | FR-024 | legacy Workflow API/route에 신규 compatibility 경로를 만들지 않고 P12에서 제거한다. | P3–P12 |
 | FR-025 | TaskRun은 업무 요청과 현재 최종 상태를, TaskAttempt는 개별 실행·retry·timeout·오류·응답을 소유하고 polling/event wake에 중립적인 실행 계약을 제공한다. | P3 |
 
-상세 field, cardinality, validation, command/query JSON schema와 UI interaction은 P2.2 이후 계약에서 결정한다.
+Logical field semantics와 cardinality는 P2.2 domain contract에서 정의한다. 상세 validation, command/query JSON schema와 UI interaction은 P2.3 이후 계약에서 결정한다.

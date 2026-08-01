@@ -10,4 +10,19 @@
 
 IdeaSource, 외부 법령 근거, Concept/분석/Persona/Marketing 실행, AI 권고, 사용자 선택과 FinalReportVersion의 연결을 추적해야 한다. versioned 결과는 생성 당시 input snapshot/hash와 TaskRun/TaskAttempt를 식별할 수 있어야 한다. AI 제안, 사용자 결정, 외부 출처 사실과 가정을 서로 다른 provenance category로 구분한다.
 
-Quick와 Detailed는 shared core input provenance를 참조하되 각 analysis-specific 입력·결과를 구분한다. 법률 provenance는 조회 시각, 법령 식별자, 조문과 source channel을 보존하고 한쪽 출처 실패 시 degraded 상태와 누락 출처를 표시한다. 상세 식별자, hash, citation, retention과 재현성 수준은 P2.2에서 결정한다. provenance는 audit와 다르지만 correlation할 수 있어야 한다.
+Quick와 Detailed는 shared core input provenance를 참조하되 각 analysis-specific 입력·결과를 구분한다. 법률 provenance는 조회 시각, 법령 식별자, 조문과 source channel을 보존하고 한쪽 출처 실패 시 degraded 상태와 누락 출처를 표시한다. provenance는 audit와 다르지만 correlation할 수 있어야 한다.
+
+## Logical provenance reference
+
+| Category | Required direction |
+|---|---|
+| USER_INPUT | actor, IdeaSource/extraction과 생성 시각 |
+| EXTERNAL_SOURCE_FACT | source channel, observation identity/time, citation/currentness |
+| ASSUMPTION | assumption text/identity, origin과 검증 필요성 |
+| AI_PROPOSAL | TaskRun/Attempt/Result, input snapshot/hash와 contract version |
+| USER_DECISION | actor, decision/selection identifier, timestamp, rationale와 reviewed evidence refs |
+| DETERMINISTIC_CALCULATION | input snapshot, calculation rule/version과 result; AI explanation과 분리 |
+
+모든 Run은 exact input Version/Decision/reference와 snapshot/hash를 가진다. immutable Version은 source set을 고정하고 current pointer를 동적으로 따라가지 않는다. FinalReportVersion은 포함한 upstream reference 집합과 위 category를 snapshot 안에서 구분한다.
+
+상세 identifier encoding, citation JSON shape, hash algorithm, retention과 재현성 수준은 P2.3 contract에서 결정한다.

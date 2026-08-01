@@ -24,7 +24,7 @@ JWT/refresh lifecycle, admin role, last active administrator protection, reauthe
 
 ## Secrets and privacy
 
-비밀값은 환경 또는 배포 secret mechanism으로 주입하고 코드·문서·client response·audit에 실제 값을 기록하지 않는다. 법령 MCP·법제처 API secret은 AI Server 환경변수로만 주입하고, 배포 secret mechanism을 사용하더라도 환경변수로 제공하며 Spring task payload에 포함하지 않는다. password, token, API key, provider raw body와 불필요한 개인정보는 logging에서 제외한다. 업무 입력을 provider에 전달하는 최소화/redaction 정책은 P2.2 이후 확정한다.
+비밀값은 환경 또는 배포 secret mechanism으로 주입하고 코드·문서·client response·audit에 실제 값을 기록하지 않는다. 법령 MCP·법제처 API secret은 AI Server 환경변수로만 주입하고, 배포 secret mechanism을 사용하더라도 환경변수로 제공하며 Spring task payload에 포함하지 않는다. password, token, API key, provider raw body와 불필요한 개인정보는 logging에서 제외한다. 업무 입력을 provider에 전달하는 최소화/redaction 정책은 P2.3 이후 확정한다.
 
 ## Secure coding
 

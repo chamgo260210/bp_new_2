@@ -14,7 +14,7 @@ Project는 IdeaSource 수집부터 FinalReportVersion까지 하나의 검증 계
 
 ## In scope
 
-- TEXT, FILE, QUESTION_RESPONSE 방향의 IdeaSource와 IdeaVersion. 초기 FILE은 DOCX와 일반 텍스트이며 extensible allowlist를 사용한다.
+- TEXT와 FILE logical type의 IdeaSource와 IdeaVersion. 질문 응답 UI 입력은 TEXT source로 수집하며, 초기 FILE은 DOCX와 일반 텍스트이고 extensible allowlist를 사용한다.
 - Idea Normalization과 사용자 검토
 - 법제처 API의 공식 근거 확인과 법령 MCP 탐색을 조정하고 degraded/전문가 검토 상태를 지원하는 LegalReviewRun
 - 복수 concept 생성/version, Quick Assessment, shortlist
@@ -54,4 +54,4 @@ Project는 IdeaSource 수집부터 FinalReportVersion까지 하나의 검증 계
 | P12 | legacy 제거와 database cutover |
 | P13 | 통합 품질, 수동 테스트, release hardening |
 
-초기 FILE, 전송, workflow gate, 분석, Persona, report, TaskRun과 법령 연동 방향은 [Open Decisions](OPEN_DECISIONS.md)와 [Decision Log](../governance/DECISION_LOG.md)에 확정했다. 상세 logical schema와 JSON contract는 P2.2에서 이 경계를 입력 조건으로 사용한다.
+초기 FILE, 전송, workflow gate, 분석, Persona, report, TaskRun과 법령 연동 방향은 [Open Decisions](OPEN_DECISIONS.md)와 [Decision Log](../governance/DECISION_LOG.md)에 확정했다. P2.2 logical domain schema는 이 경계를 반영하며, 상세 public/internal JSON contract와 fixture는 P2.3에서 이를 입력 조건으로 사용한다.

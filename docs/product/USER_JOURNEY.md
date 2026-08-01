@@ -10,7 +10,7 @@
 
 | Step | Purpose | Input direction | Output direction | User decision |
 |---|---|---|---|---|
-| Idea Intake | 불완전한 아이디어 수집 | TEXT, FILE, QUESTION_RESPONSE | source provenance | source 추가·제외 |
+| Idea Intake | 불완전한 아이디어 수집 | TEXT, FILE. 질문 응답 UI는 TEXT로 수집 | source provenance | source 추가·제외 |
 | Idea Normalization | 검증 가능한 표현으로 정리 | 현재 IdeaSource set | IdeaVersion 방향 | 정규화 결과 확인·수정 |
 | Korean Legal Review | 한국 법률 위험·제약 확인 | 특정 IdeaVersion | cited LegalReviewRun | 수정 후 재검토 또는 계속 |
 | Concept Builder | 복수 대안 생성 | idea + legal context | ConceptCandidate/Version | 후보 검토 |

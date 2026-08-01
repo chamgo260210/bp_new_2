@@ -27,7 +27,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.2 implementation-ready logical schema, JSON contract와 fixtures 미확정; OD-008은 각 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.3 public/internal JSON contract, status/error mapping과 fixtures 미확정; OD-008은 각 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
