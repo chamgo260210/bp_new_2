@@ -46,7 +46,7 @@ PersonaCard는 immutable version record다. 같은 synthetic persona의 history�
 | Delete | Interview/Marketing/Report가 참조하면 보존 |
 | Uniqueness | Study + persona key + version number; current confirmed version 최대 하나 |
 
-세 layer의 상세 field와 optional attribute vocabulary는 P2.3 이후 정의한다. demographic 정보는 세 layer를 보조할 수 있지만 card identity나 validity의 유일한 근거가 될 수 없다.
+세 layer의 상세 field와 optional attribute vocabulary는 P2.4 이후 정의한다. demographic 정보는 세 layer를 보조할 수 있지만 card identity나 validity의 유일한 근거가 될 수 없다.
 
 ## PersonaInterview
 
@@ -55,11 +55,12 @@ PersonaCard는 immutable version record다. 같은 synthetic persona의 history�
 | Identifier/owner | PersonaInterview identifier; PersonaStudy composition과 Project scope |
 | Input | exact PersonaCard version, question set/context snapshot, independent TaskRun |
 | Cardinality | PersonaCard `1:N` Interview; retry는 TaskAttempt history로 추적 |
+| Task binding | 요청 수락 후 Interview `1:1` TaskRun; retry는 같은 TaskRun, 사용자 rerun은 새 Interview/TaskRun |
 | Semantics | 질문, synthetic 답변, interpretation, evidence need를 구분 |
 | Isolation | 다른 PersonaCard/Interview의 prompt, answer, hidden context를 공유하지 않음 |
 | Disclosure | 실제 고객 인터뷰·조사·전문가 판단으로 표현하지 않음 |
-| Mutability | input immutable; lifecycle terminal 전 mutable; terminal content append-only |
-| Lifecycle | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `CANCELLED`, `TIMED_OUT`; current/stale 별도 |
+| Mutability | input immutable; adopted business result reference와 validity만 controlled update; execution lifecycle은 TaskRun 소유 |
+| Execution/validity | TaskRun 상태 projection과 `CURRENT`/`STALE`을 별도 평가 |
 | Time/concurrency | 생성·시작·완료·갱신 시각; lifecycle/adoption에 optimistic concurrency |
 | Provenance | exact Card/TaskRun/TaskResult, question contract version |
 | Delete | Synthesis/Marketing/Report가 참조하면 보존 |
@@ -82,6 +83,8 @@ PersonaCard는 immutable version record다. 같은 synthetic persona의 history�
 | Provenance | exact Interview/TaskResult refs, synthesis TaskRun과 AI/user edits |
 | Delete | Marketing/Report가 참조하면 보존 |
 | Uniqueness | Study + synthesis version number; current finalized 최대 하나 |
+
+AI-backed InterviewSynthesis는 요청 수락 후 정확히 하나의 TaskRun과 연결한다. 비AI 사용자 편집/정리만으로 생성되는 synthesis version은 TaskRun을 요구하지 않는다. AI-backed retry는 같은 TaskRun의 새 Attempt이고 rerun은 새 synthesis version과 새 TaskRun이다. Interview와 AI-backed synthesis 성공은 TaskRun `SUCCEEDED`, adopted TaskResult와 domain validation을 함께 요구한다.
 
 ## Stale rules
 

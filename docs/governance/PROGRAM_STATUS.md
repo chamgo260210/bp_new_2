@@ -21,13 +21,13 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2 — Domain and Contract Definition |
+| Current phase | P2.3 — Workflow, Task Binding and Status Contract |
 | Next phase | P3 — Stable Platform Guard and TaskRun Foundation |
 | Governance phases completed | P0, P1, P1.1 |
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.3 public/internal JSON contract, status/error mapping과 fixtures 미확정; OD-008은 각 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.4 public API JSON contract, P2.5 internal Spring–AI JSON contract, P2.6 fixtures/consistency verification 미완료; OD-008은 각 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -52,4 +52,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P1.1 문서 hardening과 closure가 완료됐고, PostgreSQL baseline fixture remediation PR #15의 6개 CI check 및 canonical docs PR #14의 최종 CI가 성공한 뒤 main에 병합됐다. P2는 main merge commit `6c43f97c884127257a5a733025475d60fd81ca21`에서 시작했다. 초기 CI 실패와 remediation을 포함한 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.2 logical domain schema는 commit `0d175ce25cc5e9abfa4cab490d91825ec642363a`에서 aggregate ownership 30개, 주요 cardinality 25개와 exact input reference 10개 검증을 완료했다. P2.3은 이 schema에 workflow gate/capability, Domain Run–TaskRun binding, execution/validity와 error semantics를 결합한다. 초기 CI 실패와 remediation을 포함한 이전 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

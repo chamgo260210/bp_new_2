@@ -49,10 +49,11 @@ ConceptSelection 또는 참조 Persona evidence가 바뀌면 이전 WorkspaceVer
 |---|---|
 | Identifier/owner | generation run identifier; MarketingWorkspace 소유 |
 | Input | exact MarketingWorkspaceVersion, target PersonaCard refs, generation contract/input snapshot |
+| Task binding | 요청 수락 후 1:1 TaskRun; retry는 같은 TaskRun의 Attempt, rerun은 새 GenerationRun/TaskRun |
 | Cardinality | WorkspaceVersion `1:N` generation runs; run은 여러 asset proposal 생성 가능 |
 | Decision boundary | AI-generated proposal이며 asset의 사용자 승인이나 comparison winner 결정이 아님 |
-| Mutability | input immutable; lifecycle terminal 전 mutable |
-| Lifecycle | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `CANCELLED`, `TIMED_OUT`; current/stale 별도 |
+| Mutability | input immutable; adopted business result reference와 validity만 controlled update; execution lifecycle은 TaskRun 소유 |
+| Execution/validity | TaskRun 상태 projection과 adopted result/domain validation, `CURRENT`/`STALE`을 분리 |
 | Time/concurrency | 생성·시작·완료·갱신 시각; lifecycle/adoption에 optimistic concurrency |
 | Provenance | TaskRun/TaskResult, exact WorkspaceVersion/persona/input hash |
 | Delete | asset/report provenance면 보존 |
@@ -82,15 +83,18 @@ AI Server local output path, object key, Storage reference나 presigned URL은 M
 |---|---|
 | Identifier/owner | comparison run identifier; MarketingWorkspace 소유 |
 | Input | exact MarketingWorkspaceVersion, 둘 이상 exact MarketingAssetVersion과 Persona evidence snapshot |
+| Task binding | 요청 수락 후 1:1 TaskRun; retry는 같은 TaskRun의 Attempt, rerun은 새 ComparisonRun/TaskRun |
 | Cardinality | Workspace `1:N` Run; Run `N:M` AssetVersion; 동일 version 중복 금지 |
 | Result | dimension별 relative assessment, Persona별 관점, caveat, evidence gap와 AI recommendation 방향 |
 | Prohibitions | statistical experiment, actual-user A/B, winner probability, purchase/conversion prediction 표현 금지 |
 | Decision boundary | 상대 AI assessment이며 사용자 asset 선택이나 실제 성과 사실이 아님 |
-| Mutability | input immutable; lifecycle terminal 전 mutable; result append-only |
-| Lifecycle | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `CANCELLED`, `TIMED_OUT`; current/stale 별도 |
+| Mutability | input immutable; adopted business result reference와 validity만 controlled update; execution lifecycle은 TaskRun 소유 |
+| Execution/validity | TaskRun 상태 projection과 adopted result/domain validation, `CURRENT`/`STALE`을 분리 |
 | Time/concurrency | 생성·시작·완료·갱신 시각; lifecycle/result adoption에 optimistic concurrency |
 | Provenance | exact AssetVersion/Persona evidence/TaskRun/TaskResult |
 | Delete | FinalReport가 참조하면 보존 |
 | Uniqueness | run identifier; 비교 input set identity 중복은 idempotency로 방지 |
 
 새 MarketingAssetVersion은 이전 version을 입력으로 사용한 ComparisonRun과 FinalReportVersion만 `STALE`로 만든다. 다른 asset/comparison history는 유지한다.
+
+두 Marketing Run 모두 TaskRun `SUCCEEDED`만으로 business result 성공을 확정하지 않는다. Exact input asset/workspace references, `ADOPTED` TaskResult와 domain validation을 함께 확인한다.

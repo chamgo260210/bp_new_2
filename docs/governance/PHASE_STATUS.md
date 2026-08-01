@@ -54,11 +54,11 @@
 - 범위/산출물: domain, workflow state/gate, provenance, public API contract, internal AI API contract, analysis input/output contract
 - 허용 schema/contract: logical domain schema, state and cardinality definitions, public/internal API JSON schema, contract examples and fixtures
 - 금지: Flyway migration, JPA entity implementation, physical production table creation, Controller/Service runtime implementation
-- 실행 검증: contract consistency/drift와 fixture/schema 정합성 검증 예정
-- 미해결 항목: P2.3 public/internal JSON contract, status/error mapping과 fixtures; OD-008 provider 선택은 각 provider-dependent slice 진입 전 decision gate
+- 실행 검증: P2.2 logical ownership/cardinality/exact-reference와 문서 링크 검증 완료; P2.3 workflow/task/status/error consistency 검증 진행
+- 미해결 항목: P2.4 public API JSON contract, P2.5 internal Spring–AI JSON contract, P2.6 fixtures/consistency verification; OD-008 provider 선택은 각 provider-dependent slice 진입 전 decision gate
 - 완료 조건: P2 due decision 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증
 - 다음 조건: 완료 조건 충족 후 P3 시작
-- 받은 결정/전달 결정: P1.1 guardrails → P3 implementation-ready contract
+- 받은 결정/전달 결정: P2.2 logical schema → P2.3 TaskRun binding/status/capability/error contract → P2.4~P2.6 implementation-ready contract
 
 ## P3 — Stable Platform Guard and TaskRun Foundation
 

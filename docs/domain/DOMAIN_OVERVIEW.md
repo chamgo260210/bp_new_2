@@ -18,6 +18,7 @@
 - lifecycle status와 validity는 분리한다. 실행이 `SUCCEEDED`여도 upstream 변경 후 validity는 `STALE`일 수 있다.
 - AI 실행은 `Run → Attempt → Result`, 불변 업무 내용은 `Version`, 사용자 선택은 `Decision` 또는 `Selection`, 현재 여정 표시는 `Stage`, 실행 가능 여부는 `Capability`를 사용한다.
 - 모든 Run은 exact input version/reference와 input snapshot/hash를 고정한다. current pointer를 나중에 따라가도록 저장하지 않는다.
+- AI-backed Domain Run은 실행 요청이 수락되면 정확히 하나의 TaskRun과 결합한다. TaskRun이 execution lifecycle의 source of truth이고 Domain Run은 exact business input, adopted business result reference, validity와 provenance를 소유한다.
 - AI proposal, user-authored content, user decision, external source fact와 assumption을 provenance에서 구분한다.
 - `STALE`은 물리 삭제가 아니다. history, 입력 reference와 provenance를 유지하며 current reference와 capability에서 제외한다.
 - 기본 삭제는 archive/soft-delete 또는 reference 해제 방향이다. immutable evidence/version/run은 owner Project 삭제·retention 정책 전에는 직접 덮어쓰거나 cascade로 즉시 제거하지 않는다.
@@ -54,15 +55,15 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | IdeaSource | Project | Content immutable; lifecycle mutable | received/validated/extracted/rejected/quarantined/archived | Lifecycle update required | USER source; FILE bytes/metadata는 Spring 소유 |
 | IdeaSourceExtraction | IdeaSource | Immutable extraction version | succeeded/failed + current/stale | No content update | parser/version/checksum과 source reference |
 | IdeaVersion | Project | Immutable, Project-local version sequence | draft/confirmed/superseded + current/stale | Current pointer update required | USER 또는 AI_ASSISTED와 user confirmation 구분 |
-| LegalReviewRun | Project | Input immutable; execution/result status mutable until terminal | run status + legal result status + current/stale | Required | exact IdeaVersion, TaskRun과 legal sources |
+| LegalReviewRun | Project | Input immutable; adopted business result reference mutable | TaskRun state projection + legal result + current/stale | Required | exact IdeaVersion, 1:1 TaskRun과 legal sources |
 | LegalFinding | LegalReviewRun | Immutable after run completion | active/superseded-by-new-run + current/stale | No content update | assumption과 confirmed source fact 구분 |
 | LegalSourceReference | LegalReviewRun | Immutable observation | authoritative/degraded, freshness/currentness | No content update | MOLEG_API 또는 LEGAL_MCP; secret 제외 |
-| ConceptGenerationRun | Project | Input immutable; run lifecycle mutable | queued/running/succeeded/failed/cancelled + current/stale | Required | exact IdeaVersion와 accepted LegalReviewRun context |
+| ConceptGenerationRun | Project | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact IdeaVersion, accepted LegalReviewRun, 1:1 TaskRun |
 | ConceptCandidate | ConceptGenerationRun | Mutable identity/current-version pointer; original proposal immutable | available/rejected/archived + current/stale | Required | AI proposal이며 사용자 채택과 별도 |
 | ConceptVersion | ConceptCandidate | Immutable candidate-local version | draft/confirmed/superseded + current/stale | Current pointer update required | AI_GENERATED 또는 USER_EDITED provenance |
-| QuickAssessmentRun | Project | Input immutable; run lifecycle mutable | queued/running/succeeded/failed/cancelled + current/stale | Required | exact ConceptVersion; AI proposal, selection 아님 |
+| QuickAssessmentRun | Project | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact ConceptVersion, 1:1 TaskRun; AI proposal, selection 아님 |
 | ShortlistDecision | Project | Immutable decision history | active/superseded + current/stale | Current pointer update required | USER decision; AI ranking과 별도 |
-| DetailedAnalysisRun | Project | Input immutable; run lifecycle mutable | queued/running/succeeded/failed/cancelled + current/stale | Required | shortlisted exact ConceptVersion과 analysis-specific provenance |
+| DetailedAnalysisRun | Project | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | shortlisted exact ConceptVersion, 1:1 TaskRun과 analysis provenance |
 | ConceptSelection | Project | Immutable selection history | active/superseded + current/stale | Current pointer update required | USER selection; AI recommendation과 별도 |
 | TaskRun | Project | Mutable workflow execution root | queued/ready/running/succeeded/failed/cancelled/timed_out | Required | subject와 exact input snapshot/hash |
 | TaskAttempt | TaskRun | Mutable until terminal, then append-only | created/claimed/running/succeeded/failed/timed_out/cancelled | Required claim/lease | provider-neutral execution evidence |
@@ -70,14 +71,14 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | TaskArtifact | TaskRun | Metadata/lifecycle mutable; bytes immutable | pending/available/quarantined/deleted | Required | Spring StoredFile reference only |
 | PersonaStudy | Project | Mutable study root/current pointers | draft/in_progress/completed/archived + current/stale | Required | exact ConceptSelection/ConceptVersion |
 | PersonaCard | PersonaStudy | Immutable version record | draft/confirmed/archived + current/stale | Current card pointer required | synthetic AI/user-edited content 표시 |
-| PersonaInterview | PersonaStudy | Input immutable; run lifecycle mutable | queued/running/succeeded/failed/cancelled + current/stale | Required | exact PersonaCard와 independent TaskRun |
-| InterviewSynthesis | PersonaStudy | Immutable synthesis version | draft/finalized/archived + current/stale | Current pointer update required | source Interview 집합을 보존; user decision 아님 |
+| PersonaInterview | PersonaStudy | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact PersonaCard와 independent 1:1 TaskRun |
+| InterviewSynthesis | PersonaStudy | Immutable synthesis version | AI-backed이면 TaskRun projection + current/stale | Current pointer update required | source Interview 집합; AI-backed execution은 1:1 TaskRun |
 | MarketingWorkspace | Project | Mutable single logical workspace | active/on_hold/archived + current/stale | Required | current workspace version pointer |
 | MarketingWorkspaceVersion | MarketingWorkspace | Immutable context version | draft/confirmed/superseded + current/stale | Current pointer update required | exact ConceptVersion와 Persona evidence snapshot |
-| MarketingGenerationRun | MarketingWorkspace | Input immutable; run lifecycle mutable | queued/running/succeeded/failed/cancelled + current/stale | Required | exact WorkspaceVersion와 target Persona refs |
+| MarketingGenerationRun | MarketingWorkspace | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | exact WorkspaceVersion, target Persona refs, 1:1 TaskRun |
 | MarketingAsset | MarketingWorkspace | Mutable logical asset/current-version pointer | active/archived + current/stale | Required | asset identity; content는 version에 존재 |
 | MarketingAssetVersion | MarketingAsset | Immutable version | draft/ready/archived + current/stale | Current pointer update required | prompt/input snapshot, text 또는 Spring artifact |
-| MarketingComparisonRun | MarketingWorkspace | Input immutable; run lifecycle mutable | queued/running/succeeded/failed/cancelled + current/stale | Required | 둘 이상 exact AssetVersion의 상대 평가 |
+| MarketingComparisonRun | MarketingWorkspace | Input immutable; adopted business result reference mutable | TaskRun state projection + current/stale | Required | 둘 이상 exact AssetVersion, 1:1 TaskRun의 상대 평가 |
 | FinalReport | Project | Mutable single logical report/current pointer | draft/generating/ready/failed/archived | Required | current version은 검증된 immutable snapshot만 가리킴 |
 | FinalReportVersion | FinalReport | Immutable Project-local report version | available/withdrawn + current/stale-at-source | Current pointer update required | exact upstream set, AI/user/source/assumption 구분 |
 
@@ -118,9 +119,12 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 | Project | 1:0..1 | FinalReport | Composition/logical singleton | Project당 logical report 최대 하나 |
 | FinalReport | 1:N | FinalReportVersion | Composition/version history | report version number 유일; current 최대 하나 |
 | Project | 1:N | TaskRun | Composition/execution history | subject는 같은 Project resource여야 함 |
+| AI-backed Domain Run | 1:1 | TaskRun | Execution binding | 요청 수락 후 정확히 하나; user rerun은 양쪽을 새로 생성 |
 | TaskRun | 1:N | TaskAttempt | Composition/retry history | attempt number는 TaskRun 안에서 유일 |
 | TaskAttempt | 1:0..N | TaskResult | Composition/response evidence | 지연·중복 response 보존; adopted result는 attempt당 최대 하나 |
-| TaskResult | 1:N | TaskArtifact | Composition/reference | artifact는 Spring-owned StoredFile metadata만 참조 |
+| TaskResult | 1:0..N | TaskArtifact | Composition/reference | JSON-only 정상 결과는 artifact가 없을 수 있고, 존재하면 Spring-owned StoredFile metadata만 참조 |
+
+AI-backed Domain Run 범위는 LegalReviewRun, ConceptGenerationRun, QuickAssessmentRun, DetailedAnalysisRun, PersonaInterview, AI 실행으로 생성되는 InterviewSynthesis, MarketingGenerationRun, MarketingComparisonRun과 후속 AI-backed Final Report Run이다. 모든 TaskRun이 Domain Run을 필요로 하지는 않으며 platform task도 허용한다. 어느 경우든 TaskRun subject는 허용된 logical type이고 같은 Project owner scope여야 한다.
 
 ## Version and current-reference rules
 
@@ -132,19 +136,19 @@ Stage는 사용자에게 현재 여정 위치를 표시하지만 capability의 s
 
 ## Stale propagation matrix
 
-| Trigger | Affected downstream | Rule |
-|---|---|---|
-| 새 current IdeaVersion | 이전 IdeaVersion 기반 LegalReviewRun, ConceptGenerationRun과 모든 후속 assessment/decision/persona/marketing/report | 이전 chain을 유지하고 `STALE`; 새 chain은 새 IdeaVersion에서 시작 |
-| LegalReview correction으로 새 IdeaVersion | 이전 legal/concept chain 전체 | 기존 결과를 수정하지 않고 보존; correction source를 참조하는 새 IdeaVersion과 새 LegalReviewRun 생성 |
-| 새 current ConceptVersion | 해당 이전 version 기반 Quick/Detailed, ShortlistDecision, ConceptSelection과 그 downstream | exact version 기준으로 `STALE`; 다른 candidate chain은 영향 없음 |
-| 새 ShortlistDecision | 제외된 ConceptVersion의 기존 DetailedAnalysisRun | history는 보존하되 current shortlist 근거로는 `STALE`; 다시 포함되면 자동 복구하지 않고 재검증 capability 필요 |
-| 새 ConceptSelection | 이전 selection 기반 PersonaStudy, Interview, Synthesis, MarketingWorkspaceVersion/Run/Asset/Comparison, FinalReportVersion | 모두 `STALE`; 새 selection chain 생성 |
-| 새 PersonaCard version | 이전 card 기반 PersonaInterview, 관련 InterviewSynthesis, Marketing evidence와 FinalReportVersion | 해당 persona branch부터 `STALE`; 다른 card/interview branch는 유지 |
-| 새 MarketingAssetVersion | 이전 asset version을 입력으로 한 MarketingComparisonRun과 FinalReportVersion | 해당 비교/report만 `STALE`; asset history 유지 |
-| 새 MarketingWorkspaceVersion | 이전 workspace context 기반 generation/comparison/report | 이전 context chain `STALE`; asset version 자체는 provenance와 함께 유지 |
-| 새 FinalReportVersion | 이전 FinalReportVersion | 이전 version은 immutable history로 유지하며 current pointer만 이동; 자동 수정 없음 |
+| Trigger | Affected downstream | Validity/history rule | Current pointer rule | Capability effect |
+|---|---|---|---|---|
+| 새 current IdeaVersion | 이전 IdeaVersion 기반 LegalReviewRun, ConceptGenerationRun과 모든 후속 assessment/decision/persona/marketing/report | 이전 chain을 유지하고 `STALE`; 새 chain은 새 IdeaVersion에서 시작 | 이전 legal 및 모든 downstream current pointer 해제 | 새 legal review 전 concept 이후 capability 차단 |
+| LegalReview correction으로 새 IdeaVersion | 이전 legal/concept chain 전체 | 기존 결과를 수정하지 않고 보존; correction source를 참조하는 새 IdeaVersion과 새 LegalReviewRun 생성 | accepted legal/concept downstream pointer 해제 | 새 legal result가 gate를 통과할 때까지 `CAN_GENERATE_CONCEPTS` false |
+| 새 current ConceptVersion | 해당 이전 version 기반 Quick/Detailed, ShortlistDecision, ConceptSelection과 그 downstream | exact version 기준으로 `STALE`; 다른 candidate chain은 영향 없음 | stale assessment/decision/selection pointer 해제 | 새 Quick/shortlist/detail/selection gate 재평가 |
+| 새 ShortlistDecision | 제외된 ConceptVersion의 기존 DetailedAnalysisRun | history는 보존하되 current shortlist 근거로는 `STALE`; 다시 포함돼도 자동 current 복구 안 함 | 제외된 version의 detailed current reference 해제 | 제외 항목의 `CAN_RUN_DETAILED_ANALYSIS` false; 재포함 시 재검증 |
+| 새 ConceptSelection | 이전 selection 기반 PersonaStudy, Interview, Synthesis, MarketingWorkspaceVersion/Run/Asset/Comparison, FinalReportVersion | 모두 `STALE`; 새 selection chain 생성 | 이전 persona/marketing/report current pointer 해제 | Persona/Marketing/Report capability를 새 selection 기준으로 재평가 |
+| 새 PersonaCard version | 이전 card 기반 PersonaInterview, 관련 InterviewSynthesis, Marketing evidence와 FinalReportVersion | 해당 persona branch부터 `STALE`; 다른 card/interview branch는 유지 | 해당 persona의 interview/synthesis 및 이를 쓰는 downstream pointer 해제 | 해당 card의 interview와 dependent Marketing/Report capability 차단 후 재평가 |
+| 새 MarketingAssetVersion | 이전 asset version을 입력으로 한 MarketingComparisonRun과 FinalReportVersion | 해당 비교/report만 `STALE`; asset history 유지 | 해당 comparison/report current pointer 해제 | 새 comparison과 report generation capability 재평가 |
+| 새 MarketingWorkspaceVersion | 이전 workspace context 기반 generation/comparison/report | 이전 context chain `STALE`; asset version 자체는 provenance와 함께 유지 | 이전 workspace context 기반 run/comparison/report pointer 해제 | Marketing generation/comparison/report capability 재평가 |
+| 새 FinalReportVersion | 이전 FinalReportVersion | 이전 version은 immutable history로 유지하며 자동 수정하지 않음 | 검증된 새 version으로 current pointer만 이동 | `CAN_EXPORT_FINAL_REPORT`는 새 current version 기준; 재생성은 명시적 command만 허용 |
 
-Stale 판정과 current reference는 Spring이 관리한다. AI Server는 stale 상태를 계산하거나 Project current pointer를 변경하지 않는다.
+Stale 판정과 current reference는 Spring이 관리한다. AI Server는 stale 상태를 계산하거나 Project current pointer를 변경하지 않는다. Stale target은 history 조회에는 남지만 capability 충족 근거나 current pointer target이 될 수 없다.
 
 ## Deletion and retention direction
 

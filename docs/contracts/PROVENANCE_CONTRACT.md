@@ -25,4 +25,4 @@ Quick와 Detailed는 shared core input provenance를 참조하되 각 analysis-s
 
 모든 Run은 exact input Version/Decision/reference와 snapshot/hash를 가진다. immutable Version은 source set을 고정하고 current pointer를 동적으로 따라가지 않는다. FinalReportVersion은 포함한 upstream reference 집합과 위 category를 snapshot 안에서 구분한다.
 
-상세 identifier encoding, citation JSON shape, hash algorithm, retention과 재현성 수준은 P2.3 contract에서 결정한다.
+상세 identifier encoding과 citation JSON shape는 P2.4/P2.5 JSON contract에서, fixture와 hash/재현성 검증은 P2.6에서 결정한다. Retention 기간은 후속 operations/migration Phase에서 확정한다.

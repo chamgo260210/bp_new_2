@@ -20,15 +20,16 @@ ConceptGenerationRun은 Project 소유 Run이고 ConceptCandidate를 composition
 | Input references | exact IdeaVersion과 `PASS` 또는 `PASS_WITH_CONDITIONS`인 exact LegalReviewRun |
 | Cardinality | IdeaVersion `1:N` Run; LegalReviewRun `1:N` Run; Run `1:N` Candidate |
 | Input snapshot | IdeaVersion, LegalReviewRun, legal conditions, generation contract version과 hash |
-| Mutability | input immutable; run lifecycle은 terminal 전 mutable |
-| Lifecycle | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `CANCELLED`, `TIMED_OUT`; validity current/stale 별도 |
+| Task binding | 요청 수락 후 정확히 하나의 TaskRun; retry는 같은 TaskRun의 새 Attempt, rerun은 새 GenerationRun/TaskRun |
+| Mutability | input immutable; adopted business result reference와 validity만 controlled update; execution lifecycle은 TaskRun 소유 |
+| Execution/validity | TaskRun 상태 projection과 `CURRENT`/`STALE`을 별도 평가; 독립 execution 상태를 소유하지 않음 |
 | Time | 생성, 시작, 완료, 마지막 갱신 시각 |
 | Concurrency | run transition과 candidate adoption에 optimistic concurrency 필요 |
 | Provenance | TaskRun/TaskResult, AI proposal origin, exact upstream refs |
 | Delete | archive/history 보존; candidate/downstream 참조 중 hard delete 금지 |
 | Uniqueness | run identifier; input/idempotency 중복은 TaskRun 정책으로 방지 |
 
-Run 성공은 AI 제안 생성 완료일 뿐 candidate 또는 ConceptVersion의 사용자 채택을 뜻하지 않는다.
+Run 성공은 exact input에 대한 검증·채택 TaskResult가 존재하는 AI 제안 생성 완료일 뿐 candidate 또는 ConceptVersion의 사용자 채택을 뜻하지 않는다. TaskRun `SUCCEEDED`만으로 business result 성공을 판단하지 않는다.
 
 ## ConceptCandidate
 

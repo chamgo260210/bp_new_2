@@ -35,5 +35,10 @@
 | FR-023 | Service Policy는 maintenance, Project 생성, upload, AI, report 생성 제어 방향을 제공한다. | P11 |
 | FR-024 | legacy Workflow API/route에 신규 compatibility 경로를 만들지 않고 P12에서 제거한다. | P3–P12 |
 | FR-025 | TaskRun은 업무 요청과 현재 최종 상태를, TaskAttempt는 개별 실행·retry·timeout·오류·응답을 소유하고 polling/event wake에 중립적인 실행 계약을 제공한다. | P3 |
+| FR-026 | AI-backed Domain Run은 요청 수락 후 정확히 하나의 TaskRun과 연결하며 retry는 같은 TaskRun의 새 TaskAttempt, 사용자 rerun은 새 Domain Run과 새 TaskRun으로 기록한다. | P2/P3–P10 |
+| FR-027 | Spring은 Project status, owner scope, Service Policy, exact current reference, lifecycle, validity, user gate와 conflicting TaskRun으로 12개 canonical capability를 계산한다. Capability는 업무 source of truth로 별도 저장하지 않는다. | P2/P3–P10 |
+| FR-028 | Domain Run 성공은 TaskRun `SUCCEEDED`만으로 확정하지 않고 exact binding/input, 검증·채택된 TaskResult와 domain validation을 요구한다. Execution lifecycle과 `CURRENT`/`STALE` validity를 분리한다. | P2/P3–P10 |
+| FR-029 | Legal, shortlist, detailed, selection, persona, marketing과 report gate는 exact current non-stale reference와 명시적인 사용자 결정을 적용한다. | P2/P4–P10 |
+| FR-030 | Public/domain 오류는 validation, missing, conflict, stale, capability/policy/gate, task/idempotency, payload, timeout, AI unavailable/invalid 결과를 stable code로 구분하고 provider raw body와 비밀값을 노출하지 않는다. | P2/P3–P10 |
 
-Logical field semantics와 cardinality는 P2.2 domain contract에서 정의한다. 상세 validation, command/query JSON schema와 UI interaction은 P2.3 이후 계약에서 결정한다.
+Logical field semantics와 cardinality는 P2.2, workflow/task/status/error semantics는 P2.3에서 정의한다. 상세 public command/query JSON schema와 error envelope는 P2.4, internal Spring–AI JSON contract는 P2.5에서 결정한다.

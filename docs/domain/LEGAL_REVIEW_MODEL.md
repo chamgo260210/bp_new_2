@@ -18,9 +18,10 @@ LegalReviewRun은 Project 소유 aggregate이며 exact IdeaVersion을 input으�
 |---|---|
 | Identifier/owner | LegalReviewRun identifier; 정확히 한 Project와 IdeaVersion |
 | Cardinality | IdeaVersion `1:N` LegalReviewRun; Project current accepted legal reference 최대 하나 |
-| Input | exact IdeaVersion identifier, input snapshot/hash, legal contract version, associated TaskRun 방향 |
-| Mutability | input immutable; execution/result/lifecycle은 terminal 전 mutable, terminal 후 append-only evidence |
-| Execution status | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `CANCELLED`, `TIMED_OUT` |
+| Input | exact IdeaVersion identifier, input snapshot/hash와 legal contract version |
+| Task binding | 요청 수락 후 정확히 하나의 TaskRun; retry는 같은 TaskRun의 새 Attempt, rerun은 새 LegalReviewRun/TaskRun |
+| Mutability | input immutable; adopted business result reference와 validity만 controlled update; execution lifecycle은 TaskRun 소유 |
+| Execution display | 연결된 TaskRun 상태 projection; 독립 execution source of truth가 아님 |
 | Result status | `PASS`, `PASS_WITH_CONDITIONS`, `REVISION_REQUIRED`, `PROHIBITED`, `INSUFFICIENT_INFORMATION`, `EXPERT_REVIEW_REQUIRED` |
 | Source coverage | `AUTHORITATIVE_COMPLETE`, `DEGRADED`, `UNAVAILABLE`; execution status와 분리 |
 | Time | 생성, 시작, 완료, 마지막 갱신 시각 |
@@ -30,6 +31,8 @@ LegalReviewRun은 Project 소유 aggregate이며 exact IdeaVersion을 input으�
 | Uniqueness | Run identifier 전역 유일; 동일 idempotency/input snapshot 중복 생성은 TaskRun 정책으로 방지 |
 
 `PASS`와 `PASS_WITH_CONDITIONS`만 ConceptGenerationRun의 통과 가능한 legal context다. `PASS_WITH_CONDITIONS`의 조건은 generation input snapshot에 포함한다. 나머지 result status는 correction, 추가 정보 또는 전문가 검토 gate를 요구하며 AI 결과만으로 우회하지 않는다.
+
+TaskRun `SUCCEEDED`만으로 legal result가 확정되지 않는다. Exact input에 대한 `ADOPTED` TaskResult, domain validation과 legal result status가 모두 존재해야 한다. Task failure/timeout/cancellation과 legal result, `CURRENT`/`STALE` validity는 별도 차원이다.
 
 ## LegalFinding
 
@@ -45,9 +48,9 @@ LegalReviewRun은 Project 소유 aggregate이며 exact IdeaVersion을 input으�
 | Concurrency | immutable content에는 불필요 |
 | Provenance | 하나 이상 source link 또는 assumption rationale; AI proposal origin |
 | Delete | parent Run retention을 따름; report provenance에 포함되면 보존 |
-| Uniqueness | finding identifier 유일; 같은 Run 안의 중복 finding 판단 규칙은 P2.3 vocabulary contract에서 결정 |
+| Uniqueness | finding identifier 유일; 같은 Run 안의 중복 finding 판단 규칙은 P2.4 이후 vocabulary/API contract에서 결정 |
 
-Finding type/severity의 상세 vocabulary는 P2.3 이후 계약으로 남기지만, severity가 result status나 legal conclusion을 자동 확정하지 않도록 한다.
+Finding type/severity의 상세 vocabulary는 P2.4 이후 계약으로 남기지만, severity가 result status나 legal conclusion을 자동 확정하지 않도록 한다.
 
 ## LegalSourceReference
 
