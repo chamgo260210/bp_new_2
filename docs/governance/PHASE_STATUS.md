@@ -51,14 +51,15 @@
 - 상태: IN_PROGRESS
 - 시작 branch/commit: refoundation/phase2-domain-contracts / 6c43f97c884127257a5a733025475d60fd81ca21
 - 완료 branch/commit: 미정
+- Subphase status: P2.1 `COMPLETE`, P2.2 `COMPLETE`, P2.3 `COMPLETE` (commit `cd1c9816a5b716533e3a79c459f42ce09bde3671`), P2.4 `IN_PROGRESS`, P2.5/P2.6 `NOT_STARTED`
 - 범위/산출물: domain, workflow state/gate, provenance, public API contract, internal AI API contract, analysis input/output contract
 - 허용 schema/contract: logical domain schema, state and cardinality definitions, public/internal API JSON schema, contract examples and fixtures
 - 금지: Flyway migration, JPA entity implementation, physical production table creation, Controller/Service runtime implementation
-- 실행 검증: P2.2 logical ownership/cardinality/exact-reference와 문서 링크 검증 완료; P2.3 workflow/task/status/error consistency 검증 진행
-- 미해결 항목: P2.4 public API JSON contract, P2.5 internal Spring–AI JSON contract, P2.6 fixtures/consistency verification; OD-008 provider 선택은 각 provider-dependent slice 진입 전 decision gate
+- 실행 검증: P2.2 logical schema와 P2.3 workflow/task/status/error contract 검증 완료; P2.4 public endpoint/JSON/capability/error consistency 검증 진행
+- 미해결 항목: P2.4 public API JSON contract consistency, P2.5 internal Spring–AI JSON contract, P2.6 fixtures/consistency verification; OD-008 provider 선택은 각 provider-dependent slice 진입 전 decision gate
 - 완료 조건: P2 due decision 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증
 - 다음 조건: 완료 조건 충족 후 P3 시작
-- 받은 결정/전달 결정: P2.2 logical schema → P2.3 TaskRun binding/status/capability/error contract → P2.4~P2.6 implementation-ready contract
+- 받은 결정/전달 결정: P2.3 TaskRun binding/status/capability/error → P2.4 public API v2 contract → P2.5 internal contract와 P2.6 fixtures
 
 ## P3 — Stable Platform Guard and TaskRun Foundation
 

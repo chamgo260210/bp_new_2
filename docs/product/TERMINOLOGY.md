@@ -17,3 +17,5 @@ Project는 하나의 아이디어 검증 과정 전체다. IdeaSource logical ty
 `Version`은 immutable 업무 내용, `Decision`/`Selection`은 사용자 선택, `Stage`는 현재 Workflow 표시, `Capability`는 Spring이 조건으로 계산한 실제 실행 가능 여부다. `CURRENT`/`STALE`은 execution success/failure와 별개인 domain validity다. Capability cache는 구현 최적화이며 canonical 업무 상태가 아니다.
 
 Target 문서에서 StructuredPlan, 12개 고정 section, FILLED/WAIVED, fixed cluster persona, market response prediction, purchase probability, runtime report를 신규 기능 명칭으로 사용하지 않는다.
+
+Public API에서 `ResourceReference`는 opaque `type`/`id`로 exact resource를 가리키고, `currentReferences`는 Spring이 검증한 현재 non-stale pointer 집합이다. `Idempotency-Key` replay는 같은 command의 재전송이며, Domain `Rerun`은 새 Domain Run/TaskRun을 만드는 별도 command다. `TaskRunPublicView`는 execution projection이고 TaskAttempt/provider 내부 정보가 아니다.

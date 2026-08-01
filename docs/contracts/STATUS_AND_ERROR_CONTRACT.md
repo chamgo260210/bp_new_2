@@ -43,7 +43,7 @@ Canonical 값은 다음과 같고 같은 문자열이 보여도 각 차원의 en
 
 ## Error semantics
 
-HTTP status는 public contract 방향이며 상세 error envelope와 endpoint별 적용은 P2.4에서 고정한다.
+HTTP status, error envelope와 endpoint별 적용은 [Public API v2 Contract](PUBLIC_API_V2_CONTRACT.md)에서 고정한다.
 
 | Code | Meaning | Retry direction | User correction | HTTP direction |
 |---|---|---|---|---:|
@@ -72,4 +72,4 @@ Error code는 한 envelope에서 하나의 primary code로 사용하고 세부 f
 - Persona, Marketing, Report는 exact current non-stale upstream을 요구한다. 단순히 Project Stage가 앞서 있다는 이유로 허용하지 않는다.
 - 동일 subject/input active TaskRun 충돌은 `TASK_ALREADY_RUNNING`; idempotency key/input 불일치는 `IDEMPOTENCY_CONFLICT`로 구분한다.
 
-상세 JSON error envelope, field error shape, command/query별 error subset과 response example은 P2.4 public API contract에서 작성한다. 이 문서는 `docs/api/openapi.yaml`을 변경하거나 현재 구현 계약으로 선언하지 않는다.
+상세 JSON error envelope, field error shape, command/query별 error subset과 response example은 [Public API v2 Contract](PUBLIC_API_V2_CONTRACT.md)를 따른다. 이 문서는 `docs/api/openapi.yaml`을 변경하거나 현재 구현 계약으로 선언하지 않는다.

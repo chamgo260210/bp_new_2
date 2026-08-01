@@ -21,13 +21,15 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2.3 — Workflow, Task Binding and Status Contract |
+| Current phase | P2.4 — Public API v2 JSON Contract |
+| P2.3 status | COMPLETE at `cd1c9816a5b716533e3a79c459f42ce09bde3671` |
+| P2.4 status | IN_PROGRESS |
 | Next phase | P3 — Stable Platform Guard and TaskRun Foundation |
 | Governance phases completed | P0, P1, P1.1 |
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.4 public API JSON contract, P2.5 internal Spring–AI JSON contract, P2.6 fixtures/consistency verification 미완료; OD-008은 각 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.4 public API JSON contract 작성 및 consistency 검증; 이후 P2.5 internal Spring–AI contract와 P2.6 fixtures/consistency verification; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -52,4 +54,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.2 logical domain schema는 commit `0d175ce25cc5e9abfa4cab490d91825ec642363a`에서 aggregate ownership 30개, 주요 cardinality 25개와 exact input reference 10개 검증을 완료했다. P2.3은 이 schema에 workflow gate/capability, Domain Run–TaskRun binding, execution/validity와 error semantics를 결합한다. 초기 CI 실패와 remediation을 포함한 이전 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.3 workflow/task/status contract는 commit `cd1c9816a5b716533e3a79c459f42ce09bde3671`에서 12개 capability, 14개 error와 9개 AI-backed binding 검증을 완료했다. P2.4는 이를 `/api/v2` endpoint, JSON envelope, resource schema와 capability binding으로 고정한다. 구현 진행률과 vertical slice는 여전히 0이다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.

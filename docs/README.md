@@ -22,7 +22,7 @@ Target과 Current가 충돌하면 제품 방향은 Target을 따르되, 실행 �
 - Product: [비전](product/PRODUCT_VISION.md), [범위](product/PRODUCT_SCOPE.md), [사용자 여정](product/USER_JOURNEY.md), [Workflow](product/PROJECT_WORKFLOW.md), [요구사항](product/FUNCTIONAL_REQUIREMENTS.md), [비기능](product/NON_FUNCTIONAL_REQUIREMENTS.md), [용어](product/TERMINOLOGY.md), [미결정](product/OPEN_DECISIONS.md)
 - Domain drafts: [개요](domain/DOMAIN_OVERVIEW.md)
 - Architecture: [시스템](architecture/SYSTEM_ARCHITECTURE.md), [Spring](architecture/SPRING_WAS_BOUNDARY.md), [AI Server](architecture/AI_SERVER_BOUNDARY.md), [데이터·스토리지](architecture/DATA_AND_STORAGE_ARCHITECTURE.md), [보안](architecture/SECURITY_ARCHITECTURE.md), [배포](architecture/DEPLOYMENT_ARCHITECTURE.md)
-- Contracts: [개요](contracts/CONTRACT_OVERVIEW.md)
+- Contracts: [개요](contracts/CONTRACT_OVERVIEW.md), [Public API 원칙](contracts/PUBLIC_API_PRINCIPLES.md), [Public API v2 JSON 계약](contracts/PUBLIC_API_V2_CONTRACT.md), [상태·오류](contracts/STATUS_AND_ERROR_CONTRACT.md), [Provenance](contracts/PROVENANCE_CONTRACT.md)
 - UI/UX: [정보구조](uiux/INFORMATION_ARCHITECTURE.md), [목표 route](uiux/TARGET_ROUTE_MAP.md), [화면 inventory](uiux/SCREEN_INVENTORY.md), [Workflow UX](uiux/WORKFLOW_UX.md)
 - Quality: [테스트 전략](quality/TEST_STRATEGY.md), [Stable Core](quality/STABLE_CORE_REGRESSION.md), [품질 게이트](quality/QUALITY_GATES.md), [인수 기준](quality/ACCEPTANCE_CRITERIA.md)
 - Migration: [Current→Target](migration/CURRENT_TO_TARGET_MAPPING.md), [Legacy 제거](migration/LEGACY_REMOVAL_PLAN.md), [Phase 순서](migration/IMPLEMENTATION_PHASES.md), [문서 제거 manifest](migration/DOCUMENT_REMOVAL_MANIFEST.md)

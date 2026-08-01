@@ -60,6 +60,8 @@ FinalReportVersion은 upstream stale 전파 후에도 immutable snapshot으로 �
 
 Workflow 상태와 TaskRun 상태는 분리한다. AI-backed Domain Run은 요청 수락 후 TaskRun과 1:1로 결합한다. retry는 동일 TaskRun의 새 TaskAttempt이고 사용자의 rerun은 새 Domain Run과 새 TaskRun이다. TaskRun `SUCCEEDED`만으로 Domain result 성공을 확정하지 않고 exact input에 대한 검증·채택 TaskResult를 함께 요구한다. timeout/retry 후 성공한 attempt만으로 이전 사용자 결정을 암묵적으로 교체하지 않는다. 법령/AI 장애는 실패 provenance를 남기고 재시도 가능성을 Spring이 판단한다. Persona interview 하나의 실패가 다른 Persona 결과를 오염시키지 않는다.
 
+Public command, status code와 JSON 표현은 [Public API v2 Contract](../contracts/PUBLIC_API_V2_CONTRACT.md)를 따른다. 모든 Workflow command는 `/api/v2/projects/{projectId}` owner scope 아래에서 capability와 exact current reference를 다시 검증한다.
+
 ## Exclusions
 
 문서 완성률, 고정 section completion, Persona 토론, 시장반응/구매확률, 실제 A/B conversion, runtime-only report는 Target Workflow에 포함하지 않는다.
