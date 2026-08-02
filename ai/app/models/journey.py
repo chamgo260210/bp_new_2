@@ -1,10 +1,13 @@
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
 class StrictResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+NonBlankMarketingText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class IdeaInterpretationResult(StrictResult):
@@ -135,3 +138,74 @@ class InterviewSynthesisResult(StrictResult):
     decisionBarriers: list[str]
     implications: list[str]
     researchNeeds: list[str]
+
+
+class PersonaMessage(StrictResult):
+    personaId: int = Field(strict=True)
+    personaName: NonBlankMarketingText
+    message: NonBlankMarketingText
+    rationale: NonBlankMarketingText
+
+
+class ChannelPlanItem(StrictResult):
+    channel: NonBlankMarketingText
+    objective: NonBlankMarketingText
+    message: NonBlankMarketingText
+
+
+class LandingHero(StrictResult):
+    headline: NonBlankMarketingText
+    subheadline: NonBlankMarketingText
+    cta: NonBlankMarketingText
+
+
+class MarketingGenerationResult(StrictResult):
+    positioning: NonBlankMarketingText
+    coreMessage: NonBlankMarketingText
+    slogans: list[str] = Field(min_length=1)
+    personaMessages: list[PersonaMessage] = Field(min_length=1)
+    channelPlan: list[ChannelPlanItem] = Field(min_length=1)
+    socialCopies: list[str] = Field(min_length=1)
+    emailCopies: list[str] = Field(default_factory=list)
+    landingHero: LandingHero
+    assumptions: list[str]
+    warnings: list[str]
+
+
+class PersonaFit(StrictResult):
+    personaId: int = Field(strict=True)
+    personaName: NonBlankMarketingText
+    fit: Literal["LOW", "MEDIUM", "HIGH"]
+    rationale: NonBlankMarketingText
+
+
+class MarketingComparisonItem(StrictResult):
+    assetId: int = Field(strict=True)
+    assetVersionId: int = Field(strict=True)
+    assetType: Literal["POSITIONING", "CORE_MESSAGE", "SLOGAN", "SOCIAL_COPY", "LANDING_HERO", "EMAIL_COPY", "CHANNEL_PLAN"]
+    personaFit: list[PersonaFit] = Field(min_length=1)
+    strengths: list[NonBlankMarketingText] = Field(min_length=1)
+    risks: list[NonBlankMarketingText] = Field(min_length=1)
+    recommendedContexts: list[NonBlankMarketingText] = Field(min_length=1)
+    selectionSuggestion: NonBlankMarketingText
+
+
+class MarketingComparisonResult(StrictResult):
+    comparisons: list[MarketingComparisonItem] = Field(min_length=1)
+
+
+class FinalReportResult(StrictResult):
+    executiveSummary: NonBlankMarketingText
+    idea: dict[str, Any]
+    legalReview: dict[str, Any]
+    selectedConcept: dict[str, Any]
+    analysis: dict[str, Any]
+    personaInsights: dict[str, Any]
+    marketingStrategy: dict[str, Any]
+    facts: list[NonBlankMarketingText]
+    assumptions: list[NonBlankMarketingText]
+    researchNeeds: list[NonBlankMarketingText]
+    risks: list[NonBlankMarketingText]
+    decision: Literal["GO", "CONDITIONAL_GO", "REWORK", "HOLD", "STOP"]
+    decisionReasons: list[NonBlankMarketingText] = Field(min_length=1)
+    nextActions: list[NonBlankMarketingText] = Field(min_length=1)

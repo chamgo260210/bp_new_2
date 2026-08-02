@@ -40,6 +40,7 @@ import AdminAuditPage, { AdminAuditDetailOverlay } from '../../features/admin/pa
 import { IdeaJourneyPage, LegalJourneyPage, LockedJourneyPage } from '../../features/journey/JourneyPages.jsx';
 import { ConceptAnalysisPage, ConceptGenerationPage, ConceptSelectionPage } from '../../features/journey/ConceptJourneyPages.jsx';
 import { InterviewJourneyPage, PersonaJourneyPage } from '../../features/journey/PersonaInterviewPages.jsx';
+import { FinalReportJourneyPage, MarketingJourneyPage } from '../../features/journey/MarketingReportPages.jsx';
 
 function LegacyProjectRedirect({ suffix = '' }) {
   const { projectId } = useParams();
@@ -87,8 +88,8 @@ export default function AppRouter() {
             <Route path="journey/concept-selection" element={<ConceptSelectionPage />} />
             <Route path="journey/persona" element={<PersonaJourneyPage />} />
             <Route path="journey/interview" element={<InterviewJourneyPage />} />
-            <Route path="journey/marketing" element={<LockedJourneyPage title="마케팅" />} />
-            <Route path="journey/final-report" element={<LockedJourneyPage title="최종 보고서" />} />
+            <Route path="journey/marketing" element={<MarketingJourneyPage />} />
+            <Route path="journey/final-report" element={<FinalReportJourneyPage />} />
             <Route path="get-started" element={<Navigate to=".." replace />} />
             <Route path="plan" element={<Navigate to="documents" replace />} />
             <Route path="plan/brief" element={<Navigate to="../settings" replace />} />

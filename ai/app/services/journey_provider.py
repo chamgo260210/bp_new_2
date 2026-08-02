@@ -13,9 +13,12 @@ from app.models.journey import (
     IdeaInterpretationResult,
     InterviewSynthesisResult,
     LegalReviewResult,
+    MarketingComparisonResult,
+    MarketingGenerationResult,
     PersonaCardGenerationResult,
     PersonaInterviewResult,
     QuickAssessmentResult,
+    FinalReportResult,
 )
 
 
@@ -55,6 +58,9 @@ def _load_prompts(task_type: str, text: str) -> tuple[str, str]:
         "PERSONA_CARD_GENERATION": "persona_card_generation",
         "PERSONA_INTERVIEW": "persona_interview",
         "INTERVIEW_SYNTHESIS": "interview_synthesis",
+        "MARKETING_GENERATION": "marketing_generation",
+        "MARKETING_COMPARISON": "marketing_comparison",
+        "FINAL_REPORT_GENERATION": "final_report_generation",
     }
     folder = folders.get(task_type)
     if folder is None:
@@ -129,8 +135,11 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
             "PERSONA_CARD_GENERATION": PersonaCardGenerationResult,
             "PERSONA_INTERVIEW": PersonaInterviewResult,
             "INTERVIEW_SYNTHESIS": InterviewSynthesisResult,
+            "MARKETING_GENERATION": MarketingGenerationResult,
+            "MARKETING_COMPARISON": MarketingComparisonResult,
+            "FINAL_REPORT_GENERATION": FinalReportResult,
         }
         model_type = model_types[task_type]
-        return model_type.model_validate(raw_result).model_dump()
+        return model_type.model_validate(raw_result).model_dump(by_alias=True, exclude_unset=True)
     except (KeyError, IndexError, TypeError, AttributeError, ValueError, json.JSONDecodeError, ValidationError) as failure:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure

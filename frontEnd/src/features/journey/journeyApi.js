@@ -34,5 +34,13 @@ export function createJourneyApi(client, projectId) {
     async personaInterviews() { return (await client.get(`${root}/persona-interviews`)).data; },
     async synthesizeInterviews() { return (await client.post(`${root}/interview-syntheses`, undefined, { timeoutMs: 120000 })).data; },
     async currentInterviewSynthesis() { return (await client.get(`${root}/interview-syntheses/current`)).data; },
+    async generateMarketing() { return (await client.post(`${root}/marketing-generations`, undefined, { timeoutMs: 150000 })).data; },
+    async marketingWorkspace() { return (await client.get(`${root}/marketing-workspace`)).data; },
+    async selectMarketingAsset(assetId) { return (await client.put(`${root}/marketing-assets/${encodeURIComponent(assetId)}/select`)).data; },
+    async compareMarketing() { return (await client.post(`${root}/marketing-comparisons`, undefined, { timeoutMs: 150000 })).data; },
+    async currentMarketingComparison() { return (await client.get(`${root}/marketing-comparisons/current`)).data; },
+    async generateFinalReport() { return (await client.post(`${root}/final-reports`, undefined, { timeoutMs: 150000 })).data; },
+    async currentFinalReport() { return (await client.get(`${root}/final-reports/current`)).data; },
+    async decideFinalReport(reportId, input) { return (await client.put(`${root}/final-reports/${encodeURIComponent(reportId)}/decision`, input)).data; },
   };
 }
