@@ -63,12 +63,14 @@
 
 ## P3 — Stable Platform Guard and TaskRun Foundation
 
-- 상태: NOT_STARTED
-- 시작/완료 branch·commit: 미정
-- 범위/산출물: Stable Core regression, api v2 foundation, TaskRun, AI/data/storage boundary
-- 실행 검증: Stable Core/Flyway/Spring–AI/FastAPI 예정
-- 미해결/다음 조건: P2 contract / P2 COMPLETE
-- 받은/전달 결정: P2 contract → P4 platform foundation
+- 상태: COMPLETE
+- 시작 branch/commit: `implementation/phase3-taskrun-foundation` / `2da4c9caa6f0f39f2fb642c6ce1dd79cc6464758`
+- 완료 commit: 이 Phase 최종 commit에서 확정
+- 범위/산출물: Stable Core guard, V27 Target TaskRun/TaskAttempt/TaskResult, claim/lease/heartbeat/recovery, retry/cancel/idempotency, Spring internal execution client, FastAPI `/internal/v1/ai/executions`, public v2 TaskRun GET/retry/cancel
+- 실행 검증: H2 Flyway/Hibernate context, Target domain/client tests, AI pytest, P2 fixture validator, OpenAPI lint, frontend lint/test/build, Docker E2E, PostgreSQL 및 전체 backend 결과는 Verification Evidence에 기록
+- 미해결 항목: Remote CI와 main merge만 남음. OD-008은 provider-dependent slice 전까지 DEFERRED
+- 다음 조건: P3 PR CI 성공 및 main merge 후 P4 시작
+- 받은/전달 결정: P2 exact contract → P4~P10이 재사용할 TaskRun·execution boundary. P4 제품 aggregate는 구현하지 않음
 
 ## P4 — Idea Intake, Normalization and Korean Legal Review
 

@@ -11,7 +11,7 @@
 | Change ID | Origin Phase | Applied Phase | Previous Decision | New Decision | Reason | Documents Changed | Code Impact | DB Impact | API Impact | Test Impact | Migration Impact | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | CHG-001 | P0 | P1 | Presigned transfer 허용 여부 미정 | AI Server presigned GET/PUT 금지 | Spring Storage 전담 확정 | AI/data architecture, contracts | artifact transfer 교체 | 없음(Phase 1) | internal AI contract 변경 예정 | boundary negative test | 없음(Phase 1) | ACCEPTED |
-| CHG-002 | P0 | P1 | AnalysisJob 재사용 후보 | 신규 TaskRun 계열 채택 | legacy source FK와 의미 분리 | architecture, migration, domain | 신규 platform model | 신규 schema 예정 | task API 예정 | lifecycle/concurrency | 후속 신규 migration | ACCEPTED |
+| CHG-002 | P0 | P1/P3 | AnalysisJob 재사용 후보 | 신규 TaskRun 계열 채택 | legacy source FK와 의미 분리 | architecture, migration, domain, current-to-target mapping | P3 `taskrun` package implemented separately; legacy job retained | V27 adds three Target tables | v2 TaskRun GET/retry/cancel | lifecycle/client/H2/PostgreSQL tests | V27 implemented; no legacy table change | IMPLEMENTED |
 | CHG-003 | P0 | P1 | API version 미정 | 신규 Workflow /api/v2 | stable core와 legacy 계약 분리 | public API principles | 신규 controller/client 예정 | 없음 | v2 namespace | contract/owner tests | 없음 | ACCEPTED |
 | CHG-004 | P0 | P1 | legacy data drop/archive 미정 | 테스트 데이터 이관 없음 | 보존 요구 없음 | migration docs | legacy code 제거 | legacy tables drop 예정 | legacy API 삭제 | fresh/upgrade/validate | 후속 drop migration | ACCEPTED |
 | CHG-005 | P0 | P1 | runtime report 또는 persisted report 미정 | persisted FinalReportVersion | snapshot/version/export 필요 | product/domain/architecture | report aggregate/API | RDB snapshot metadata | v2 report API | version/export | 신규 schema 예정 | ACCEPTED |

@@ -10,6 +10,8 @@
 
 ## Layers
 
+P3 evidence adds Target TaskRun state/attempt/result tests, Spring context migration validation, Spring internal-client boundary coverage and FastAPI execution tests. Full Stable Core, PostgreSQL, frontend, Docker E2E, fixture validator and OpenAPI lint remain required local/remote gates; an unexecuted gate is never recorded as passed.
+
 - Stable Core: auth/JWT/refresh/admin/Project owner/Storage/Flyway/error/audit.
 - Domain unit: version, state/gate, stale, selection and validation.
 - Spring integration: API/security/owner query/transaction/persistence.

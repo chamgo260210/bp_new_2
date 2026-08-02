@@ -6,7 +6,7 @@
 - Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Package, frontend, API, persistence, test and document transition
 - Supersedes: Phase 0 audit output and legacy code audits
-- Implementation Status: NOT_STARTED
+- Implementation Status: PARTIAL
 
 ## Stable and reusable platform
 
@@ -36,5 +36,7 @@
 | frontend report + V2 reports | report | no persisted report API | replace report entities | version/export tests | Final Report docs | FinalReportVersion |
 | integration.ai adapters | none | Spring direct provider | none | replace adapter tests | AI boundary | AI Server only |
 | AnalysisJob | polling/admin jobs | jobs/latest | analysis_jobs replace | carry claim policy + TaskRun | TaskRun direction | TaskRun family |
+| `job` / `analysis_jobs` legacy runtime | no new route | legacy `/api/v1` remains | retained unchanged through P3 | full regression retained | removal remains P12 | coexist with new `taskrun` package |
+| `taskrun` Target package | no UI in P3 | `/api/v2/projects/{projectId}/task-runs/{taskRunId}` GET/retry/cancel | V27 `task_runs`, `task_attempts`, `task_results` | domain/client/H2/PostgreSQL/concurrency direction | P2 contracts partially implemented | reusable P4-P10 execution foundation |
 
 Stable /api/v1은 유지 가능하고 신규 Workflow는 /api/v2다. compatibility endpoint/redirect를 추가하지 않는다. V1–V26은 불변이며 신규 migration으로 legacy FK/index/table을 제거한다. 데이터는 이관하지 않는다.

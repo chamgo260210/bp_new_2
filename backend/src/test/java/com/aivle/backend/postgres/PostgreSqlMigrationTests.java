@@ -16,6 +16,66 @@ class PostgreSqlMigrationTests extends PostgreSqlIntegrationTestSupport {
     private static final String V25_USERNAME = "legacyv25user";
 
     @Test
+    void v27CreatesTargetTaskRunFoundationWithoutTaskArtifacts()
+        throws Exception {
+        String schema = "v27_taskrun_"
+            + UUID.randomUUID().toString().replace("-", "");
+        Flyway flyway = flyway(schema, "27");
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(27);
+        assertThat(flyway.validateWithResult().validationSuccessful)
+            .isTrue();
+
+        try (Connection connection = connection(schema)) {
+            assertThat(count(connection, """
+                select count(*) from information_schema.tables
+                where table_schema = current_schema()
+                  and table_name in ('task_runs', 'task_attempts', 'task_results')
+                """)).isEqualTo(3);
+            assertThat(count(connection, """
+                select count(*) from information_schema.tables
+                where table_schema = current_schema()
+                  and table_name = 'task_artifacts'
+                """)).isZero();
+            assertThat(count(connection, """
+                select count(*) from information_schema.table_constraints
+                where table_schema = current_schema()
+                  and constraint_name in ('uk_task_runs_idempotency', 'uk_task_attempt_number')
+                """)).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void upgradesV26ToV27WithoutChangingLegacyRows() throws Exception {
+        String schema = "v27_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway v26 = flyway(schema, "26");
+        assertThat(v26.migrate().migrationsExecuted).isEqualTo(26);
+        try (Connection connection = connection(schema)) {
+            insertV25Rows(connection);
+        }
+
+        Flyway v27 = flyway(schema, "27");
+        assertThat(v27.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(v27.validateWithResult().validationSuccessful).isTrue();
+        assertThat(v27.info().current().getVersion().getVersion()).isEqualTo("27");
+
+        try (Connection connection = connection(schema)) {
+            assertThat(count(connection, "select count(*) from users where username='" + V25_USERNAME + "'"))
+                .isEqualTo(1);
+            assertThat(count(connection, "select count(*) from projects where id=1 and owner_id=1"))
+                .isEqualTo(1);
+            assertThat(count(connection, "select count(*) from document_versions where id=1"))
+                .isEqualTo(1);
+            assertThat(count(connection, "select count(*) from analysis_jobs where id=1"))
+                .isEqualTo(1);
+            assertThat(count(connection, """
+                select count(*) from information_schema.tables
+                where table_schema=current_schema()
+                  and table_name in ('task_runs','task_attempts','task_results')
+                """)).isEqualTo(3);
+        }
+    }
+
+    @Test
     void upgradesLegacyLocalDocumentFromV25ToV26WithoutDataLoss()
         throws Exception {
         String schema = "v26_upgrade_"

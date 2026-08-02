@@ -6,7 +6,9 @@
 - Introduced In Commit: ca22117fd9da65f1b232b9aa34e9d6e085e7ee06
 - Scope: Provider-neutral synchronous TaskAttempt execution contract between Spring WAS and AI Server
 - Supersedes: Legacy direct-provider, artifact-service and presigned transfer contracts
-- Implementation Status: NOT_STARTED
+- Implementation Status: PARTIAL
+
+P3 implementation note: the provider-neutral Spring client, FastAPI `/internal/v1/ai/executions` envelope, service-token authentication, raw 2 MiB request guard and deterministic `IDEA_INTERPRETATION` walking skeleton are implemented. Other task handlers and provider selection are not implemented.
 
 이 문서는 구현 전 Target 계약이다. 실제 Spring client, FastAPI route, DTO/Pydantic model, OpenAPI 또는 provider 선택을 의미하지 않는다.
 

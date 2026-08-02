@@ -6,7 +6,9 @@
 - Introduced In Commit: 1549a8efa0aeb2ca400f4795c1c44b34868e4722
 - Scope: Spring responsibilities, flows and TaskRun ownership
 - Supersedes: Legacy backend architecture documents
-- Implementation Status: NOT_STARTED
+- Implementation Status: PARTIAL
+
+P3 implementation note: Spring owns the Target TaskRun/TaskAttempt/TaskResult persistence lifecycle and calls `/internal/v1/ai/executions` only after the claim transaction completes. P4+ aggregates remain unimplemented.
 
 ## Owned responsibilities
 
