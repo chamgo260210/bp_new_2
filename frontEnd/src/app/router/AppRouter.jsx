@@ -11,15 +11,12 @@ import {
   ProjectCreatePage,
   ProjectListPage,
 } from '../../features/projects/ProjectPages.jsx';
-import ProjectGetStartedPage from '../../features/projects/ProjectGetStartedPage.jsx';
-import { ProjectOverviewPage } from '../../features/projects/ProjectAreaPages.jsx';
 import WorkspaceHomePage from '../../features/projects/WorkspaceHomePage.jsx';
 import { AccountSettingsLayout, AccountSettingsRedirect, ProfileSettingsPage, SecuritySettingsPage } from '../../features/settings/AccountSettingsPages.jsx';
 import ProjectSettingsSheet from '../../features/projects/ProjectSettingsSheet.jsx';
 import { ProjectProvider } from '../../features/projects/ProjectContext.jsx';
 import { DocumentUploadPage, StructuredPlanPage } from '../../features/documents/DocumentPages.jsx';
 import { AuthPlaceholderPage, NotFoundPage } from '../../pages/FoundationPages.jsx';
-import LegalReviewPage from '../../features/legal-review/LegalReviewPage.jsx';
 import FeasibilityPage from '../../features/feasibility/FeasibilityPage.jsx';
 import FinancialAnalysisListPage from '../../features/financial/pages/FinancialAnalysisListPage.jsx';
 import FinancialAnalysisCreatePage from '../../features/financial/pages/FinancialAnalysisCreatePage.jsx';
@@ -40,6 +37,7 @@ import AdminSettingsPage from '../../features/admin/pages/AdminSettingsPage.jsx'
 import AdminUsersPage, { AdminUserDetailOverlay } from '../../features/admin/pages/AdminUsersPage.jsx';
 import AdminProjectsPage, { AdminProjectDetailOverlay } from '../../features/admin/pages/AdminProjectsPage.jsx';
 import AdminAuditPage, { AdminAuditDetailOverlay } from '../../features/admin/pages/AdminAuditPage.jsx';
+import { IdeaJourneyPage, LegalJourneyPage, LockedJourneyPage } from '../../features/journey/JourneyPages.jsx';
 
 function LegacyProjectRedirect({ suffix = '' }) {
   const { projectId } = useParams();
@@ -79,14 +77,23 @@ export default function AppRouter() {
             <Route path="security" element={<SecuritySettingsPage />} />
           </Route>
           <Route path="app/projects/:projectId" element={<ProjectLayout />}>
-            <Route index element={<ProjectOverviewPage />} />
-            <Route path="get-started" element={<ProjectGetStartedPage />} />
+            <Route index element={<IdeaJourneyPage />} />
+            <Route path="idea" element={<IdeaJourneyPage />} />
+            <Route path="legal" element={<LegalJourneyPage />} />
+            <Route path="journey/concept" element={<LockedJourneyPage title="콘셉트 생성" />} />
+            <Route path="journey/concept-analysis" element={<LockedJourneyPage title="콘셉트 분석" />} />
+            <Route path="journey/concept-selection" element={<LockedJourneyPage title="콘셉트 선택" />} />
+            <Route path="journey/persona" element={<LockedJourneyPage title="페르소나" />} />
+            <Route path="journey/interview" element={<LockedJourneyPage title="인터뷰" />} />
+            <Route path="journey/marketing" element={<LockedJourneyPage title="마케팅" />} />
+            <Route path="journey/final-report" element={<LockedJourneyPage title="최종 보고서" />} />
+            <Route path="get-started" element={<Navigate to=".." replace />} />
             <Route path="plan" element={<Navigate to="documents" replace />} />
             <Route path="plan/brief" element={<Navigate to="../settings" replace />} />
             <Route path="plan/documents" element={<DocumentUploadPage />} />
             <Route path="plan/structure" element={<StructuredPlanPage />} />
             <Route path="review" element={<Navigate to="legal" replace />} />
-            <Route path="review/legal" element={<LegalReviewPage />} />
+            <Route path="review/legal" element={<LegacyProjectRedirect suffix="/legal" />} />
             <Route path="review/market" element={<FeasibilityPage />} />
             <Route path="review/financial" element={<FinancialAnalysisListPage />} />
             <Route path="review/financial/new" element={<FinancialAnalysisCreatePage />} />

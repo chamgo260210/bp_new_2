@@ -23,7 +23,7 @@ const project = {
 describe('project workflow model', () => {
   it('maps the durable project stage to one product area and a canonical next route', () => {
     expect(getProjectArea(project)).toBe(PROJECT_AREAS.REVIEW);
-    expect(getProjectNextAction(project).route).toBe('/app/projects/12/review/legal');
+    expect(getProjectNextAction(project).route).toBe('/app/projects/12/legal');
   });
 
   it('keeps project status separate from unavailable task-level status', () => {

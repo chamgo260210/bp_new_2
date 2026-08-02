@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.models.executions import InternalExecutionRequestV1, InternalExecutionSuccessResponseV1
+from app.services.journey_provider import ProviderFailure, execute_journey_task
 
 
 router = APIRouter(prefix="/internal/v1/ai", tags=["Internal AI Executions"])
@@ -119,7 +120,7 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     if calculated_hash != body.canonicalInputHash:
         return internal_error(correlation, "INVALID_REQUEST", "HASH_MISMATCH", 400, False,
                               body.taskRunId, body.taskAttemptId)
-    if body.taskType != "IDEA_INTERPRETATION":
+    if body.taskType not in {"IDEA_INTERPRETATION", "LEGAL_REVIEW"}:
         return internal_error(correlation, "DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", 503, True,
                               body.taskRunId, body.taskAttemptId)
     reason = validate_text_contents(body.input)
@@ -130,9 +131,11 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     source_keys = [content["contentKey"] for content in body.input["textContents"]]
     provenance = {"category": "AI_PROPOSAL", "statementKey": "interpretation-1", "sourceKeys": source_keys,
                   "externalSourceReferences": [], "generatedAt": generated_at, "verificationNeeded": True}
-    result = {"originalSourceSummary": text[:500], "normalizedDescription": " ".join(text.split()),
-              "facts": [], "assumptions": [], "constraints": [], "openQuestions": [],
-              "readiness": "APPROPRIATE", "warnings": [], "evidenceNeeds": [], "provenance": [provenance]}
+    try:
+        result = await execute_journey_task(body.taskType, text)
+    except ProviderFailure as failure:
+        return internal_error(correlation, failure.code, failure.reason, failure.status_code, failure.retryable,
+                              body.taskRunId, body.taskAttemptId)
     return InternalExecutionSuccessResponseV1(contractVersion="1.0", taskType=body.taskType,
         taskSchemaVersion="1.0", taskRunId=body.taskRunId, taskAttemptId=body.taskAttemptId,
         correlationId=body.correlationId, canonicalInputHash=body.canonicalInputHash,

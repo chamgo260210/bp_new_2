@@ -190,7 +190,7 @@ export function ProjectCreatePage() {
         description: values.description.trim() || null,
         industryCategory: values.industryCategory.trim() || null,
       });
-      requestClose(projectRoutes.getStarted(nextProject.id));
+      requestClose(projectRoutes.base(nextProject.id));
     } catch (error) {
       if (isServicePolicyError(error)) {
         void servicePolicy.refresh().catch(() => undefined);

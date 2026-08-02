@@ -1,83 +1,39 @@
 import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 
-import { AppIcon, Breadcrumb, ErrorState, LoadingState, StatusBadge } from '../../shared/ui/index.js';
+import { Breadcrumb, ErrorState, LoadingState } from '../../shared/ui/index.js';
 import { ProjectProvider, useProjectContext } from '../../features/projects/ProjectContext.jsx';
-import {
-  PROJECT_AREAS,
-  PROJECT_AREA_DEFINITIONS,
-  getProjectArea,
-  getProjectBasePath,
-} from '../../features/projects/model/projectWorkflowModel.js';
 import { appRoutes, projectRoutes } from '../../features/projects/routing/projectRoutes.js';
 
-const SUBNAVIGATION = {
-  [PROJECT_AREAS.PLAN]: [
-    ['Documents', 'plan/documents'], ['Structured Plan', 'plan/structure'],
-  ],
-  [PROJECT_AREAS.REVIEW]: [
-    ['Legal', 'review/legal'], ['Feasibility', 'review/market'], ['Financial', 'review/financial'],
-  ],
-  [PROJECT_AREAS.VALIDATE]: [
-    ['검증 Hub', 'validate'],
-    ['Persona 추천', 'validate/personas'],
-    ['패널 인터뷰', 'validate/interview'],
-    ['시장 반응 예측', 'validate/market-response'],
-    ['마케팅 콘텐츠', 'validate/marketing'],
-  ],
-  [PROJECT_AREAS.REPORT]: [['Integrated Report', 'report']],
-};
-
-function getActiveArea(pathname, basePath) {
-  if (pathname.startsWith(`${basePath}/settings`)) return null;
-  const relativePath = pathname.slice(basePath.length).replace(/^\//, '');
-  if (relativePath.startsWith('plan')) return PROJECT_AREAS.PLAN;
-  if (relativePath.startsWith('review')) return PROJECT_AREAS.REVIEW;
-  if (relativePath.startsWith('validate')) return PROJECT_AREAS.VALIDATE;
-  if (relativePath.startsWith('report')) return PROJECT_AREAS.REPORT;
-  return PROJECT_AREAS.OVERVIEW;
-}
+const JOURNEY_STEPS = [
+  ['아이디어', ''], ['법률 검토', 'legal'], ['콘셉트 생성', 'journey/concept'],
+  ['콘셉트 분석', 'journey/concept-analysis'], ['콘셉트 선택', 'journey/concept-selection'],
+  ['페르소나', 'journey/persona'], ['인터뷰', 'journey/interview'],
+  ['마케팅', 'journey/marketing'], ['최종 보고서', 'journey/final-report'],
+];
 
 function ProjectLayoutContent() {
   const { projectId } = useParams();
   const location = useLocation();
   const { status, project, retry } = useProjectContext();
-
   if (status === 'loading') return <LoadingState label="프로젝트를 불러오고 있습니다" />;
-  if (status === 'error') {
-    return <ErrorState title="프로젝트를 찾을 수 없습니다" description="프로젝트가 없거나 접근 권한이 없습니다." onRetry={retry} />;
-  }
+  if (status === 'error') return <ErrorState title="프로젝트를 찾을 수 없습니다" description="프로젝트가 없거나 접근 권한이 없습니다." onRetry={retry} />;
 
-  const basePath = getProjectBasePath(projectId);
-  const activeArea = getActiveArea(location.pathname, basePath);
-  const subnavigation = SUBNAVIGATION[activeArea] ?? [];
-
-  return (
-    <div className="project-shell">
-      <header className="project-shell__header">
-        <Breadcrumb items={[{ label: 'Projects', to: appRoutes.projects }, { label: project.name }]} />
-        <div className="project-shell__meta">
-          <div>
-            <p>{project.industryCategory || '사업 분야 미입력'} · 최근 수정 {new Date(project.updatedAt).toLocaleDateString('ko-KR')}</p>
-            <h1>{project.name}</h1>
-          </div>
-          <div className="project-shell__actions"><StatusBadge status={project.status} /><Link className="project-shell__settings" to={projectRoutes.settings(projectId)} state={{ backgroundLocation: location, returnTo: `${location.pathname}${location.search}` }} aria-label="프로젝트 설정 열기" title="프로젝트 설정"><AppIcon name="settings" size={20} /></Link></div>
-        </div>
-      </header>
-      <nav className="project-area-nav" aria-label="프로젝트 영역">
-        {PROJECT_AREA_DEFINITIONS.map((area) => (
-          <NavLink key={area.id} to={area.id === PROJECT_AREAS.OVERVIEW ? basePath : `${basePath}/${area.path}`} end={area.id === PROJECT_AREAS.OVERVIEW}>
-            {area.label}
-          </NavLink>
-        ))}
-      </nav>
-      {subnavigation.length > 1 && (
-        <nav className="project-subnav" aria-label={`${PROJECT_AREA_DEFINITIONS.find((area) => area.id === activeArea)?.label} 세부 메뉴`}>
-          {subnavigation.map(([label, route]) => <NavLink key={route} to={`${basePath}/${route}`} end>{label}</NavLink>)}
-        </nav>
-      )}
-      <div className="project-shell__content"><Outlet context={{ activeArea, currentArea: getProjectArea(project) }} /></div>
+  const base = `/app/projects/${projectId}`;
+  const relative = location.pathname.slice(base.length).replace(/^\//, '');
+  const currentIndex = Math.max(0, JOURNEY_STEPS.findIndex(([, route]) => route === relative));
+  return <div className="journey-shell">
+    <header className="journey-shell__header">
+      <Breadcrumb items={[{ label: 'Projects', to: appRoutes.projects }, { label: project.name }]} />
+      <div className="journey-shell__title"><div><p>{project.industryCategory || '사업 분야 미입력'}</p><h1>{project.name}</h1></div><div><span>현재 단계 · {JOURNEY_STEPS[currentIndex][0]}</span><span>저장 상태는 각 단계에서 확인</span><Link to={projectRoutes.settings(projectId)} state={{ backgroundLocation: location }}>프로젝트 설정</Link></div></div>
+    </header>
+    <div className="journey-shell__body">
+      <aside className="journey-stepper"><p>Business Journey</p><nav aria-label="프로젝트 여정 단계"><ol>{JOURNEY_STEPS.map(([label, route], index) => {
+        const stepStatus = index === currentIndex ? '현재' : index < currentIndex ? '완료' : '잠김';
+        return <li key={label} className={index === currentIndex ? 'is-active' : index < currentIndex ? 'is-complete' : 'is-locked'}><NavLink to={route ? `${base}/${route}` : base} end={!route}><span>{index + 1}</span><strong>{label}</strong><small>{stepStatus}</small></NavLink></li>;
+      })}</ol></nav></aside>
+      <main className="journey-shell__main"><Outlet /></main>
     </div>
-  );
+  </div>;
 }
 
 export default function ProjectLayout() {

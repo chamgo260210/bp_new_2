@@ -53,7 +53,7 @@ export const STAGE_AREA = Object.freeze({
 export const STAGE_VIEW = Object.freeze({
   DOCUMENT: { label: '사업계획 입력', route: 'plan/documents' },
   STRUCTURING: { label: '정보 구조화', route: 'plan/structure' },
-  LEGAL_REVIEW: { label: '법률·규제 검토', route: 'review/legal' },
+  LEGAL_REVIEW: { label: '법률·규제 검토', route: 'legal' },
   FEASIBILITY: { label: '사업 타당성 분석', route: 'review' },
   FINANCIAL: { label: '재무·수익성 분석', route: 'review/financial' },
   PERSONA_CONFIGURATION: { label: 'AI 패널 검증', route: 'validate/personas' },
