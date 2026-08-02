@@ -38,6 +38,7 @@ import AdminUsersPage, { AdminUserDetailOverlay } from '../../features/admin/pag
 import AdminProjectsPage, { AdminProjectDetailOverlay } from '../../features/admin/pages/AdminProjectsPage.jsx';
 import AdminAuditPage, { AdminAuditDetailOverlay } from '../../features/admin/pages/AdminAuditPage.jsx';
 import { IdeaJourneyPage, LegalJourneyPage, LockedJourneyPage } from '../../features/journey/JourneyPages.jsx';
+import { ConceptAnalysisPage, ConceptGenerationPage, ConceptSelectionPage } from '../../features/journey/ConceptJourneyPages.jsx';
 
 function LegacyProjectRedirect({ suffix = '' }) {
   const { projectId } = useParams();
@@ -80,9 +81,9 @@ export default function AppRouter() {
             <Route index element={<IdeaJourneyPage />} />
             <Route path="idea" element={<IdeaJourneyPage />} />
             <Route path="legal" element={<LegalJourneyPage />} />
-            <Route path="journey/concept" element={<LockedJourneyPage title="콘셉트 생성" />} />
-            <Route path="journey/concept-analysis" element={<LockedJourneyPage title="콘셉트 분석" />} />
-            <Route path="journey/concept-selection" element={<LockedJourneyPage title="콘셉트 선택" />} />
+            <Route path="journey/concept" element={<ConceptGenerationPage />} />
+            <Route path="journey/concept-analysis" element={<ConceptAnalysisPage />} />
+            <Route path="journey/concept-selection" element={<ConceptSelectionPage />} />
             <Route path="journey/persona" element={<LockedJourneyPage title="페르소나" />} />
             <Route path="journey/interview" element={<LockedJourneyPage title="인터뷰" />} />
             <Route path="journey/marketing" element={<LockedJourneyPage title="마케팅" />} />

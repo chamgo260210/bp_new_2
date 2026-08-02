@@ -50,4 +50,47 @@
 .journey-legal-notice p { margin:.3rem 0 0; font-size:.86rem; line-height:1.55; }
 .journey-disclaimer { padding-top:1rem; border-top:1px solid var(--color-border-default); font-size:.83rem; }
 @media (max-width:720px) { .journey-page__heading,.journey-result__header,.journey-next,.journey-run-card { align-items:stretch; flex-direction:column; }.journey-result-grid { grid-template-columns:1fr; }.journey-actions { display:grid; }.journey-button { width:100%; } }
+.concept-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
+.concept-grid.compact { margin:1rem 0; }
+.concept-card { position:relative; display:flex; flex-direction:column; gap:.8rem; }
+.concept-card.is-selected { outline:2px solid var(--color-primary, #2563eb); }
+.concept-card h3 { margin:0; font-size:1.2rem; }
+.concept-summary { color:#334155; min-height:3rem; }
+.concept-card dl { display:grid; gap:.65rem; margin:0; }
+.concept-card dl div { border-top:1px solid #e2e8f0; padding-top:.65rem; }
+.concept-card dt { color:#64748b; font-size:.78rem; font-weight:700; }
+.concept-card dd { margin:.2rem 0 0; }
+.concept-check { display:flex; gap:.45rem; align-items:center; position:absolute; right:1rem; top:1rem; font-weight:700; }
+.score-table { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
+.score-table article { border:1px solid #e2e8f0; border-radius:14px; padding:1rem; }
+.score-table header { display:flex; justify-content:space-between; margin-bottom:.8rem; }
+.score-table header span { color:#2563eb; font-weight:800; }
+.score-row { display:grid; grid-template-columns:5.5rem 1fr 2rem; align-items:center; gap:.5rem; margin:.45rem 0; }
+.score-row span { height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+.score-row i { display:block; height:100%; border-radius:inherit; background:#3b82f6; }
+.score-notes { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.finance-inputs { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.75rem; border:1px solid #e2e8f0; border-radius:14px; margin:1rem 0; padding:1rem; }
+.finance-inputs legend { padding:0 .5rem; font-weight:800; }
+.finance-inputs label { font-size:.8rem; }
+.finance-inputs input { width:100%; margin-top:.3rem; }
+.detail-tabs { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+.detail-tabs button { border:1px solid #cbd5e1; background:white; padding:.65rem 1rem; border-radius:999px; }
+.detail-tabs button.active { color:white; border-color:#2563eb; background:#2563eb; }
+.detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+.detail-grid section { padding:1rem; border-radius:12px; background:#f8fafc; }
+.detail-grid h4 { margin:0 0 .5rem; }
+.finance-result { margin-top:1rem; padding:1rem; border:1px solid #bfdbfe; border-radius:14px; background:#eff6ff; }
+.finance-result dl { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; }
+.finance-result dl div { background:white; border-radius:10px; padding:.8rem; }
+.finance-result dt { color:#64748b; font-size:.8rem; }
+.finance-result dd { margin:.2rem 0 0; font-weight:800; }
+.selection-list { display:grid; gap:.75rem; margin-bottom:1rem; }
+.selection-list label { display:flex; gap:.8rem; padding:1rem; border:1px solid #e2e8f0; border-radius:12px; }
+.selection-list label.selected { border-color:#2563eb; background:#eff6ff; }
+.selection-list span { display:flex; flex-direction:column; gap:.25rem; }
+.selection-list small { color:#64748b; }
+.confirm-modal { position:fixed; inset:0; z-index:60; display:grid; place-items:center; background:rgba(15,23,42,.45); padding:1rem; }
+.confirm-modal>div { width:min(440px,100%); background:white; border-radius:18px; padding:1.5rem; box-shadow:0 24px 70px rgba(15,23,42,.25); }
+@media (max-width:980px) { .concept-grid,.score-table { grid-template-columns:1fr; }.finance-inputs { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:640px) { .detail-grid,.score-notes,.finance-result dl,.finance-inputs { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion:reduce) { .journey-spinner { animation:none; } }

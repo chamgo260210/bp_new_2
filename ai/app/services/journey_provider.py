@@ -7,7 +7,13 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from app.models.journey import IdeaInterpretationResult, LegalReviewResult
+from app.models.journey import (
+    ConceptGenerationResult,
+    DetailedAnalysisResult,
+    IdeaInterpretationResult,
+    LegalReviewResult,
+    QuickAssessmentResult,
+)
 
 
 PROMPT_ROOT = Path(__file__).resolve().parents[2] / "prompts"
@@ -37,7 +43,16 @@ def _configuration() -> tuple[str, str, str]:
 
 
 def _load_prompts(task_type: str, text: str) -> tuple[str, str]:
-    folder = "idea_interpretation" if task_type == "IDEA_INTERPRETATION" else "legal_review"
+    folders = {
+        "IDEA_INTERPRETATION": "idea_interpretation",
+        "LEGAL_REVIEW": "legal_review",
+        "CONCEPT_GENERATION": "concept_generation",
+        "QUICK_ASSESSMENT": "quick_assessment",
+        "DETAILED_ANALYSIS": "detailed_analysis",
+    }
+    folder = folders.get(task_type)
+    if folder is None:
+        raise ProviderFailure("DEPENDENCY_UNAVAILABLE", "AI_CONFIGURATION_INVALID", 503, False)
     try:
         system = (PROMPT_ROOT / folder / "system.md").read_text(encoding="utf-8")
         template = (PROMPT_ROOT / folder / "user.md").read_text(encoding="utf-8")
@@ -99,7 +114,14 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
         if isinstance(content, list):
             content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
         raw_result = _extract_json(content)
-        model_type = IdeaInterpretationResult if task_type == "IDEA_INTERPRETATION" else LegalReviewResult
+        model_types = {
+            "IDEA_INTERPRETATION": IdeaInterpretationResult,
+            "LEGAL_REVIEW": LegalReviewResult,
+            "CONCEPT_GENERATION": ConceptGenerationResult,
+            "QUICK_ASSESSMENT": QuickAssessmentResult,
+            "DETAILED_ANALYSIS": DetailedAnalysisResult,
+        }
+        model_type = model_types[task_type]
         return model_type.model_validate(raw_result).model_dump()
     except (KeyError, IndexError, TypeError, AttributeError, ValueError, json.JSONDecodeError, ValidationError) as failure:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
