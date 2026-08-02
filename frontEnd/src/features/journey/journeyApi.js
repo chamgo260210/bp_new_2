@@ -26,5 +26,13 @@ export function createJourneyApi(client, projectId) {
     async detailedAnalysis(input) { return (await client.post(`${root}/detailed-analyses`, input, { timeoutMs: 120000 })).data; },
     async currentSelection() { return (await client.get(`${root}/concept-selection`)).data; },
     async selectConcept(input) { return (await client.put(`${root}/concept-selection`, input)).data; },
+    async createPersonaStudy() { return (await client.post(`${root}/persona-studies`)).data; },
+    async currentPersonaStudy() { return (await client.get(`${root}/persona-studies/current`)).data; },
+    async generatePersonas() { return (await client.post(`${root}/persona-cards/generate`, undefined, { timeoutMs: 120000 })).data; },
+    async personaCards() { return (await client.get(`${root}/persona-cards`)).data; },
+    async runPersonaInterviews(input) { return (await client.post(`${root}/persona-interviews`, input, { timeoutMs: 180000 })).data; },
+    async personaInterviews() { return (await client.get(`${root}/persona-interviews`)).data; },
+    async synthesizeInterviews() { return (await client.post(`${root}/interview-syntheses`, undefined, { timeoutMs: 120000 })).data; },
+    async currentInterviewSynthesis() { return (await client.get(`${root}/interview-syntheses/current`)).data; },
   };
 }

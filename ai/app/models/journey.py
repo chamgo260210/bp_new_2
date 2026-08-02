@@ -83,3 +83,55 @@ class DetailedAnalysisItem(StrictResult):
 
 class DetailedAnalysisResult(StrictResult):
     analyses: list[DetailedAnalysisItem]
+
+
+class RoleAndContext(StrictResult):
+    role: str
+    situation: str
+    goals: list[str]
+    constraints: list[str]
+
+
+class ProblemAndNeeds(StrictResult):
+    problems: list[str]
+    unmetNeeds: list[str]
+    desiredOutcomes: list[str]
+
+
+class BehaviorAndDecision(StrictResult):
+    currentBehavior: list[str]
+    decisionCriteria: list[str]
+    barriers: list[str]
+    informationSources: list[str]
+
+
+class PersonaCardItem(StrictResult):
+    name: str
+    shortLabel: str
+    roleAndContext: RoleAndContext
+    problemAndNeeds: ProblemAndNeeds
+    behaviorAndDecision: BehaviorAndDecision
+    interviewFocus: list[str]
+
+
+class PersonaCardGenerationResult(StrictResult):
+    personas: list[PersonaCardItem]
+
+
+class PersonaInterviewMessage(StrictResult):
+    category: Literal["ROLE_AND_CONTEXT", "PROBLEM_AND_NEEDS", "BEHAVIOR_AND_DECISION"]
+    question: str
+    answer: str
+
+
+class PersonaInterviewResult(StrictResult):
+    messages: list[PersonaInterviewMessage]
+
+
+class InterviewSynthesisResult(StrictResult):
+    commonThemes: list[str]
+    conflictingViews: list[str]
+    criticalNeeds: list[str]
+    decisionBarriers: list[str]
+    implications: list[str]
+    researchNeeds: list[str]

@@ -122,7 +122,8 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
                               body.taskRunId, body.taskAttemptId)
     if body.taskType not in {
         "IDEA_INTERPRETATION", "LEGAL_REVIEW", "CONCEPT_GENERATION",
-        "QUICK_ASSESSMENT", "DETAILED_ANALYSIS",
+        "QUICK_ASSESSMENT", "DETAILED_ANALYSIS", "PERSONA_CARD_GENERATION",
+        "PERSONA_INTERVIEW", "INTERVIEW_SYNTHESIS",
     }:
         return internal_error(correlation, "DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", 503, True,
                               body.taskRunId, body.taskAttemptId)

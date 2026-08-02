@@ -11,7 +11,10 @@ from app.models.journey import (
     ConceptGenerationResult,
     DetailedAnalysisResult,
     IdeaInterpretationResult,
+    InterviewSynthesisResult,
     LegalReviewResult,
+    PersonaCardGenerationResult,
+    PersonaInterviewResult,
     QuickAssessmentResult,
 )
 
@@ -49,6 +52,9 @@ def _load_prompts(task_type: str, text: str) -> tuple[str, str]:
         "CONCEPT_GENERATION": "concept_generation",
         "QUICK_ASSESSMENT": "quick_assessment",
         "DETAILED_ANALYSIS": "detailed_analysis",
+        "PERSONA_CARD_GENERATION": "persona_card_generation",
+        "PERSONA_INTERVIEW": "persona_interview",
+        "INTERVIEW_SYNTHESIS": "interview_synthesis",
     }
     folder = folders.get(task_type)
     if folder is None:
@@ -120,6 +126,9 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
             "CONCEPT_GENERATION": ConceptGenerationResult,
             "QUICK_ASSESSMENT": QuickAssessmentResult,
             "DETAILED_ANALYSIS": DetailedAnalysisResult,
+            "PERSONA_CARD_GENERATION": PersonaCardGenerationResult,
+            "PERSONA_INTERVIEW": PersonaInterviewResult,
+            "INTERVIEW_SYNTHESIS": InterviewSynthesisResult,
         }
         model_type = model_types[task_type]
         return model_type.model_validate(raw_result).model_dump()
