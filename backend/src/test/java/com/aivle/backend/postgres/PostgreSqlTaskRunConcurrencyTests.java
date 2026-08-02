@@ -50,9 +50,12 @@ class PostgreSqlTaskRunConcurrencyTests extends PostgreSqlIntegrationTestSupport
             Future<TaskRunService.Claim> second = pool.submit(() -> claim("worker-2", ready, start));
             ready.await();
             start.countDown();
-            List<TaskRunService.Claim> claims = List.of(first.get(), second.get());
+            List<TaskRunService.Claim> claims =
+                java.util.stream.Stream.of(first.get(), second.get())
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
 
-            assertThat(claims).filteredOn(java.util.Objects::nonNull).singleElement();
+            assertThat(claims).singleElement();
             assertThat(attempts.findAll()).singleElement().satisfies(attempt -> {
                 assertThat(attempt.getTaskRun().getId()).isEqualTo(run.getId());
                 assertThat(attempt.getAttemptNumber()).isEqualTo(1);
