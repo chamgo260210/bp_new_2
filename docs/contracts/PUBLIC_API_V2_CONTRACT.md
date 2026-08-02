@@ -6,7 +6,9 @@
 - Introduced In Commit: ad94d6ba1fe92ebc98e81a69a399753f784c2997
 - Scope: Implementation-ready public `/api/v2` workflow endpoint, JSON schema and transport contract
 - Supersedes: Legacy workflow portions of `docs/api/openapi.yaml`; that machine-consumed file remains unchanged until implementation replacement
-- Implementation Status: NOT_STARTED
+- Implementation Status: PARTIAL
+
+P3 implementation note: only owner-scoped TaskRun GET/retry/cancel and the v2 envelope are implemented. P4-P10 workflow endpoints remain unimplemented.
 
 이 문서는 Target public API 계약이며 현재 Controller나 OpenAPI 구현이 존재한다는 뜻이 아니다. Stable Core Project CRUD와 인증 계약은 기존 `/api/v1`을 유지할 수 있고, 신규 Workflow resource만 `/api/v2/projects/{projectId}` 아래에 둔다. Compatibility redirect나 legacy compatibility endpoint는 만들지 않는다.
 
