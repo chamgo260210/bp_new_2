@@ -24,7 +24,7 @@ Venture Verify는 완성된 사업계획서를 요구하는 문서 분석기가 
 
 ## Product outcome
 
-사용자는 TEXT, FILE, QUESTION_RESPONSE 기반 IdeaSource를 입력하고 정규화된 아이디어를 확인한다. 한국 법률 검토 후 여러 concept를 생성·평가하고 shortlist와 상세 분석을 거쳐 하나를 선택한다. 선택 concept에 대해 Three-Layer Persona Card와 Persona별 독립 interview를 수행하고 Marketing Workspace에서 시안을 상대 비교한다. 마지막 결과는 저장 가능한 FinalReportVersion으로 조회·export한다.
+사용자는 TEXT 또는 FILE logical type의 IdeaSource를 입력하고 정규화된 아이디어를 확인한다. 질문 응답 UI에서 수집한 입력도 TEXT source로 기록한다. 한국 법률 검토 후 여러 concept를 생성·평가하고 shortlist와 상세 분석을 거쳐 하나를 선택한다. 선택 concept에 대해 Three-Layer Persona Card와 Persona별 독립 interview를 수행하고 Marketing Workspace에서 시안을 상대 비교한다. 마지막 결과는 저장 가능한 FinalReportVersion으로 조회·export한다.
 
 ## Product principles
 

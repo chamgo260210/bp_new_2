@@ -2,7 +2,7 @@
 
 - Status: TARGET_CANONICAL
 - Code Baseline Commit: e16bd316ac881f4c5fab076e65c14657f6a8c7d4
-- Document Phase: P1.1
+- Document Phase: P2
 - Introduced In Commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
 - Scope: P0 through P13 status and handoff register
 - Supersedes: None
@@ -34,24 +34,32 @@
 
 ## P1.1 — Documentation Hardening and Governance
 
-- 상태: COMPLETE_WITH_CARRYOVER
+- 상태: COMPLETE
 - 시작 branch/commit: refoundation/phase1-canonical-docs / 1549a8efa0aeb2ca400f4795c1c44b34868e4722
-- 완료 commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
+- 문서 hardening commit: 80ce95bbf53bcc5faeae894abc37c8a4cac02222
+- closure commit: 41fd90e9fbbe63751ca42025551f11d17375d864
+- PostgreSQL baseline test fix: PR #15 / commit c7baa9b4b466c9872dd66dc51526099e1a820412 / merge commit 19687dc0ae385d87c2369abd074eaf5cb32ffb89
+- canonical docs merge: PR #14 / merge commit 6c43f97c884127257a5a733025475d60fd81ca21
 - 범위/산출물: governance, operations, decision/change/evidence, canonical hardening
-- 실행 검증: 1549a8e→80ce95b compare, links, metadata, governance columns, protected paths
-- 미해결 항목: PR Remote CI와 main merge
-- 다음 조건: PR CI 성공 및 main merge 후 P2 시작
+- 실행 검증: 1549a8e→80ce95b compare, links, metadata, governance columns, protected paths; PR #15의 backend, PostgreSQL, frontend, Docker E2E, contract-and-security, dependency-review 성공; PR #14 최종 CI 성공
+- 미해결 항목: 없음
+- 다음 조건: 충족
 - 받은 결정/전달 결정: P1 Target/P0 baseline → P2 open decisions와 P0~P13 guardrails
 
 ## P2 — Domain and Contract Definition
 
-- 상태: BLOCKED
-- 시작/완료 branch·commit: 미정
-- 범위/산출물: domain, workflow state/gate, provenance, public/internal AI contracts
-- 실행 검증: contract consistency/drift 예정
-- 미해결 항목: P1.1 PR Remote CI와 main merge, P2 open decisions
-- 다음 조건: P1.1 PR CI 성공 및 main merge
-- 받은 결정/전달 결정: P1.1 guardrails → P3 implementation-ready contract
+- 상태: COMPLETE
+- 시작 branch/commit: refoundation/phase2-domain-contracts / 6c43f97c884127257a5a733025475d60fd81ca21
+- 완료 산출물 commit: 3f33357f5ae4a604fa97ba7da87d9a3a53ad4d51
+- Subphase status: P2.1 `COMPLETE`, P2.2 `COMPLETE`, P2.3 `COMPLETE` (commit `cd1c9816a5b716533e3a79c459f42ce09bde3671`), P2.4 `COMPLETE` (final correction commit `2a667479ba37b3e6c0649124e750ff47f9718188`), P2.5 `COMPLETE` (final correction commit `134c5acbf7d858934888fd468de3b7b7e2e2da78`), P2.6 `COMPLETE` (closure commit `3f33357f5ae4a604fa97ba7da87d9a3a53ad4d51`)
+- 범위/산출물: domain, workflow state/gate, provenance, public API contract, internal AI API contract, analysis input/output contract
+- 허용 schema/contract: logical domain schema, state and cardinality definitions, public/internal API JSON schema, contract examples and fixtures
+- 금지: Flyway migration, JPA entity implementation, physical production table creation, Controller/Service runtime implementation
+- 실행 검증: Public/Internal Contract와 Fixture Validator 완료; P2.6 final validator `RESULT=PASS`
+- 미해결 항목: P2 범위 차단 요소 없음; OD-008 provider 선택은 각 provider-dependent slice 진입 전 decision gate
+- 완료 조건: P2 due decision 확정, implementation-ready schema/contract/fixture, 문서 간 consistency 검증
+- 다음 조건: Phase 2 PR Remote CI 성공 및 main merge 후 P3 시작
+- 받은 결정/전달 결정: P2.3 TaskRun binding/status/capability/error → P2.4 public API v2 contract → P2.5 internal contract와 P2.6 fixtures
 
 ## P3 — Stable Platform Guard and TaskRun Foundation
 
