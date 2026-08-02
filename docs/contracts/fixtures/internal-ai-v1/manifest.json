@@ -2036,6 +2036,464 @@
     },
     {
       "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "BusinessModelAnalysisInputV1",
+        "DetailedAnalysisInputV1",
+        "EvidenceItemV1",
+        "InternalExecutionRequestV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-detailed-analysis-business-model.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-detailed-analysis-business-model.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "BusinessModelAnalysisResultV1",
+        "DetailedAnalysisResultV1",
+        "InternalExecutionSuccessResponseV1",
+        "ProvenanceItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-detailed-analysis-business-model.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-detailed-analysis-business-model.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "DetailedAnalysisInputV1",
+        "EvidenceItemV1",
+        "InternalExecutionRequestV1",
+        "MarketAnalysisInputV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-detailed-analysis-market.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-detailed-analysis-market.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "DetailedAnalysisResultV1",
+        "DetailedFindingV1",
+        "InternalExecutionSuccessResponseV1",
+        "MarketAnalysisResultV1",
+        "ProvenanceItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-detailed-analysis-market.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-detailed-analysis-market.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "DetailedAnalysisInputV1",
+        "EvidenceItemV1",
+        "InternalExecutionRequestV1",
+        "TechnicalOperationAnalysisInputV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-detailed-analysis-technical-operation.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-detailed-analysis-technical-operation.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "DetailedAnalysisResultV1",
+        "InternalExecutionSuccessResponseV1",
+        "ProvenanceItemV1",
+        "TechnicalOperationAnalysisResultV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-detailed-analysis-technical-operation.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-detailed-analysis-technical-operation.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "DetailedAnalysisInputV1",
+        "EvidenceItemV1",
+        "FinancialAnalysisInputV1",
+        "FinancialMetricV1",
+        "InternalExecutionRequestV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-detailed-analysis.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-detailed-analysis.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "FinalReportGenerationInputV1",
+        "InternalExecutionRequestV1",
+        "ProvenanceItemV1",
+        "ReportFindingV1",
+        "RequestLocalReferenceV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-final-report-generation.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-final-report-generation.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "FINAL_REPORT_GENERATION"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "IncludedInterviewResultV1",
+        "InternalExecutionRequestV1",
+        "InterviewQuestionAnswerV1",
+        "InterviewSynthesisInputV1",
+        "ProvenanceItemV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-interview-synthesis.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-interview-synthesis.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "INTERVIEW_SYNTHESIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "InternalExecutionSuccessResponseV1",
+        "InterviewSynthesisResultV1",
+        "ProvenanceItemV1",
+        "SynthesisResponseItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-interview-synthesis.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-interview-synthesis.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "INTERVIEW_SYNTHESIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "ExternalSourceReferenceV1",
+        "InternalExecutionSuccessResponseV1",
+        "LegalFindingV1",
+        "LegalReviewResultV1",
+        "LegalSourceReferenceV1",
+        "ProvenanceItemV1",
+        "SourceCoverageV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-legal-review.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-legal-review.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "LEGAL_REVIEW"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "EvidenceItemV1",
+        "InternalExecutionRequestV1",
+        "MarketingAssetSnapshotV1",
+        "MarketingComparisonDimensionV1",
+        "MarketingComparisonInputV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-marketing-comparison.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-marketing-comparison.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "MARKETING_COMPARISON"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "InternalExecutionSuccessResponseV1",
+        "MarketingComparisonAssessmentV1",
+        "MarketingComparisonResultV1",
+        "ProvenanceItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-marketing-comparison.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-marketing-comparison.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "MARKETING_COMPARISON"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "InternalExecutionSuccessResponseV1",
+        "MarketingAssetProposalV1",
+        "MarketingGenerationResultV1",
+        "ProvenanceItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-marketing-generation.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-marketing-generation.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "MARKETING_GENERATION"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "ConceptSnapshotV1",
+        "InternalExecutionRequestV1",
+        "PersonaCardGenerationInputV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-persona-card-generation.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-persona-card-generation.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "PERSONA_CARD_GENERATION"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "IdeaStatementItemV1",
+        "InternalExecutionSuccessResponseV1",
+        "PersonaCardGenerationResultV1",
+        "PersonaCardProposalV1",
+        "ProvenanceItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-persona-card-generation.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-persona-card-generation.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "PERSONA_CARD_GENERATION"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "IdeaStatementItemV1",
+        "InternalExecutionRequestV1",
+        "PersonaCardSnapshotV1",
+        "PersonaInterviewInputV1",
+        "PersonaInterviewQuestionV1",
+        "ProvenanceItemV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "CANONICAL_HASH",
+      "fixtureId": "negative.schema-execution-persona-interview.request",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_CANONICAL_HASH"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-execution-persona-interview.request.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_CANONICAL_HASH",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "PERSONA_INTERVIEW"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "InternalExecutionSuccessResponseV1",
+        "InterviewQuestionAnswerV1",
+        "PersonaInterviewResultV1",
+        "ProvenanceItemV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-persona-interview.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-persona-interview.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "PERSONA_INTERVIEW"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "AssessmentDimensionV1",
+        "EvidenceItemV1",
+        "InternalExecutionSuccessResponseV1",
+        "ProvenanceItemV1",
+        "QuickAssessmentResultV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SUCCESS_ECHO",
+      "fixtureId": "negative.schema-execution-quick-assessment.response",
+      "invariants": [
+        "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-execution-quick-assessment.response.json",
+      "primaryInvariant": "SCHEMA_EXECUTION_THEN_SUCCESS_ECHO",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "QUICK_ASSESSMENT"
+    },
+    {
+      "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
         "IdeaInterpretationResultV1",
@@ -2311,6 +2769,30 @@
       "matchingContractSection": "InternalExecutionRequestV1",
       "path": "negative/text-content-count-limit.request.json",
       "primaryInvariant": "TEXT_CONTENT_COUNT_LIMIT",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "IDEA_INTERPRETATION"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "IdeaInterpretationInputV1",
+        "InternalExecutionRequestV1",
+        "RequestLocalReferenceV1",
+        "TextChunkV1",
+        "TextContentV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "STRING_LITERAL_MISMATCH",
+      "fixtureId": "negative.text-content-language-mismatch.request",
+      "invariants": [
+        "TEXT_CONTENT_LANGUAGE_LITERAL"
+      ],
+      "matchingContractSection": "TextContentV1",
+      "path": "negative/text-content-language-mismatch.request.json",
+      "primaryInvariant": "TEXT_CONTENT_LANGUAGE_LITERAL",
       "schemaName": "InternalExecutionRequestV1",
       "taskType": "IDEA_INTERPRETATION"
     },

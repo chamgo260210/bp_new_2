@@ -249,7 +249,7 @@ Fixture case manifest는 다음 범위를 포함한다.
 - unsupported contract/task schema version, deadline exceeded, result schema invalid
 - unknown request-local reference rejection
 
-Fixture는 이 문서의 65개 field table을 제한된 Markdown parser로 읽어 exact field, presence, nullability, type, bounds/enum과 named nested schema를 재귀 검증한다. Negative도 positive와 동일한 validator 경로에서 manifest의 단일 expected rule로 실패해야 한다. Actual object에 존재하는 named schema instance만 coverage로 인정하며 manifest 선언과 exact equality를 검사한다. Bounds cell은 지원 분류가 없으면 `UNSUPPORTED_BOUND_SPEC`으로 실패한다. Public P2.4 contract와는 동명 consistency registry의 exact set/value equality, error mapping과 Financial/Persona/Marketing invariant equality를 검사한다.
+Fixture는 이 문서의 65개 field table을 제한된 Markdown parser로 읽어 exact field, presence, nullability, type, bounds/enum과 named nested schema를 재귀 검증한다. Negative도 positive와 동일한 validator 경로에서 manifest의 단일 expected rule로 실패해야 한다. Actual object에 존재하는 named schema instance만 coverage로 인정하며 manifest 선언과 exact equality를 검사하고, negative validation 실행 중 방문한 schema 집합도 65/65여야 한다. Bounds cell은 지원 분류나 실행 handler가 없으면 `UNSUPPORTED_BOUND_SPEC`으로 실패한다. 일반 string의 단일 literal Bounds는 exact equality로 검증하며 불일치는 `STRING_LITERAL_MISMATCH`다. Public P2.4 contract와는 동명 consistency registry의 exact set/value equality, error mapping과 Financial/Persona/Marketing invariant equality를 검사한다.
 
 2 MiB request/response hard limit은 원본 UTF-8 encoded transport byte length에 적용한다. Whitespace를 제거한 JSON, canonical JSON 또는 `json.dumps` 재직렬화 길이는 transport limit의 근거가 아니다. Internal error envelope도 response limit을 적용받는다. Boundary self-test는 정확히 2 MiB를 허용하고 2 MiB+1 byte와 multibyte UTF-8 초과를 각각 `REQUEST_BYTES_EXCEEDED` 또는 `RESPONSE_BYTES_EXCEEDED`로 거부한다.
 

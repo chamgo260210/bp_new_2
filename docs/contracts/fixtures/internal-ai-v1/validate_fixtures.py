@@ -369,6 +369,11 @@ def parse_range(bounds: str) -> tuple[int, int] | None:
     return int(match.group(1).replace(",", "")), int(match.group(2).replace(",", ""))
 
 
+def bare_string_literal(bounds: str) -> str | None:
+    match = re.fullmatch(r"`([^`]+)`", bounds.strip())
+    return match.group(1) if match else None
+
+
 def classify_bound_spec(json_type: str, bounds: str) -> str:
     structural = {
         "exact object", "exactly one", "one named object", "one object",
@@ -399,7 +404,8 @@ def classify_bound_spec(json_type: str, bounds: str) -> str:
         "uppercase ASCII letters" in bounds,
         "`[A-Za-z0-9._-]+`" in bounds or "`[A-Z][A-Z0-9_]*`" in bounds,
         "canonical decimal regex" in bounds,
-        bounds in {"true/false", "`1.0`", "`ko-KR`", "`KR`"},
+        bounds == "true/false",
+        json_type == "string" and bare_string_literal(bounds) is not None,
     )
     if any(executable_markers):
         return "EXECUTABLE"
@@ -423,6 +429,34 @@ def classify_all_bound_specs(schemas: dict[str, dict[str, dict[str, str]]]) -> t
             counts[classify_bound_spec(spec["type"], spec["bounds"])] += 1
             total += 1
     return total, dict(counts)
+
+
+def validate_literal_bound_handlers(schemas: dict[str, dict[str, dict[str, str]]]) -> None:
+    literals = [
+        (schema_name, field, spec["bounds"], bare_string_literal(spec["bounds"]))
+        for schema_name, fields in schemas.items()
+        for field, spec in fields.items()
+        if spec["type"] == "string" and bare_string_literal(spec["bounds"]) is not None
+    ]
+    if not literals:
+        fail(str(INTERNAL_DOC), "UNSUPPORTED_BOUND_SPEC", "at least one executable string literal", "none")
+    for schema_name, field, bounds, literal in literals:
+        assert literal is not None
+        validate_string_bounds(f"<literal-handler:{schema_name}.{field}>", field, literal, "string", bounds)
+        try:
+            validate_string_bounds(
+                f"<literal-handler:{schema_name}.{field}>", field, literal + "-mismatch", "string", bounds
+            )
+        except ValidationFailure as exc:
+            if exc.rule != "STRING_LITERAL_MISMATCH":
+                fail(exc.path, "UNSUPPORTED_BOUND_SPEC", "STRING_LITERAL_MISMATCH handler", exc.rule)
+        else:
+            fail(
+                f"<literal-handler:{schema_name}.{field}>",
+                "UNSUPPORTED_BOUND_SPEC",
+                "executable literal mismatch handler",
+                "missing",
+            )
 
 
 def parse_item_bounds(bounds: str) -> tuple[int | None, int | None]:
@@ -477,6 +511,9 @@ def validate_string_bounds(path: str, field: str, value: str, json_type: str, bo
             if not Decimal(0) <= number <= Decimal(1):
                 fail(path, "DECIMAL_BOUNDS", "0..1", value)
         return
+    literal = bare_string_literal(bounds) if json_type == "string" else None
+    if literal is not None and value != literal:
+        fail(path, "STRING_LITERAL_MISMATCH", literal, value)
     length_range = parse_range(bounds)
     if length_range and not bounds.startswith("0–1 inclusive"):
         minimum, maximum = length_range
@@ -973,6 +1010,7 @@ def main() -> int:
         internal = INTERNAL_DOC.read_text(encoding="utf-8")
         public = PUBLIC_DOC.read_text(encoding="utf-8")
         reason_registry, schema_specs, schemas, bound_spec_total = parse_registries(internal, public)
+        validate_literal_bound_handlers(schema_specs)
         manifest = load_json_file(MANIFEST_PATH)
         if set(manifest) != {"manifestVersion", "fixtures"} or manifest["manifestVersion"] != "1.1":
             fail("manifest.json", "MANIFEST_ROOT", "manifestVersion/fixtures", sorted(manifest))
@@ -1149,6 +1187,14 @@ def main() -> int:
             fail("manifest.json", "SCHEMA_POSITIVE_EXECUTION_COVERAGE", "65/65", f"{len(actual_positive_coverage)}/65 missing={sorted(schemas - actual_positive_coverage)}")
         if negative_schema_coverage != required_negative:
             fail("manifest.json", "SCHEMA_NEGATIVE_COVERAGE", f"{len(required_negative)}/{len(required_negative)}", len(negative_schema_coverage))
+        if actual_negative_validation_coverage != schemas:
+            missing = sorted(schemas - actual_negative_validation_coverage)
+            fail(
+                "manifest.json",
+                "SCHEMA_NEGATIVE_EXECUTION_COVERAGE",
+                f"{len(schemas)}/{len(schemas)}",
+                f"{len(actual_negative_validation_coverage)}/{len(schemas)} missing={missing}",
+            )
 
         loader_self_tests = {
             "DUPLICATE_JSON_KEY": b'{"a":1,"a":2}\n',
@@ -1208,10 +1254,12 @@ def main() -> int:
         print(f"SCHEMA_NEGATIVE_COVERAGE={len(required_negative)}/{len(required_negative)}")
         print("SCHEMA_POSITIVE_INSTANCE_COVERAGE=65/65")
         print("SCHEMA_NEGATIVE_INSTANCE_COVERAGE=65/65")
+        print("SCHEMA_NEGATIVE_EXECUTION_COVERAGE=65/65")
         print(f"MANIFEST_SCHEMA_COVERAGE_MATCH={len(entries)}/{len(entries)}")
         print(f"NEGATIVE_EXPECTED_RULES={negative_count}/{negative_count}")
         print(f"BOUND_SPEC_CLASSIFICATION={bound_spec_total}/{bound_spec_total}")
         print("UNSUPPORTED_BOUND_SPEC=0")
+        print("STRING_LITERAL_VALIDATION=PASS")
         print("RAW_REQUEST_BYTE_LIMIT=PASS")
         print("RAW_RESPONSE_BYTE_LIMIT=PASS")
         print("PREPARSE_ID_RULES=PASS")

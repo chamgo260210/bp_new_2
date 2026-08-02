@@ -21,7 +21,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Code baseline | e16bd316ac881f4c5fab076e65c14657f6a8c7d4 |
 | P1 documentation commit | 1549a8efa0aeb2ca400f4795c1c44b34868e4722 |
 | P1.1 documentation commit | 80ce95bbf53bcc5faeae894abc37c8a4cac02222 |
-| Current phase | P2.6 Final Correction — Runtime Coverage and Hard Limit Closure |
+| Current phase | P2.6 Closure Correction — Negative Execution and Literal Bounds |
 | P2.3 status | COMPLETE at `cd1c9816a5b716533e3a79c459f42ce09bde3671` |
 | P2.4 status | COMPLETE at `2a667479ba37b3e6c0649124e750ff47f9718188` |
 | P2.5 status | COMPLETE at `134c5acbf7d858934888fd468de3b7b7e2e2da78` |
@@ -31,7 +31,7 @@ Project 전체를 하나의 아이디어 검증 과정으로 재정립하고, �
 | Implementation phases completed | 0 |
 | Vertical slices completed | 0 |
 | New product implementation | 0% |
-| Primary blocker | P2.6 runtime coverage/bounds/raw byte final correction의 commit·push와 외부 검토; OD-008은 provider-dependent slice 진입 전 decision gate |
+| Primary blocker | P2.6 negative execution coverage/literal Bounds closure correction의 commit·push와 외부 검토; OD-008은 provider-dependent slice 진입 전 decision gate |
 
 ## Stable Core
 
@@ -56,4 +56,4 @@ P2는 domain/contract, P3는 Stable Platform/TaskRun, P4~P10은 workflow vertica
 
 ## Recent verification
 
-P2.6 executable validator commit `f089c66a10e657f3587939cb11d03b21e3bd70a2`은 동일 validation path의 negative expected-rule 검증을 도입했다. 현재 final correction은 실제 nested instance 기반 positive/negative schema coverage, 모든 Bounds cell 분류, nullable identifier 길이와 원본 UTF-8 transport byte hard limit을 닫는 중이다. 구현 진행률과 vertical slice는 여전히 0이며 OD-008은 DEFERRED다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
+P2.6 runtime coverage/hard-limit commit `3441855dd6790c82c280eb18a2c502637b2ba178`은 실제 nested instance coverage, 모든 Bounds cell 분류, nullable identifier 길이와 원본 UTF-8 transport byte hard limit을 닫았다. 현재 closure correction은 negative validation 실행 coverage를 별도 65/65 gate로 강제하고 일반 string literal Bounds의 equality handler를 연결하는 중이다. 구현 진행률과 vertical slice는 여전히 0이며 OD-008은 DEFERRED다. 상세 이력은 [Verification Evidence](VERIFICATION_EVIDENCE.md)를 따른다.
