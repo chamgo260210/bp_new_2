@@ -4,7 +4,11 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "InternalExecutionRequestV1"
+        "IdeaInterpretationInputV1",
+        "InternalExecutionRequestV1",
+        "RequestLocalReferenceV1",
+        "TextChunkV1",
+        "TextContentV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -984,15 +988,12 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "BusinessModelAnalysisInputV1",
         "DetailedAnalysisInputV1",
         "EvidenceItemV1",
         "FinancialAnalysisInputV1",
         "FinancialMetricV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
-        "MarketAnalysisInputV1",
-        "TechnicalOperationAnalysisInputV1"
+        "MarketAnalysisInputV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1012,15 +1013,9 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "BusinessModelAnalysisInputV1",
         "DetailedAnalysisInputV1",
         "EvidenceItemV1",
-        "FinancialAnalysisInputV1",
-        "FinancialMetricV1",
-        "IdeaStatementItemV1",
-        "InternalExecutionRequestV1",
-        "MarketAnalysisInputV1",
-        "TechnicalOperationAnalysisInputV1"
+        "InternalExecutionRequestV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1040,19 +1035,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
         "FinancialAnalysisResultV1",
         "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1142,6 +1129,50 @@
         "InternalErrorDetailV1",
         "InternalErrorResponseV1"
       ],
+      "expectedErrorCode": "DEPENDENCY_UNAVAILABLE",
+      "expectedReason": "MODEL_DEPENDENCY_UNAVAILABLE",
+      "expectedValid": false,
+      "expectedValidatorRule": "STRING_BOUNDS",
+      "fixtureId": "negative.error-task-attempt-id-too-long",
+      "invariants": [
+        "STRING_BOUNDS"
+      ],
+      "matchingContractSection": "InternalErrorResponseV1",
+      "path": "negative/error-task-attempt-id-too-long.json",
+      "primaryInvariant": "STRING_BOUNDS",
+      "schemaName": "InternalErrorResponseV1",
+      "taskType": null
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "INTERNAL_ERROR",
+      "coveredSchemas": [
+        "InternalErrorBodyV1",
+        "InternalErrorDetailV1",
+        "InternalErrorResponseV1"
+      ],
+      "expectedErrorCode": "DEPENDENCY_UNAVAILABLE",
+      "expectedReason": "MODEL_DEPENDENCY_UNAVAILABLE",
+      "expectedValid": false,
+      "expectedValidatorRule": "STRING_BOUNDS",
+      "fixtureId": "negative.error-task-run-id-too-long",
+      "invariants": [
+        "STRING_BOUNDS"
+      ],
+      "matchingContractSection": "InternalErrorResponseV1",
+      "path": "negative/error-task-run-id-too-long.json",
+      "primaryInvariant": "STRING_BOUNDS",
+      "schemaName": "InternalErrorResponseV1",
+      "taskType": null
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "INTERNAL_ERROR",
+      "coveredSchemas": [
+        "InternalErrorBodyV1",
+        "InternalErrorDetailV1",
+        "InternalErrorResponseV1"
+      ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_REFERENCE_INVALID",
       "expectedValid": false,
@@ -1160,14 +1191,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "FinalReportGenerationResultV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1",
-        "ReportFindingV1",
-        "ReportSectionV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ReportSectionV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1187,14 +1214,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "FinalReportGenerationResultV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1",
-        "ReportFindingV1",
-        "ReportSectionV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ReportSectionV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1214,10 +1237,8 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "FinalReportGenerationInputV1",
         "InternalExecutionRequestV1",
-        "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "ReportFindingV1",
         "RequestLocalReferenceV1"
@@ -1240,10 +1261,8 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "FinalReportGenerationInputV1",
         "InternalExecutionRequestV1",
-        "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "ReportFindingV1",
         "RequestLocalReferenceV1"
@@ -1266,19 +1285,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
         "FinancialAnalysisResultV1",
         "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1298,19 +1309,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
         "FinancialAnalysisResultV1",
         "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1330,19 +1333,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
         "FinancialAnalysisResultV1",
         "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1384,14 +1379,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
-        "LegalFindingV1",
         "LegalReviewResultV1",
         "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "SourceCoverageV1",
-        "UsageSummaryV1",
         "WarningV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
@@ -1412,14 +1404,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
-        "LegalFindingV1",
         "LegalReviewResultV1",
         "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "SourceCoverageV1",
-        "UsageSummaryV1",
         "WarningV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
@@ -1440,14 +1429,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
-        "LegalFindingV1",
         "LegalReviewResultV1",
-        "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "SourceCoverageV1",
-        "UsageSummaryV1",
         "WarningV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
@@ -1468,14 +1453,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingComparisonAssessmentV1",
         "MarketingComparisonResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1495,14 +1476,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingComparisonAssessmentV1",
         "MarketingComparisonResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1522,14 +1499,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingComparisonAssessmentV1",
         "MarketingComparisonResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1549,14 +1522,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingComparisonAssessmentV1",
         "MarketingComparisonResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1576,14 +1545,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingComparisonAssessmentV1",
         "MarketingComparisonResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1603,14 +1568,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "PersonaCardGenerationResultV1",
         "PersonaCardProposalV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1630,7 +1592,6 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "PersonaCardSnapshotV1",
@@ -1656,14 +1617,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "PersonaCardGenerationResultV1",
         "PersonaCardProposalV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1683,14 +1641,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "InterviewQuestionAnswerV1",
         "PersonaInterviewResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1710,7 +1664,6 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "PersonaCardSnapshotV1",
@@ -1736,14 +1689,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "PersonaCardGenerationResultV1",
         "PersonaCardProposalV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1763,14 +1713,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "InterviewQuestionAnswerV1",
         "PersonaInterviewResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1790,14 +1736,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "PersonaCardGenerationResultV1",
         "PersonaCardProposalV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1841,15 +1784,11 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
-        "LegalFindingV1",
         "LegalReviewResultV1",
         "LegalSourceReferenceV1",
         "ProvenanceItemV1",
-        "SourceCoverageV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "SourceCoverageV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1871,12 +1810,8 @@
       "coveredSchemas": [
         "ConceptGenerationResultV1",
         "ConceptProposalV1",
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": "RESULT_SCHEMA_INVALID",
       "expectedReason": "RESULT_DOMAIN_INVARIANT_VIOLATION",
@@ -1967,7 +1902,6 @@
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
         "ConceptGenerationInputV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1"
       ],
       "expectedErrorCode": null,
@@ -1986,15 +1920,127 @@
     },
     {
       "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "BusinessModelAnalysisInputV1",
+        "DetailedAnalysisInputV1",
+        "EvidenceItemV1",
+        "InternalExecutionRequestV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SCHEMA_UNKNOWN_FIELD",
+      "fixtureId": "negative.schema-detailed-analysis-business-model-request-unknown-field",
+      "invariants": [
+        "SCHEMA_UNKNOWN_FIELD"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-detailed-analysis-business-model-request-unknown-field.json",
+      "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaInterpretationResultV1",
-        "IdeaStatementItemV1",
+        "BusinessModelAnalysisResultV1",
+        "DetailedAnalysisResultV1",
+        "InternalExecutionSuccessResponseV1",
+        "ProvenanceItemV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SCHEMA_UNKNOWN_FIELD",
+      "fixtureId": "negative.schema-detailed-analysis-business-model-response-unknown-field",
+      "invariants": [
+        "SCHEMA_UNKNOWN_FIELD"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-detailed-analysis-business-model-response-unknown-field.json",
+      "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "DetailedAnalysisResultV1",
+        "DetailedFindingV1",
+        "InternalExecutionSuccessResponseV1",
+        "MarketAnalysisResultV1",
+        "ProvenanceItemV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SCHEMA_UNKNOWN_FIELD",
+      "fixtureId": "negative.schema-detailed-analysis-market-response-unknown-field",
+      "invariants": [
+        "SCHEMA_UNKNOWN_FIELD"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-detailed-analysis-market-response-unknown-field.json",
+      "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_REQUEST",
+      "coveredSchemas": [
+        "DetailedAnalysisInputV1",
+        "EvidenceItemV1",
+        "InternalExecutionRequestV1",
+        "TechnicalOperationAnalysisInputV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SCHEMA_UNKNOWN_FIELD",
+      "fixtureId": "negative.schema-detailed-analysis-technical-operation-request-unknown-field",
+      "invariants": [
+        "SCHEMA_UNKNOWN_FIELD"
+      ],
+      "matchingContractSection": "InternalExecutionRequestV1",
+      "path": "negative/schema-detailed-analysis-technical-operation-request-unknown-field.json",
+      "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
+      "schemaName": "InternalExecutionRequestV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "DetailedAnalysisResultV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "TechnicalOperationAnalysisResultV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SCHEMA_UNKNOWN_FIELD",
+      "fixtureId": "negative.schema-detailed-analysis-technical-operation-response-unknown-field",
+      "invariants": [
+        "SCHEMA_UNKNOWN_FIELD"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-detailed-analysis-technical-operation-response-unknown-field.json",
+      "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
+      "schemaName": "InternalExecutionSuccessResponseV1",
+      "taskType": "DETAILED_ANALYSIS"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "IdeaInterpretationResultV1",
+        "InternalExecutionSuccessResponseV1",
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2014,8 +2060,6 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "IncludedInterviewResultV1",
         "InternalExecutionRequestV1",
         "InterviewQuestionAnswerV1",
@@ -2040,13 +2084,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
         "InterviewSynthesisResultV1",
         "ProvenanceItemV1",
-        "SynthesisResponseItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "SynthesisResponseItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2082,6 +2123,33 @@
       "path": "negative/schema-legal-review-request-unknown-field.json",
       "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
       "schemaName": "InternalExecutionRequestV1",
+      "taskType": "LEGAL_REVIEW"
+    },
+    {
+      "category": "NEGATIVE",
+      "contractObject": "EXECUTION_SUCCESS",
+      "coveredSchemas": [
+        "ExternalSourceReferenceV1",
+        "InternalExecutionSuccessResponseV1",
+        "LegalFindingV1",
+        "LegalReviewResultV1",
+        "LegalSourceReferenceV1",
+        "ProvenanceItemV1",
+        "SourceCoverageV1",
+        "UsageSummaryV1"
+      ],
+      "expectedErrorCode": null,
+      "expectedReason": null,
+      "expectedValid": false,
+      "expectedValidatorRule": "SCHEMA_UNKNOWN_FIELD",
+      "fixtureId": "negative.schema-legal-review-response-unknown-field",
+      "invariants": [
+        "SCHEMA_UNKNOWN_FIELD"
+      ],
+      "matchingContractSection": "InternalExecutionSuccessResponseV1",
+      "path": "negative/schema-legal-review-response-unknown-field.json",
+      "primaryInvariant": "SCHEMA_UNKNOWN_FIELD",
+      "schemaName": "InternalExecutionSuccessResponseV1",
       "taskType": "LEGAL_REVIEW"
     },
     {
@@ -2134,13 +2202,10 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingAssetProposalV1",
         "MarketingGenerationResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2161,7 +2226,6 @@
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
         "ConceptSnapshotV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "PersonaCardGenerationInputV1"
       ],
@@ -2185,7 +2249,6 @@
       "coveredSchemas": [
         "ConceptSnapshotV1",
         "EvidenceItemV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "QuickAssessmentInputV1"
       ],
@@ -2209,13 +2272,9 @@
       "coveredSchemas": [
         "AssessmentDimensionV1",
         "EvidenceItemV1",
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1",
-        "QuickAssessmentResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "QuickAssessmentResultV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2282,7 +2341,6 @@
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
         "ConceptGenerationInputV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1"
       ],
       "expectedErrorCode": null,
@@ -2303,12 +2361,8 @@
       "coveredSchemas": [
         "ConceptGenerationResultV1",
         "ConceptProposalV1",
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2329,12 +2383,7 @@
         "BusinessModelAnalysisInputV1",
         "DetailedAnalysisInputV1",
         "EvidenceItemV1",
-        "FinancialAnalysisInputV1",
-        "FinancialMetricV1",
-        "IdeaStatementItemV1",
-        "InternalExecutionRequestV1",
-        "MarketAnalysisInputV1",
-        "TechnicalOperationAnalysisInputV1"
+        "InternalExecutionRequestV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2354,17 +2403,8 @@
       "coveredSchemas": [
         "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
-        "FinancialAnalysisResultV1",
-        "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2382,15 +2422,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "BusinessModelAnalysisInputV1",
         "DetailedAnalysisInputV1",
         "EvidenceItemV1",
-        "FinancialAnalysisInputV1",
-        "FinancialMetricV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
-        "MarketAnalysisInputV1",
-        "TechnicalOperationAnalysisInputV1"
+        "MarketAnalysisInputV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2408,19 +2443,11 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
         "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
-        "FinancialAnalysisResultV1",
-        "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2438,14 +2465,9 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "BusinessModelAnalysisInputV1",
         "DetailedAnalysisInputV1",
         "EvidenceItemV1",
-        "FinancialAnalysisInputV1",
-        "FinancialMetricV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
-        "MarketAnalysisInputV1",
         "TechnicalOperationAnalysisInputV1"
       ],
       "expectedErrorCode": null,
@@ -2464,19 +2486,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
-        "FinancialAnalysisResultV1",
-        "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
         "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "TechnicalOperationAnalysisResultV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2494,15 +2507,11 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "BusinessModelAnalysisInputV1",
         "DetailedAnalysisInputV1",
         "EvidenceItemV1",
         "FinancialAnalysisInputV1",
         "FinancialMetricV1",
-        "IdeaStatementItemV1",
-        "InternalExecutionRequestV1",
-        "MarketAnalysisInputV1",
-        "TechnicalOperationAnalysisInputV1"
+        "InternalExecutionRequestV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2520,19 +2529,11 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "BusinessModelAnalysisResultV1",
         "DetailedAnalysisResultV1",
-        "DetailedFindingV1",
-        "ExternalSourceReferenceV1",
         "FinancialAnalysisResultV1",
         "FinancialExplanationV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "MarketAnalysisResultV1",
-        "ProvenanceItemV1",
-        "TechnicalOperationAnalysisResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2550,10 +2551,8 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "FinalReportGenerationInputV1",
         "InternalExecutionRequestV1",
-        "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "ReportFindingV1",
         "RequestLocalReferenceV1"
@@ -2574,14 +2573,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "FinalReportGenerationResultV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1",
-        "ReportFindingV1",
-        "ReportSectionV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ReportSectionV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2621,13 +2616,9 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaInterpretationResultV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2645,8 +2636,6 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "IncludedInterviewResultV1",
         "InternalExecutionRequestV1",
         "InterviewQuestionAnswerV1",
@@ -2669,13 +2658,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
         "InterviewSynthesisResultV1",
         "ProvenanceItemV1",
-        "SynthesisResponseItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "SynthesisResponseItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2713,14 +2699,11 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
-        "LegalFindingV1",
         "LegalReviewResultV1",
         "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "SourceCoverageV1",
-        "UsageSummaryV1",
         "WarningV1"
       ],
       "expectedErrorCode": null,
@@ -2746,8 +2729,7 @@
         "LegalSourceReferenceV1",
         "ProvenanceItemV1",
         "SourceCoverageV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "UsageSummaryV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2787,14 +2769,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingComparisonAssessmentV1",
         "MarketingComparisonResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2832,13 +2810,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "InternalExecutionSuccessResponseV1",
         "MarketingAssetProposalV1",
         "MarketingGenerationResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2857,7 +2832,6 @@
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
         "ConceptSnapshotV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "PersonaCardGenerationInputV1"
       ],
@@ -2877,14 +2851,11 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "PersonaCardGenerationResultV1",
         "PersonaCardProposalV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2902,7 +2873,6 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_REQUEST",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
         "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "PersonaCardSnapshotV1",
@@ -2926,14 +2896,10 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "InterviewQuestionAnswerV1",
         "PersonaInterviewResultV1",
-        "ProvenanceItemV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "ProvenanceItemV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,
@@ -2953,7 +2919,6 @@
       "coveredSchemas": [
         "ConceptSnapshotV1",
         "EvidenceItemV1",
-        "IdeaStatementItemV1",
         "InternalExecutionRequestV1",
         "QuickAssessmentInputV1"
       ],
@@ -2975,13 +2940,9 @@
       "coveredSchemas": [
         "AssessmentDimensionV1",
         "EvidenceItemV1",
-        "ExternalSourceReferenceV1",
-        "IdeaStatementItemV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1",
-        "QuickAssessmentResultV1",
-        "UsageSummaryV1",
-        "WarningV1"
+        "QuickAssessmentResultV1"
       ],
       "expectedErrorCode": null,
       "expectedReason": null,

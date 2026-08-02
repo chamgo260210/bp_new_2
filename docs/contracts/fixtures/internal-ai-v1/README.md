@@ -33,6 +33,8 @@ Validator는 network, DB, Object Storage, Spring/FastAPI runtime 또는 외부 p
 
 모든 JSON은 UTF-8 without BOM, LF, comment 없는 단일 contract object다. Test metadata는 manifest에만 둔다. Positive fixture에는 credential/JWT, provider/model/SDK identity, Storage URL/key, presigned URL, local path와 FILE bytes가 없다. Manifest path는 fixture root 내부의 normalized relative path여야 하며 absolute path, `..`와 symlink escape를 금지한다.
 
-Positive는 exact schema와 domain validator를 통과해야 한다. Negative도 동일한 `validate_fixture` 경로를 실행하고 정확히 `expectedValidatorRule`로 실패해야 하며, 다른 rule이 먼저 발생하거나 validation이 성공하면 전체 검증이 실패한다. `coveredSchemas`는 65개 named field-table schema의 positive/required-negative coverage를 연결한다. Loader는 duplicate key, NFC-normalized key collision, float JSON number, BOM과 CRLF를 거부한다. Request deadline은 실제 시각 대신 `FIXTURE_NOW` 고정 clock으로 검증한다.
+Positive는 exact schema와 domain validator를 통과해야 한다. Negative도 동일한 `validate_fixture` 경로를 실행하고 정확히 `expectedValidatorRule`로 실패해야 하며, 다른 rule이 먼저 발생하거나 validation이 성공하면 전체 검증이 실패한다. Validator는 실제 object의 known field와 존재하는 named nested instance만 순회해 observed schema coverage를 수집하며, 각 `coveredSchemas` 선언은 observed set과 정확히 같아야 한다. Positive와 negative instance coverage는 각각 65개 named field-table schema 전체를 충족한다.
+
+모든 Bounds/enum cell은 `EXECUTABLE`, `ENUM_REFERENCE`, `SEMANTIC_ONLY`, `STRUCTURAL_ONLY` 중 하나로 분류되며 알 수 없는 표현은 `UNSUPPORTED_BOUND_SPEC`으로 시작 단계에서 실패한다. Loader는 duplicate key, NFC-normalized key collision, float JSON number, BOM과 CRLF를 거부한다. Request deadline은 실제 시각 대신 `FIXTURE_NOW` 고정 clock으로 검증한다. Request, success response와 internal error response의 2 MiB hard limit은 재직렬화 길이가 아닌 원본 UTF-8 transport bytes 길이로 검사한다.
 
 P2.6 validator 성공은 이 worktree의 fixture consistency 증거이며 P2.6 또는 P2 전체 완료를 의미하지 않는다. Commit·push와 외부 검토 후 phase completion을 결정한다.

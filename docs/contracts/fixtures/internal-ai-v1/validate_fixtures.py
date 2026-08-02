@@ -22,6 +22,8 @@ PUBLIC_DOC = CONTRACTS / "PUBLIC_API_V2_CONTRACT.md"
 STATUS_DOC = CONTRACTS / "STATUS_AND_ERROR_CONTRACT.md"
 MANIFEST_PATH = HERE / "manifest.json"
 FIXTURE_NOW = "2030-01-01T00:00:00Z"
+MAX_JSON_BYTES = 2 * 1024 * 1024
+RAW_BYTE_LENGTHS: dict[str, int] = {}
 
 TASK_TYPES = (
     "IDEA_INTERPRETATION", "LEGAL_REVIEW", "CONCEPT_GENERATION",
@@ -216,6 +218,11 @@ def decode_json(raw: bytes, path: str) -> Any:
 
 def load_json_file(path: Path) -> Any:
     raw = path.read_bytes()
+    try:
+        key = path.resolve().relative_to(HERE.resolve()).as_posix()
+    except ValueError:
+        key = path.as_posix()
+    RAW_BYTE_LENGTHS[key] = len(raw)
     return decode_json(raw, path.as_posix())
 
 
@@ -271,7 +278,7 @@ def parse_consistency_registry(text: str) -> tuple[dict[str, set[str]], dict[str
 
 def parse_registries(
     internal: str, public: str,
-) -> tuple[dict[tuple[str, str], dict[str, str]], dict[str, dict[str, dict[str, str]]], set[str]]:
+) -> tuple[dict[tuple[str, str], dict[str, str]], dict[str, dict[str, dict[str, str]]], set[str], int]:
     banned = (
         "array<object>", "exact fields below", "each exact {", "array of {",
         "policy-dependent", "indicated by response", "six canonical values", "task별 allowlist",
@@ -314,6 +321,7 @@ def parse_registries(
 
     schema_specs = parse_field_schemas(internal)
     schemas = set(schema_specs)
+    bound_total, _ = classify_all_bound_specs(schema_specs)
 
     for required in (RESOURCE_TYPES, PROVENANCE_CATEGORIES, LEGAL_RESULTS, ANALYSIS_TYPES, REPORT_DECISIONS, MARKETING_ASSET_TYPES):
         if not all(value in internal for value in required):
@@ -351,14 +359,70 @@ def parse_registries(
     mapped = {rule["public"] for rule in reason_registry.values()}
     if not mapped.issubset(public_errors):
         fail("contract registry", "ERROR_MAPPING_CONSISTENCY", sorted(public_errors), sorted(mapped - public_errors))
-    return reason_registry, schema_specs, schemas
+    return reason_registry, schema_specs, schemas, bound_total
 
 
 def parse_range(bounds: str) -> tuple[int, int] | None:
-    match = re.match(r"^([0-9][0-9,]*)[–-]([0-9][0-9,]*)", bounds)
+    match = re.search(r"(?<![0-9])([0-9][0-9,]*)[–-]([0-9][0-9,]*)(?![0-9])", bounds)
     if not match:
         return None
     return int(match.group(1).replace(",", "")), int(match.group(2).replace(",", ""))
+
+
+def classify_bound_spec(json_type: str, bounds: str) -> str:
+    structural = {
+        "exact object", "exactly one", "one named object", "one object",
+        "object or null", "one named object", "해당 `*InputV1`", "해당 `*ResultV1`",
+    }
+    if bounds in structural or json_type == "task-discriminated object":
+        return "STRUCTURAL_ONLY"
+    enum_marker = (
+        "enum" in json_type and (
+            bool(re.findall(r"`[A-Z][A-Z0-9_.-]*`", bounds))
+            or any(marker in bounds for marker in (
+                "Registry", "Task Registry", "Internal Error Mapping",
+                "MOLEG_API/LEGAL_MCP",
+            ))
+        )
+    )
+    if enum_marker:
+        return "ENUM_REFERENCE"
+    executable_markers = (
+        parse_range(bounds) is not None,
+        "minItems" in bounds or "maxItems" in bounds,
+        "maxLength" in bounds,
+        "RFC 3339 UTC" in bounds,
+        "SHA-256" in bounds or "sha256:" in bounds,
+        "LocalKey" in bounds,
+        bounds.startswith("HTTPS"),
+        "uppercase snake case" in bounds,
+        "uppercase ASCII letters" in bounds,
+        "`[A-Za-z0-9._-]+`" in bounds or "`[A-Z][A-Z0-9_]*`" in bounds,
+        "canonical decimal regex" in bounds,
+        bounds in {"true/false", "`1.0`", "`ko-KR`", "`KR`"},
+    )
+    if any(executable_markers):
+        return "EXECUTABLE"
+    semantic_only = {
+        "INPUT/CONCEPT_SELECTION LocalKey", "INPUT/CONCEPT_VERSION LocalKey",
+        "INPUT/IDEA_VERSION LocalKey", "INPUT/LEGAL_REVIEW_RUN LocalKey",
+        "INPUT/MARKETING_WORKSPACE_VERSION LocalKey", "INPUT/PERSONA_CARD_VERSION LocalKey",
+        "INPUT/PERSONA_STUDY LocalKey", "INPUT/SHORTLIST_DECISION LocalKey",
+        "output LocalKey",
+    }
+    if bounds in semantic_only:
+        return "SEMANTIC_ONLY"
+    fail(str(INTERNAL_DOC), "UNSUPPORTED_BOUND_SPEC", "classified Bounds/enum expression", f"{json_type}: {bounds}")
+
+
+def classify_all_bound_specs(schemas: dict[str, dict[str, dict[str, str]]]) -> tuple[int, dict[str, int]]:
+    counts: Counter[str] = Counter()
+    total = 0
+    for fields in schemas.values():
+        for spec in fields.values():
+            counts[classify_bound_spec(spec["type"], spec["bounds"])] += 1
+            total += 1
+    return total, dict(counts)
 
 
 def parse_item_bounds(bounds: str) -> tuple[int | None, int | None]:
@@ -528,6 +592,46 @@ def validate_schema(
             fail(path, "SCHEMA_JSON_TYPE", "supported documented type", json_type)
 
 
+def collect_instantiated_schema_coverage(
+    value: Any,
+    root_schema: str,
+    schemas: dict[str, dict[str, dict[str, str]]],
+    task_type: str | None,
+) -> set[str]:
+    observed: set[str] = set()
+
+    def visit(instance: Any, schema_name: str) -> None:
+        if schema_name not in schemas or not isinstance(instance, dict):
+            return
+        observed.add(schema_name)
+        for field, item in instance.items():
+            if field not in schemas[schema_name] or item is None:
+                continue
+            json_type = schemas[schema_name][field]["type"]
+            nested: str | None = None
+            if json_type == "task-discriminated object" and task_type in TASK_SCHEMAS:
+                nested = TASK_SCHEMAS[task_type][0 if field == "input" else 1]
+                visit(item, nested)
+            elif json_type.startswith("array<"):
+                nested = json_type[6:-1]
+                if nested in schemas and isinstance(item, list):
+                    for element in item:
+                        visit(element, nested)
+            elif json_type in schemas:
+                visit(item, json_type)
+
+    visit(value, root_schema)
+    return observed
+
+
+def validate_raw_byte_limit(path: str, contract_object: str, raw_length: int) -> None:
+    if raw_length <= MAX_JSON_BYTES:
+        return
+    if contract_object == "EXECUTION_REQUEST":
+        fail(path, "REQUEST_BYTES_EXCEEDED", f"<= {MAX_JSON_BYTES} raw bytes", raw_length)
+    fail(path, "RESPONSE_BYTES_EXCEEDED", f"<= {MAX_JSON_BYTES} raw bytes", raw_length)
+
+
 def validate_text_contents(path: str, request: dict[str, Any]) -> None:
     contents = request.get("input", {}).get("textContents", [])
     if not 1 <= len(contents) <= 64:
@@ -626,8 +730,6 @@ def validate_request(
     if task == "FINAL_REPORT_GENERATION":
         if not obj["input"]["userDecisions"] or any(item["category"] != "USER_DECISION" for item in obj["input"]["userDecisions"]):
             fail(path, "FINAL_REPORT_USER_DECISIONS", "non-empty USER_DECISION items", "invalid")
-    if len(json.dumps(obj, ensure_ascii=False).encode("utf-8")) > 2 * 1024 * 1024:
-        fail(path, "REQUEST_BYTES", "<=2MiB", "exceeded")
 
 
 def validate_usage(path: str, usage: Any) -> None:
@@ -705,8 +807,6 @@ def validate_success(
         fail(path, "MARKETING_CAVEAT", ">=1", 0)
     if task == "FINAL_REPORT_GENERATION" and obj["result"]["reportDecision"] != request["input"]["reportDecision"]:
         fail(path, "FINAL_REPORT_DECISION_MISMATCH", request["input"]["reportDecision"], obj["result"]["reportDecision"])
-    if len(json.dumps(obj, ensure_ascii=False).encode("utf-8")) > 2 * 1024 * 1024:
-        fail(path, "RESPONSE_BYTES", "<=2MiB", "exceeded")
 
 
 def iter_items(value: Any):
@@ -852,6 +952,9 @@ def validate_fixture(
     reason_registry: dict[tuple[str, str], dict[str, str]], coverage: set[str],
     paired_request: dict[str, Any] | None = None,
 ) -> None:
+    if path not in RAW_BYTE_LENGTHS:
+        fail(path, "RAW_BYTE_LENGTH", "captured original bytes", "missing")
+    validate_raw_byte_limit(path, entry["contractObject"], RAW_BYTE_LENGTHS[path])
     semantic_precheck(path, obj, entry["contractObject"])
     if entry["contractObject"] == "EXECUTION_REQUEST":
         validate_request(path, obj, schemas, coverage)
@@ -869,7 +972,7 @@ def main() -> int:
     try:
         internal = INTERNAL_DOC.read_text(encoding="utf-8")
         public = PUBLIC_DOC.read_text(encoding="utf-8")
-        reason_registry, schema_specs, schemas = parse_registries(internal, public)
+        reason_registry, schema_specs, schemas, bound_spec_total = parse_registries(internal, public)
         manifest = load_json_file(MANIFEST_PATH)
         if set(manifest) != {"manifestVersion", "fixtures"} or manifest["manifestVersion"] != "1.1":
             fail("manifest.json", "MANIFEST_ROOT", "manifestVersion/fixtures", sorted(manifest))
@@ -934,6 +1037,21 @@ def main() -> int:
         if canonical_expected != {"canonicalJson": canonical_text, "canonicalInputHash": digest}:
             fail("common/canonical-input.expected.json", "CANONICAL_EXPECTATION", digest, canonical_expected.get("canonicalInputHash"))
 
+        observed_by_path: dict[str, set[str]] = {}
+        for entry in entries:
+            if entry["schemaName"] == "CanonicalInputExpectationV1":
+                observed = collect_instantiated_schema_coverage(
+                    canonical_request, "InternalExecutionRequestV1", schema_specs, "IDEA_INTERPRETATION"
+                )
+            else:
+                observed = collect_instantiated_schema_coverage(
+                    objects[entry["path"]], entry["schemaName"], schema_specs, entry["taskType"]
+                )
+            observed_by_path[entry["path"]] = observed
+            declared = set(entry["coveredSchemas"])
+            if declared != observed:
+                fail(entry["path"], "MANIFEST_SCHEMA_COVERAGE_MISMATCH", sorted(observed), sorted(declared))
+
         positive_requests: dict[str, dict[str, Any]] = {}
         actual_positive_coverage: set[str] = set()
         for entry in entries:
@@ -968,6 +1086,7 @@ def main() -> int:
             actual_positive_coverage.update(fixture_coverage)
 
         negative_count = 0
+        actual_negative_validation_coverage: set[str] = set()
         for entry in entries:
             if entry["expectedValid"]:
                 continue
@@ -988,6 +1107,7 @@ def main() -> int:
                 fixture_coverage = set()
                 validate_fixture(entry["path"], obj, entry, schema_specs, reason_registry, fixture_coverage, request)
             except ValidationFailure as exc:
+                actual_negative_validation_coverage.update(fixture_coverage)
                 if exc.rule != entry["expectedValidatorRule"]:
                     fail(entry["path"], "NEGATIVE_RULE_MISMATCH", entry["expectedValidatorRule"], exc.rule)
                 negative_count += 1
@@ -1017,11 +1137,11 @@ def main() -> int:
         if ready != schemas:
             fail(str(INTERNAL_DOC), "FIXTURE_READINESS", len(schemas), len(ready))
         positive_schema_coverage = {
-            schema for entry in entries if entry["expectedValid"] for schema in entry["coveredSchemas"]
+            schema for entry in entries if entry["expectedValid"] for schema in observed_by_path[entry["path"]]
         }
         required_negative = ready
         negative_schema_coverage = {
-            schema for entry in entries if not entry["expectedValid"] for schema in entry["coveredSchemas"]
+            schema for entry in entries if not entry["expectedValid"] for schema in observed_by_path[entry["path"]]
         }
         if positive_schema_coverage != schemas:
             fail("manifest.json", "SCHEMA_POSITIVE_COVERAGE", "65/65", len(positive_schema_coverage))
@@ -1045,6 +1165,30 @@ def main() -> int:
             else:
                 fail("validator", "JSON_LOADER_SELF_TEST", expected_rule, "PASS")
 
+        validate_raw_byte_limit("<raw-request-exact>", "EXECUTION_REQUEST", MAX_JSON_BYTES)
+        validate_raw_byte_limit("<raw-response-exact>", "EXECUTION_SUCCESS", MAX_JSON_BYTES)
+        for contract_object, expected_rule in (
+            ("EXECUTION_REQUEST", "REQUEST_BYTES_EXCEEDED"),
+            ("EXECUTION_SUCCESS", "RESPONSE_BYTES_EXCEEDED"),
+        ):
+            try:
+                validate_raw_byte_limit("<raw-over-limit>", contract_object, MAX_JSON_BYTES + 1)
+            except ValidationFailure as exc:
+                if exc.rule != expected_rule:
+                    fail("validator", "RAW_BYTE_LIMIT_SELF_TEST", expected_rule, exc.rule)
+            else:
+                fail("validator", "RAW_BYTE_LIMIT_SELF_TEST", expected_rule, "PASS")
+        multibyte_raw = ("가" * ((MAX_JSON_BYTES // 3) + 1)).encode("utf-8")
+        if len(multibyte_raw) <= MAX_JSON_BYTES:
+            fail("validator", "RAW_BYTE_MULTIBYTE_SELF_TEST", f">{MAX_JSON_BYTES}", len(multibyte_raw))
+        try:
+            validate_raw_byte_limit("<raw-multibyte>", "EXECUTION_REQUEST", len(multibyte_raw))
+        except ValidationFailure as exc:
+            if exc.rule != "REQUEST_BYTES_EXCEEDED":
+                fail("validator", "RAW_BYTE_MULTIBYTE_SELF_TEST", "REQUEST_BYTES_EXCEEDED", exc.rule)
+        else:
+            fail("validator", "RAW_BYTE_MULTIBYTE_SELF_TEST", "REQUEST_BYTES_EXCEEDED", "PASS")
+
         positives = sum(e["category"] == "POSITIVE" for e in entries)
         negatives = sum(e["category"] == "NEGATIVE" for e in entries)
         print("CONTRACT_REGISTRY=PASS")
@@ -1062,7 +1206,14 @@ def main() -> int:
         print("ERROR_REASON_COVERAGE=33/33")
         print("SCHEMA_POSITIVE_COVERAGE=65/65")
         print(f"SCHEMA_NEGATIVE_COVERAGE={len(required_negative)}/{len(required_negative)}")
+        print("SCHEMA_POSITIVE_INSTANCE_COVERAGE=65/65")
+        print("SCHEMA_NEGATIVE_INSTANCE_COVERAGE=65/65")
+        print(f"MANIFEST_SCHEMA_COVERAGE_MATCH={len(entries)}/{len(entries)}")
         print(f"NEGATIVE_EXPECTED_RULES={negative_count}/{negative_count}")
+        print(f"BOUND_SPEC_CLASSIFICATION={bound_spec_total}/{bound_spec_total}")
+        print("UNSUPPORTED_BOUND_SPEC=0")
+        print("RAW_REQUEST_BYTE_LIMIT=PASS")
+        print("RAW_RESPONSE_BYTE_LIMIT=PASS")
         print("PREPARSE_ID_RULES=PASS")
         print("DEADLINE_VALIDATION=PASS")
         print("JSON_DUPLICATE_KEY_SCAN=PASS")
