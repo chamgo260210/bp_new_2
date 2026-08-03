@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-aivle}
       POSTGRES_USER: ${POSTGRES_USER:-aivle}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-e2e-postgres-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-aivle-e2e}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-e2e-minio-password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
     volumes:
       - minio-data:/data
     healthcheck:
@@ -42,7 +42,7 @@ services:
         condition: service_healthy
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-aivle-e2e}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-e2e-minio-password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
       MINIO_BUCKET: ${OBJECT_STORAGE_BUCKET:-aivle-ai-artifacts}
     entrypoint:
       - /bin/sh
@@ -58,6 +58,13 @@ services:
     build:
       context: ./ai
     environment:
+      AI_PROVIDER: ${AI_PROVIDER:?AI_PROVIDER is required}
+      AI_API_KEY: ${AI_API_KEY:?AI_API_KEY is required}
+      AI_MODEL: ${AI_MODEL:?AI_MODEL is required}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_INTERNAL_SERVICE_TOKEN: ${AI_INTERNAL_SERVICE_TOKEN:?AI_INTERNAL_SERVICE_TOKEN is required}
+      AI_FIXTURE_MODE: ${AI_FIXTURE_MODE:-false}
+      AI_PROVIDER_TIMEOUT_SECONDS: ${AI_PROVIDER_TIMEOUT_SECONDS:-60}
       AI_ARTIFACT_ALLOWED_ORIGINS: http://minio:9000
       AI_ARTIFACT_HTTP_TIMEOUT_SECONDS: ${AI_ARTIFACT_HTTP_TIMEOUT_SECONDS:-10}
       AI_ARTIFACT_MAX_BYTES: ${AI_ARTIFACT_MAX_BYTES:-1048576}
@@ -90,12 +97,13 @@ services:
       SPRING_PROFILES_ACTIVE: postgres
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-aivle}
       DB_USERNAME: ${POSTGRES_USER:-aivle}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-e2e-postgres-password}
-      JWT_SECRET: ${JWT_SECRET:-e2e-only-jwt-secret-replace-before-shared-use}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-LOCAL}
       AI_SERVER_BASE_URL: http://ai-server:8000
-      AI_SERVER_INTERNAL_API_KEY: ${AI_SERVER_INTERNAL_API_KEY:-}
-      AI_SERVER_READ_TIMEOUT: ${AI_SERVER_READ_TIMEOUT:-30s}
+      AI_SERVER_INTERNAL_API_KEY: ${AI_INTERNAL_SERVICE_TOKEN:?AI_INTERNAL_SERVICE_TOKEN is required}
+      AI_SERVER_CONNECT_TIMEOUT: ${AI_SERVER_CONNECT_TIMEOUT:-3s}
+      AI_SERVER_READ_TIMEOUT: ${AI_SERVER_READ_TIMEOUT:-75s}
       DOCUMENT_JOB_RUNNER_ENABLED: ${DOCUMENT_JOB_RUNNER_ENABLED:-true}
       DOCUMENT_JOB_POLL_INTERVAL: ${DOCUMENT_JOB_POLL_INTERVAL:-5s}
       DOCUMENT_JOB_RECOVERY_INTERVAL: ${DOCUMENT_JOB_RECOVERY_INTERVAL:-30s}
@@ -107,8 +115,12 @@ services:
       OBJECT_STORAGE_PUBLIC_ENDPOINT: http://minio:9000
       OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-aivle-ai-artifacts}
       OBJECT_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-aivle-e2e}
-      OBJECT_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-e2e-minio-password}
+      OBJECT_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -137,6 +149,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:8080"
     healthcheck:
       test:
         - CMD

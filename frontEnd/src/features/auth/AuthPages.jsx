@@ -11,7 +11,6 @@ import LoginRateLimitNotice from './components/LoginRateLimitNotice.jsx';
 import AuthShell from './components/AuthShell.jsx';
 import PasswordRequirements from './components/PasswordRequirements.jsx';
 import useCapsLock from './hooks/useCapsLock.js';
-import { useAuthTransition } from '../../app/transitions/AuthTransitionProvider.jsx';
 import usePasswordChecks from './hooks/usePasswordChecks.js';
 import useLoginRetryCountdown from './hooks/useLoginRetryCountdown.js';
 import './auth.css';
@@ -85,7 +84,6 @@ function AuthPage({ children, mode }) {
 
 export function LoginPage() {
   const { login } = useAuth();
-  const { start } = useAuthTransition();
   const errorRef = useRef(null);
   const timerRef = useRef(null);
   const { isCapsLockOn, handleBlur: handleCapsLockBlur, handleFocus: handleCapsLockFocus, handleKeyDown: handleCapsLockKeyDown, handleKeyUp: handleCapsLockKeyUp } = useCapsLock();
@@ -108,14 +106,15 @@ export function LoginPage() {
     else if (!usernamePattern.test(username)) nextErrors.username = '사용할 수 없는 문자가 포함되어 있습니다.';
     if (!values.password) nextErrors.password = '비밀번호를 입력해 주세요.';
     if (Object.keys(nextErrors).length) { setErrors(nextErrors); focusFirstError(nextErrors, 'login'); return; }
-    setSubmitting(true); setGlobalError('');
+    setSubmitting(true); setErrors({}); setGlobalError('');
     try {
-      const loggedInUser = await login({ username, password: values.password });
+      await login({ username, password: values.password });
       clearRetryCountdown();
       window.sessionStorage.removeItem(warningStorageKey);
       window.dispatchEvent(new Event('auth-login-attempt-warning'));
+      setErrors({});
+      setGlobalError('');
       setSuccess(true);
-      await start({ destination: loggedInUser?.role === 'ADMIN' ? '/admin' : '/app', message: '워크스페이스를 준비하고 있습니다.' });
     } catch (error) {
       if (error?.code === 'LOGIN_RATE_LIMITED') {
         startRetryCountdown(error.retryAfterSeconds);

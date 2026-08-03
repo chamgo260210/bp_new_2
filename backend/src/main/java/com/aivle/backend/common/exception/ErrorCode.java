@@ -125,6 +125,10 @@ public enum ErrorCode {
     FINANCIAL_SCENARIO_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "시나리오는 최대 3개까지 설정할 수 있습니다.", false),
     FINANCIAL_CALCULATION_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "현재 가정으로는 재무 계산을 완료할 수 없습니다.", false),
     FINANCIAL_ALREADY_COMPLETED(HttpStatus.CONFLICT, "완료된 재무 분석은 수정할 수 없습니다. 복제해 새 분석을 만드세요.", false),
+    IDEA_NOT_FOUND(HttpStatus.NOT_FOUND, "저장된 아이디어를 찾을 수 없습니다.", false),
+    IDEA_NOT_CONFIRMED(HttpStatus.CONFLICT, "법률 검토 전에 아이디어를 확정해 주세요.", false),
+    AI_CONFIGURATION_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "AI Provider 설정 또는 API Key를 확인해 주세요.", false),
+    AI_RESULT_INVALID(HttpStatus.BAD_GATEWAY, "AI 응답을 유효한 구조로 해석할 수 없습니다.", false),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.", true);
 
     private final HttpStatus httpStatus;

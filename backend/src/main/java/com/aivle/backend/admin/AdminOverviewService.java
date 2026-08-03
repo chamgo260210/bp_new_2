@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +17,7 @@ public class AdminOverviewService {
     private final UserRepository users;
     private final ProjectRepository projects;
     private final Clock jobClock;
-    @Transactional(readOnly = true)
+    private final AdminTaskRunService taskRuns;
     public AdminController.OverviewResponse overview() {
         long active = users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.USER, UserStatus.ACTIVE)
             + users.countByRoleAndStatusAndDeletedAtIsNull(UserRole.ADMIN, UserStatus.ACTIVE);
@@ -45,14 +44,17 @@ public class AdminOverviewService {
                     LocalDateTime.now(jobClock).minusDays(7)
                 )
             ),
-            new AdminController.JobMetrics(
-                false,
-                "AI_SERVER_NOT_CONNECTED",
-                null,
-                null,
-                null
-            ),
+            jobMetrics(),
             LocalDateTime.now(jobClock)
+        );
+    }
+
+    private AdminController.JobMetrics jobMetrics() {
+        var jobs = taskRuns.overview();
+        return new AdminController.JobMetrics(
+            "AVAILABLE".equals(jobs.availabilityStatus()),
+            jobs.configurationStatus() + ":" + jobs.availabilityStatus(),
+            jobs.pending(), jobs.running(), jobs.failed()
         );
     }
 }

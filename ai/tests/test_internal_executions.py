@@ -40,6 +40,11 @@ def headers():
 
 def test_idea_interpretation_returns_validated_echo(monkeypatch):
     monkeypatch.setenv("AI_INTERNAL_SERVICE_TOKEN", TOKEN)
+    async def provider_result(task_type, text):
+        return {"originalSourceSummary": text, "normalizedDescription": text,
+            "facts": [], "assumptions": [], "constraints": [], "openQuestions": [],
+            "readiness": "APPROPRIATE", "warnings": [], "evidenceNeeds": []}
+    monkeypatch.setattr("app.api.executions.execute_journey_task", provider_result)
     body = request_body()
     response = client.post("/internal/v1/ai/executions", json=body, headers=headers())
     assert response.status_code == 200
@@ -66,11 +71,16 @@ def test_hash_mismatch_is_not_retryable(monkeypatch):
     assert response.json()["error"]["details"][0]["reason"] == "HASH_MISMATCH"
 
 
-def test_known_unimplemented_task_is_dependency_unavailable(monkeypatch):
+def test_legal_review_uses_provider_and_keeps_source_unverified(monkeypatch):
     monkeypatch.setenv("AI_INTERNAL_SERVICE_TOKEN", TOKEN)
+    async def provider_result(task_type, text):
+        return {"status": "PASS_WITH_CONDITIONS", "summary": "사전 검토",
+            "issues": [], "conditions": ["전문가 확인"], "prohibitedElements": [],
+            "researchNeeds": [], "sourceVerified": False, "disclaimer": "공식 법률 자문 아님"}
+    monkeypatch.setattr("app.api.executions.execute_journey_task", provider_result)
     response = client.post("/internal/v1/ai/executions", json=request_body("LEGAL_REVIEW"), headers=headers())
-    assert response.status_code == 503
-    assert response.json()["error"]["retryable"] is True
+    assert response.status_code == 200
+    assert response.json()["result"]["sourceVerified"] is False
 
 
 def test_unknown_field_rejected(monkeypatch):

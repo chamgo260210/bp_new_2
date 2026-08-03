@@ -6,6 +6,12 @@ const LABELS = {
   ADMIN: 'ADMIN',
   SUCCESS: '성공',
   FAILED: '실패',
+  QUEUED: '대기',
+  READY: '실행 준비',
+  RUNNING: '실행 중',
+  SUCCEEDED: '성공',
+  CANCELLED: '취소',
+  TIMED_OUT: '시간 초과',
 };
 
 export default function AdminStatusBadge({ value }) {

@@ -81,6 +81,19 @@ public class TaskRunService {
     }
 
     @Transactional
+    public Claim claim(String runId, String workerId, Duration lease, Duration timeout) {
+        TaskRun run = runs.findLocked(runId).orElseThrow(this::notFound);
+        if (run.getState() != TaskRunState.QUEUED && run.getState() != TaskRunState.READY)
+            throw new TaskRunFailure("TASK_ALREADY_RUNNING", "TASK_NOT_CLAIMABLE", HttpStatus.CONFLICT, false);
+        if (run.getAttemptCount() >= run.getMaxAttempts())
+            throw new TaskRunFailure("CAPABILITY_NOT_AVAILABLE", "ATTEMPT_LIMIT_EXCEEDED", HttpStatus.CONFLICT, false);
+        LocalDateTime now = LocalDateTime.now(clock);
+        TaskAttempt attempt = TaskAttempt.claim(run, workerId, now, now.plus(lease), now.plus(timeout));
+        attempts.save(attempt);
+        return new Claim(run.getId(), attempt.getId(), attempt.getClaimToken());
+    }
+
+    @Transactional
     public void heartbeat(String runId, String attemptId, String claimToken, Duration lease) {
         TaskAttempt attempt = attempts.findByIdAndTaskRunId(attemptId, runId).orElseThrow(this::notFound);
         LocalDateTime now = LocalDateTime.now(clock); attempt.heartbeat(claimToken, now, now.plus(lease));

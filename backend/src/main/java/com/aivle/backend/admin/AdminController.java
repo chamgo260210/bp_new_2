@@ -47,6 +47,7 @@ public class AdminController {
     private final AdminReauthenticationService reauthentication;
     private final AdminSettingService adminSettings;
     private final UserDeletionService userDeletionService;
+    private final AdminTaskRunService adminTaskRuns;
 
     @PostMapping("/reauthenticate")
     public ApiResponse<AdminReauthenticationService.IssuedToken> reauthenticate(@Valid @RequestBody ReauthenticationRequest body, HttpServletRequest request) {
@@ -231,19 +232,21 @@ public class AdminController {
     @GetMapping("/ai/services")
     public ApiResponse<AvailabilityResponse> aiServices(HttpServletRequest request) {
         access.requireAdmin();
+        var jobs = adminTaskRuns.overview();
         return ApiResponse.success(
-            new AvailabilityResponse(false, "AI_SERVER_NOT_CONNECTED", List.of()),
+            new AvailabilityResponse(
+                "AVAILABLE".equals(jobs.availabilityStatus()),
+                jobs.configurationStatus() + ":" + jobs.availabilityStatus(),
+                List.of()
+            ),
             requestId(request)
         );
     }
 
     @GetMapping("/jobs")
-    public ApiResponse<AvailabilityResponse> jobs(HttpServletRequest request) {
+    public ApiResponse<AdminTaskRunService.JobOverview> jobs(HttpServletRequest request) {
         access.requireAdmin();
-        return ApiResponse.success(
-            new AvailabilityResponse(false, "AI_SERVER_NOT_CONNECTED", List.of()),
-            requestId(request)
-        );
+        return ApiResponse.success(adminTaskRuns.overview(), requestId(request));
     }
 
     private Pageable pageable(int page, int size, String sort) {

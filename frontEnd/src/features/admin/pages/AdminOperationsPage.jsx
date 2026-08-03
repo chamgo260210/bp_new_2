@@ -17,7 +17,7 @@ export default function AdminOperationsPage() {
     <div className="admin-page">
       <AdminPageHeader
         title="Operations"
-        description="현재 연결된 운영 서비스의 가용성만 표시합니다."
+        description="자격증명 원문 없이 내부 AI 실행 연결의 설정·가용 상태만 표시합니다."
       />
       {loading && <section className="admin-panel" aria-busy="true">서비스 상태를 확인하는 중입니다.</section>}
       {error && <AdminErrorState error={error} onRetry={refresh} />}
