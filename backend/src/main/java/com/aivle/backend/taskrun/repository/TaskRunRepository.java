@@ -31,4 +31,9 @@ public interface TaskRunRepository extends JpaRepository<TaskRun, String> {
 
     @Query("select r from TaskRun r where r.state=:state and r.updatedAt<:cutoff")
     List<TaskRun> findStale(@Param("state") TaskRunState state, @Param("cutoff") LocalDateTime cutoff);
+
+    @Query("select r from TaskRun r join fetch r.project p where r.deletedAt is null order by r.updatedAt desc, r.id desc")
+    List<TaskRun> findRecentForAdmin(Pageable pageable);
+
+    long countByStateAndDeletedAtIsNull(TaskRunState state);
 }

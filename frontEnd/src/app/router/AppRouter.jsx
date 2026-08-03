@@ -15,19 +15,7 @@ import WorkspaceHomePage from '../../features/projects/WorkspaceHomePage.jsx';
 import { AccountSettingsLayout, AccountSettingsRedirect, ProfileSettingsPage, SecuritySettingsPage } from '../../features/settings/AccountSettingsPages.jsx';
 import ProjectSettingsSheet from '../../features/projects/ProjectSettingsSheet.jsx';
 import { ProjectProvider } from '../../features/projects/ProjectContext.jsx';
-import { DocumentUploadPage, StructuredPlanPage } from '../../features/documents/DocumentPages.jsx';
 import { AuthPlaceholderPage, NotFoundPage } from '../../pages/FoundationPages.jsx';
-import FeasibilityPage from '../../features/feasibility/FeasibilityPage.jsx';
-import FinancialAnalysisListPage from '../../features/financial/pages/FinancialAnalysisListPage.jsx';
-import FinancialAnalysisCreatePage from '../../features/financial/pages/FinancialAnalysisCreatePage.jsx';
-import FinancialAnalysisWorkspacePage from '../../features/financial/pages/FinancialAnalysisWorkspacePage.jsx';
-import PersonaPage from '../../features/personas/PersonaPage.jsx';
-import PersonaValidationHubPage from '../../features/validation/PersonaValidationHubPage.jsx';
-import PanelInterviewPage from '../../features/validation/pages/PanelInterviewPage.jsx';
-import MarketResponsePage from '../../features/validation/pages/MarketResponsePage.jsx';
-import MarketingContentListPage from '../../features/marketing/pages/MarketingContentListPage.jsx';
-import MarketingContentWorkspacePage from '../../features/marketing/pages/MarketingContentWorkspacePage.jsx';
-import ReportPage from '../../features/report/ReportPage.jsx';
 import LandingPage from '../../features/landing/LandingPage.jsx';
 import AdminShell from '../layouts/AdminShell.jsx';
 import AdminOverviewPage from '../../features/admin/pages/AdminOverviewPage.jsx';
@@ -37,7 +25,7 @@ import AdminSettingsPage from '../../features/admin/pages/AdminSettingsPage.jsx'
 import AdminUsersPage, { AdminUserDetailOverlay } from '../../features/admin/pages/AdminUsersPage.jsx';
 import AdminProjectsPage, { AdminProjectDetailOverlay } from '../../features/admin/pages/AdminProjectsPage.jsx';
 import AdminAuditPage, { AdminAuditDetailOverlay } from '../../features/admin/pages/AdminAuditPage.jsx';
-import { IdeaJourneyPage, LegalJourneyPage, LockedJourneyPage } from '../../features/journey/JourneyPages.jsx';
+import { IdeaJourneyPage, LegalJourneyPage } from '../../features/journey/JourneyPages.jsx';
 import { ConceptAnalysisPage, ConceptGenerationPage, ConceptSelectionPage } from '../../features/journey/ConceptJourneyPages.jsx';
 import { InterviewJourneyPage, PersonaJourneyPage } from '../../features/journey/PersonaInterviewPages.jsx';
 import { FinalReportJourneyPage, MarketingJourneyPage } from '../../features/journey/MarketingReportPages.jsx';
@@ -91,30 +79,30 @@ export default function AppRouter() {
             <Route path="journey/marketing" element={<MarketingJourneyPage />} />
             <Route path="journey/final-report" element={<FinalReportJourneyPage />} />
             <Route path="get-started" element={<Navigate to=".." replace />} />
-            <Route path="plan" element={<Navigate to="documents" replace />} />
+            <Route path="plan" element={<LegacyProjectRedirect />} />
             <Route path="plan/brief" element={<Navigate to="../settings" replace />} />
-            <Route path="plan/documents" element={<DocumentUploadPage />} />
-            <Route path="plan/structure" element={<StructuredPlanPage />} />
+            <Route path="plan/documents" element={<LegacyProjectRedirect />} />
+            <Route path="plan/structure" element={<LegacyProjectRedirect />} />
             <Route path="review" element={<Navigate to="legal" replace />} />
             <Route path="review/legal" element={<LegacyProjectRedirect suffix="/legal" />} />
-            <Route path="review/market" element={<FeasibilityPage />} />
-            <Route path="review/financial" element={<FinancialAnalysisListPage />} />
-            <Route path="review/financial/new" element={<FinancialAnalysisCreatePage />} />
-            <Route path="review/financial/:analysisId" element={<FinancialAnalysisWorkspacePage />} />
-            <Route path="validate" element={<PersonaValidationHubPage />} />
-            <Route path="validate/personas" element={<PersonaPage />} />
-            <Route path="validate/interview" element={<PanelInterviewPage />} />
-            <Route path="validate/interview/:interviewId" element={<PanelInterviewPage />} />
-            <Route path="validate/market-response" element={<MarketResponsePage />} />
-            <Route path="validate/market-response/:predictionId" element={<MarketResponsePage />} />
-            <Route path="validate/marketing" element={<MarketingContentListPage />} />
-            <Route path="validate/marketing/new" element={<MarketingContentListPage initialCreate />} />
-            <Route path="validate/marketing/:contentId" element={<MarketingContentWorkspacePage />} />
-            <Route path="validation" element={<LegacyProjectRedirect suffix="/validate" />} />
-            <Route path="validation/interview" element={<LegacyProjectRedirect suffix="/validate/interview" />} />
-            <Route path="validation/market-response" element={<LegacyProjectRedirect suffix="/validate/market-response" />} />
-            <Route path="validation/marketing" element={<LegacyProjectRedirect suffix="/validate/marketing" />} />
-            <Route path="report" element={<ReportPage />} />
+            <Route path="review/market" element={<LegacyProjectRedirect suffix="/journey/concept" />} />
+            <Route path="review/financial" element={<LegacyProjectRedirect suffix="/journey/concept-analysis" />} />
+            <Route path="review/financial/new" element={<LegacyProjectRedirect suffix="/journey/concept-analysis" />} />
+            <Route path="review/financial/:analysisId" element={<LegacyProjectRedirect suffix="/journey/concept-analysis" />} />
+            <Route path="validate" element={<LegacyProjectRedirect suffix="/journey/persona" />} />
+            <Route path="validate/personas" element={<LegacyProjectRedirect suffix="/journey/persona" />} />
+            <Route path="validate/interview" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+            <Route path="validate/interview/:interviewId" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+            <Route path="validate/market-response" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+            <Route path="validate/market-response/:predictionId" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+            <Route path="validate/marketing" element={<LegacyProjectRedirect suffix="/journey/marketing" />} />
+            <Route path="validate/marketing/new" element={<LegacyProjectRedirect suffix="/journey/marketing" />} />
+            <Route path="validate/marketing/:contentId" element={<LegacyProjectRedirect suffix="/journey/marketing" />} />
+            <Route path="validation" element={<LegacyProjectRedirect suffix="/journey/persona" />} />
+            <Route path="validation/interview" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+            <Route path="validation/market-response" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+            <Route path="validation/marketing" element={<LegacyProjectRedirect suffix="/journey/marketing" />} />
+            <Route path="report" element={<LegacyProjectRedirect suffix="/journey/final-report" />} />
             <Route path="settings" element={<ProjectSettingsSheet />} />
             <Route path="settings/general" element={<Navigate to="../settings" replace />} />
             <Route path="settings/danger" element={<Navigate to="../settings" replace />} />
@@ -128,21 +116,21 @@ export default function AppRouter() {
           <Route path="projects/:projectId" element={<LegacyProjectRedirect />} />
           <Route path="projects/:projectId/overview" element={<LegacyProjectRedirect />} />
           <Route path="projects/:projectId/input" element={<LegacyProjectRedirect suffix="/settings" />} />
-          <Route path="projects/:projectId/documents" element={<LegacyProjectRedirect suffix="/plan/documents" />} />
-          <Route path="projects/:projectId/structure" element={<LegacyProjectRedirect suffix="/plan/structure" />} />
-          <Route path="projects/:projectId/structured-plan" element={<LegacyProjectRedirect suffix="/plan/structure" />} />
-          <Route path="projects/:projectId/structured-plan/missing-fields" element={<LegacyProjectRedirect suffix="/plan/structure" />} />
-          <Route path="projects/:projectId/legal-review" element={<LegacyProjectRedirect suffix="/review/legal" />} />
-          <Route path="projects/:projectId/feasibility" element={<LegacyProjectRedirect suffix="/review/market" />} />
-          <Route path="projects/:projectId/financial" element={<LegacyProjectRedirect suffix="/review/financial" />} />
-          <Route path="projects/:projectId/analyses/:analysis" element={<LegacyProjectRedirect suffix="/review/market" />} />
-          <Route path="projects/:projectId/personas" element={<LegacyProjectRedirect suffix="/validate/personas" />} />
-          <Route path="projects/:projectId/panel-survey" element={<LegacyProjectRedirect suffix="/validate/interview" />} />
-          <Route path="projects/:projectId/panel-discussion" element={<LegacyProjectRedirect suffix="/validate/interview" />} />
-          <Route path="projects/:projectId/market-validation" element={<LegacyProjectRedirect suffix="/validate/market-response" />} />
-          <Route path="projects/:projectId/report" element={<LegacyProjectRedirect suffix="/report" />} />
-          <Route path="projects/:projectId/reports/*" element={<LegacyProjectRedirect suffix="/report" />} />
-          <Route path="projects/:projectId/marketing" element={<LegacyProjectRedirect suffix="/validate/marketing" />} />
+          <Route path="projects/:projectId/documents" element={<LegacyProjectRedirect />} />
+          <Route path="projects/:projectId/structure" element={<LegacyProjectRedirect />} />
+          <Route path="projects/:projectId/structured-plan" element={<LegacyProjectRedirect />} />
+          <Route path="projects/:projectId/structured-plan/missing-fields" element={<LegacyProjectRedirect />} />
+          <Route path="projects/:projectId/legal-review" element={<LegacyProjectRedirect suffix="/legal" />} />
+          <Route path="projects/:projectId/feasibility" element={<LegacyProjectRedirect suffix="/journey/concept" />} />
+          <Route path="projects/:projectId/financial" element={<LegacyProjectRedirect suffix="/journey/concept-analysis" />} />
+          <Route path="projects/:projectId/analyses/:analysis" element={<LegacyProjectRedirect suffix="/journey/concept-analysis" />} />
+          <Route path="projects/:projectId/personas" element={<LegacyProjectRedirect suffix="/journey/persona" />} />
+          <Route path="projects/:projectId/panel-survey" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+          <Route path="projects/:projectId/panel-discussion" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+          <Route path="projects/:projectId/market-validation" element={<LegacyProjectRedirect suffix="/journey/interview" />} />
+          <Route path="projects/:projectId/report" element={<LegacyProjectRedirect suffix="/journey/final-report" />} />
+          <Route path="projects/:projectId/reports/*" element={<LegacyProjectRedirect suffix="/journey/final-report" />} />
+          <Route path="projects/:projectId/marketing" element={<LegacyProjectRedirect suffix="/journey/marketing" />} />
           <Route path="projects/:projectId/settings" element={<LegacyProjectRedirect suffix="/settings" />} />
         </Route>
 

@@ -277,3 +277,18 @@
     max-height: none;
   }
 }
+
+.admin-ai-status { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; }
+.admin-ai-status > div { display:grid; gap:.2rem; min-width:10rem; }
+.admin-ai-status span { color:var(--color-text-muted,#60777a); font-size:.75rem; }
+.admin-ai-status strong { color:var(--color-primary,#176b63); letter-spacing:.04em; }
+.admin-ai-status button { margin-inline-start:auto; padding:.45rem .7rem; border:1px solid var(--color-border-default,#dfe8e6); border-radius:.45rem; background:white; cursor:pointer; }
+.admin-table-wrap { overflow:auto; }
+.admin-task-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+.admin-task-table th,.admin-task-table td { padding:.7rem; border-bottom:1px solid var(--color-border-default,#dfe8e6); text-align:left; vertical-align:top; }
+.admin-task-table th { color:var(--color-text-muted,#60777a); font-size:.7rem; letter-spacing:.04em; text-transform:uppercase; }
+.admin-task-table td small { display:block; margin-top:.2rem; color:var(--color-text-muted,#60777a); }
+.admin-task-table code { font-size:.72rem; overflow-wrap:anywhere; }
+.admin-task-skeleton { display:grid; gap:.65rem; }
+.admin-task-skeleton span { height:1rem; border-radius:.3rem; background:#edf3f2; }
+@media (max-width:720px) { .admin-ai-status button { width:100%; margin:0; }.admin-task-table { min-width:48rem; } }

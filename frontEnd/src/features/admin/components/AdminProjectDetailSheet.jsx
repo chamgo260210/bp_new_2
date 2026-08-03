@@ -18,6 +18,7 @@ const STATUS_LABELS = {
   NEEDS_INPUT: '입력 필요',
   CONFIRMED: '확정',
 };
+const JOURNEY_STAGE = { DOCUMENT:'아이디어',STRUCTURING:'아이디어',LEGAL_REVIEW:'법률 검토',FEASIBILITY:'콘셉트 생성',FINANCIAL:'콘셉트 분석',PERSONA_CONFIGURATION:'콘셉트 선택',PANEL_SURVEY:'페르소나',PANEL_DISCUSSION:'인터뷰',MARKETING:'마케팅',REPORT:'최종 보고서',COMPLETED:'최종 보고서' };
 
 function date(value) {
   if (!value) return '—';
@@ -89,7 +90,7 @@ export default function AdminProjectDetailSheet({ projectId, onRequestClose }) {
           <header className="admin-user-detail__header">
             <div>
               <strong>{project.title}</strong>
-              <span>{project.area} / {project.stage}</span>
+              <span>{JOURNEY_STAGE[project.stage] || project.stage} / {project.stage}</span>
             </div>
             <AdminStatusBadge value={project.status} />
           </header>
@@ -113,7 +114,7 @@ export default function AdminProjectDetailSheet({ projectId, onRequestClose }) {
             <dl className="admin-detail-list">
               <dt>설명</dt><dd>{project.description || '—'}</dd>
               <dt>Area</dt><dd>{project.area}</dd>
-              <dt>Stage</dt><dd>{project.stage}</dd>
+              <dt>현재 Journey 단계</dt><dd>{JOURNEY_STAGE[project.stage] || project.stage} ({project.stage})</dd>
               <dt>업종</dt><dd>{project.industryCategory || '—'}</dd>
               <dt>생성일</dt><dd>{date(project.createdAt)}</dd>
               <dt>최근 수정일</dt><dd>{date(project.updatedAt)}</dd>

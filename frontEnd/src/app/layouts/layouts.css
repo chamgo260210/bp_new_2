@@ -278,6 +278,12 @@
 .journey-shell__title p { margin:0; color:var(--color-text-secondary); font-size:.8rem; }
 .journey-shell__title > div:last-child { display:flex; align-items:center; gap:.75rem; color:var(--color-text-secondary); font-size:.78rem; }
 .journey-shell__title a { padding:.45rem .65rem; border:1px solid var(--color-border-default); border-radius:var(--radius-control); color:var(--color-text-primary); text-decoration:none; }
+.journey-shell__meta { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.55rem; }
+.journey-shell__meta span { display:grid; gap:.12rem; padding:.45rem .65rem; border:1px solid var(--color-border-default); border-radius:.55rem; background:var(--color-surface); color:var(--color-text-secondary); font-size:.76rem; }
+.journey-shell__meta b { color:#829294; font-size:.64rem; letter-spacing:.04em; }
+.journey-shell__pager { display:flex; justify-content:space-between; gap:1rem; padding-bottom:.75rem; border-bottom:1px solid var(--color-border-default); }
+.journey-shell__pager a { color:var(--color-action-primary); font-size:.8rem; font-weight:750; text-decoration:none; }
+.journey-shell__pager span { color:var(--color-text-secondary); font-size:.75rem; }
 .journey-shell__body { display:grid; grid-template-columns:minmax(12rem,14rem) minmax(0,1fr); gap:clamp(1rem,3vw,2rem); align-items:start; }
 .journey-stepper { position:sticky; top:calc(var(--header-height) + 1rem); padding:1rem; border:1px solid var(--color-border-default); border-radius:var(--radius-card); background:var(--color-bg-subtle); }
 .journey-stepper > p { margin:0 0 .75rem; color:var(--color-mint-700); font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
@@ -291,3 +297,4 @@
 .journey-stepper li.is-locked { opacity:.68; }
 .journey-shell__main { min-width:0; }
 @media (max-width:880px) { .journey-shell__title { align-items:flex-start; flex-direction:column; }.journey-shell__title > div:last-child { flex-wrap:wrap; }.journey-shell__body { grid-template-columns:1fr; }.journey-stepper { position:static; overflow-x:auto; }.journey-stepper ol { display:flex; min-width:max-content; }.journey-stepper a { grid-template-columns:1.7rem auto; }.journey-stepper small { display:none; } }
+@media (max-width:620px) { .journey-shell__meta { justify-content:flex-start; }.journey-shell__meta span { flex:1 1 8rem; }.journey-shell__pager a { max-width:45%; } }

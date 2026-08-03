@@ -104,7 +104,7 @@ export function ProjectListPage() {
       <PageHeader
         eyebrow="내 워크스페이스"
         title="프로젝트"
-        description="사업 검증의 입력, 실행, 결과를 프로젝트 단위로 관리합니다."
+        description="아이디어부터 최종 보고서까지 현재 단계와 다음 작업을 확인하세요."
         actions={<PolicyLink restriction={restriction} className="primary-link" to={appRoutes.newProject} state={{ backgroundLocation: location, returnTo: `${location.pathname}${location.search}` }}>새 프로젝트</PolicyLink>}
       />
       <div className="project-hub__body"><div className="project-hub__content">{!projects.length ? (
@@ -131,8 +131,7 @@ export function ProjectListPage() {
               <option value="name">이름순</option>
             </select>
           </div>
-          <div className="project-row-list" role="list" aria-label="프로젝트 목록">
-            <div className="project-row-list__header" aria-hidden="true"><span>Name</span><span>Area</span><span>Status</span><span>Next action</span><span>Updated</span><span /></div>
+          <div className="project-row-list project-card-grid" role="list" aria-label="프로젝트 목록">
             {visible.map((project) => <ProjectRow key={project.projectId} project={project} menuOpen={menuOpenProjectId === project.projectId} onMenuOpenChange={(open) => setMenuOpenProjectId(open ? project.projectId : null)} onDelete={() => setDeleteTarget(project)} />)}
           </div>
           {!visible.length && <p className="project-search-empty">조건에 맞는 프로젝트가 없습니다.</p>}

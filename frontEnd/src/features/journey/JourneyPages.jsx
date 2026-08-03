@@ -15,7 +15,7 @@ const legalLabel = {
 };
 
 function ErrorBanner({ message }) {
-  return message ? <div className="journey-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span>{message}</span></div> : null;
+  return message ? <div className="journey-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span>{message}</span><button type="button" onClick={() => window.location.reload()}>현재 단계 다시 불러오기</button></div> : null;
 }
 
 function BusyOverlay({ label }) {
@@ -24,7 +24,7 @@ function BusyOverlay({ label }) {
 
 function ResultList({ title, items }) {
   return <section className="journey-result-section"><h3>{title}</h3>{items?.length
-    ? <ul>{items.map((item, index) => <li key={`${title}-${index}`}>{typeof item === 'string' ? item : JSON.stringify(item)}</li>)}</ul>
+    ? <ul>{items.map((item, index) => <li key={`${title}-${index}`}>{typeof item === 'string' ? item : Object.entries(item || {}).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`).join(' · ')}</li>)}</ul>
     : <p className="journey-muted">해당 항목이 없습니다.</p>}</section>;
 }
 

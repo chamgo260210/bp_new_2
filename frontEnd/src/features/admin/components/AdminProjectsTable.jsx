@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 
 import AdminStatusBadge from './AdminStatusBadge.jsx';
 
+const JOURNEY_STAGE = { DOCUMENT:'아이디어',STRUCTURING:'아이디어',LEGAL_REVIEW:'법률 검토',FEASIBILITY:'콘셉트 생성',FINANCIAL:'콘셉트 분석',PERSONA_CONFIGURATION:'콘셉트 선택',PANEL_SURVEY:'페르소나',PANEL_DISCUSSION:'인터뷰',MARKETING:'마케팅',REPORT:'최종 보고서',COMPLETED:'최종 보고서' };
+
 function date(value) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -39,7 +41,7 @@ export default function AdminProjectsTable({ projects, location }) {
                 </td>
                 <td>{project.area}</td>
                 <td><AdminStatusBadge value={project.status} /></td>
-                <td>{project.stage}</td>
+                <td>{JOURNEY_STAGE[project.stage] || project.stage}<small className="admin-table-secondary">{project.stage}</small></td>
                 <td>{project.industryCategory || '—'}</td>
                 <td><time dateTime={project.updatedAt}>{date(project.updatedAt)}</time></td>
                 <td><time dateTime={project.createdAt}>{date(project.createdAt)}</time></td>

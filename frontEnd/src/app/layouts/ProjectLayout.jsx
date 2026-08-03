@@ -21,10 +21,15 @@ function ProjectLayoutContent() {
   const base = `/app/projects/${projectId}`;
   const relative = location.pathname.slice(base.length).replace(/^\//, '');
   const currentIndex = Math.max(0, JOURNEY_STEPS.findIndex(([, route]) => route === relative));
+  const previous = JOURNEY_STEPS[currentIndex - 1];
+  const next = JOURNEY_STEPS[currentIndex + 1];
+  const stepUrl = (step) => step?.[1] ? `${base}/${step[1]}` : base;
+  const savedAt = project.updatedAt ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(project.updatedAt)) : '저장 시각 없음';
   return <div className="journey-shell">
     <header className="journey-shell__header">
       <Breadcrumb items={[{ label: 'Projects', to: appRoutes.projects }, { label: project.name }]} />
-      <div className="journey-shell__title"><div><p>{project.industryCategory || '사업 분야 미입력'}</p><h1>{project.name}</h1></div><div><span>현재 단계 · {JOURNEY_STEPS[currentIndex][0]}</span><span>저장 상태는 각 단계에서 확인</span><Link to={projectRoutes.settings(projectId)} state={{ backgroundLocation: location }}>프로젝트 설정</Link></div></div>
+      <div className="journey-shell__title"><div><p>{project.industryCategory || '사업 분야 미입력'}</p><h1>{project.name}</h1></div><div className="journey-shell__meta"><span><b>현재 단계</b>{JOURNEY_STEPS[currentIndex][0]}</span><span><b>마지막 저장</b>{savedAt}</span><span><b>AI 작업</b>{project.status === 'PAUSED' ? '확인 필요' : '대기 없음'}</span><Link to={projectRoutes.settings(projectId)} state={{ backgroundLocation: location }}>프로젝트 설정</Link></div></div>
+      <nav className="journey-shell__pager" aria-label="Journey 이전 및 다음 단계">{previous ? <Link to={stepUrl(previous)}>← {previous[0]}</Link> : <span />}{next ? <Link to={stepUrl(next)}>{next[0]} →</Link> : <span>여정 마지막 단계</span>}</nav>
     </header>
     <div className="journey-shell__body">
       <aside className="journey-stepper"><p>Business Journey</p><nav aria-label="프로젝트 여정 단계"><ol>{JOURNEY_STEPS.map(([label, route], index) => {

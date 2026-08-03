@@ -12,9 +12,7 @@ function useConceptApi() {
   return { projectId, api: useMemo(() => createJourneyApi(client, projectId), [client, projectId]) };
 }
 
-function ErrorBanner({ error }) {
-  return error ? <div className="journey-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span>{error}</span></div> : null;
-}
+function ErrorBanner({ error }) { return error ? <div className="journey-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span>{error}</span><button type="button" onClick={() => window.location.reload()}>현재 단계 다시 불러오기</button></div> : null; }
 
 function Busy({ children }) {
   return <div className="journey-overlay" role="status"><span className="journey-spinner" /><strong>{children}</strong></div>;

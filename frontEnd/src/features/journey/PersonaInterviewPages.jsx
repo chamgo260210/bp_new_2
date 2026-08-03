@@ -6,7 +6,7 @@ import { createJourneyApi } from './journeyApi.js';
 import './journey.css';
 
 function useJourney(){const {projectId}=useParams();const client=useApiClient();return{projectId,api:useMemo(()=>createJourneyApi(client,projectId),[client,projectId])};}
-function ErrorBanner({error}){return error?<div className="journey-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span>{error}</span></div>:null;}
+function ErrorBanner({error}){return error?<div className="journey-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span>{error}</span><button type="button" onClick={()=>window.location.reload()}>현재 단계 다시 불러오기</button></div>:null;}
 function Busy({children}){return <div className="journey-overlay" role="status"><span className="journey-spinner"/><strong>{children}</strong></div>;}
 function Items({items}){return items?.length?<ul>{items.map((v,i)=><li key={i}>{v}</li>)}</ul>:<p className="journey-muted">기록된 항목이 없습니다.</p>;}
 const PERSONA_COLORS=['persona-mint','persona-blue','persona-amber'];
