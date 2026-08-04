@@ -62,6 +62,8 @@ export function IdeaJourneyPage() {
 
   useEffect(() => {
     let active = true;
+    // Reset the project-scoped form before synchronizing the new project data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTab('text'); setTitle(''); setText(''); setFile(null);
     setSource(null); setInterpretation(null); setOrigin(null); setAnswers({}); setBusy(''); setError('');
     Promise.all([api.currentIdea(), api.currentInterpretation(), api.currentIdeaOrigin()]).then(([saved, run, workspace]) => {
@@ -223,6 +225,8 @@ export function LegalJourneyPage() {
     setAnswers(Object.fromEntries((workspace?.questions || []).filter((question) => question.requirement === 'REQUIRED_FOR_LEGAL_PRECHECK')
       .map((question) => [question.id, { answer: question.answer || '', answerSource: question.answerSource || '사용자 직접 입력' }])));
   };
+  // Loading is the external synchronization performed by this effect.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { let active = true; load().catch((failure) => active && setError(getUserErrorMessage(failure))); return () => { active = false; }; }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeRun = ['QUEUED', 'RUNNING'].includes(precheck?.run?.state);
   useEffect(() => {

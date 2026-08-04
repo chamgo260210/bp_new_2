@@ -137,10 +137,10 @@ async def execute_legal_source_pipeline(task_type: str, text: str,
     try:
         registry = LegalRegistry()
     except RegistryError as failure:
-        raise ProviderFailure("DEPENDENCY_UNAVAILABLE", str(failure), 503, False) from failure
+        raise ProviderFailure("DEPENDENCY_UNAVAILABLE", "LEGAL_CONFIGURATION_INVALID", 503, False) from failure
     requested_registry = task_input["registryVersion"]
     if requested_registry != registry.version:
-        raise ProviderFailure("INVALID_REQUEST", "LEGAL_REGISTRY_VERSION_MISMATCH", 409, False)
+        raise ProviderFailure("INVALID_REQUEST", "LEGAL_REGISTRY_VERSION_MISMATCH", 400, False)
     routing = await _route(source_text, registry)
     route_by_id = {value.routeId: value for value in routing.routes}
     active = [value for value in routing.routes if value.status in {"APPLIES", "POSSIBLE"}]

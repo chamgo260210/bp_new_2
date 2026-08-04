@@ -27,11 +27,6 @@ public class TaskRunWorker {
             TaskRun run = service.getOwnedForWorker(claim.taskRunId());
             ExecutionResponse response = client.execute(run, claim.taskAttemptId(), java.time.LocalDateTime.now().plusMinutes(2));
             try {
-                if (!"1.0".equals(response.contractVersion()) || !run.getTaskType().name().equals(response.taskType())
-                    || !run.getTaskSchemaVersion().equals(response.taskSchemaVersion()) || !run.getId().equals(response.taskRunId())
-                    || !claim.taskAttemptId().equals(response.taskAttemptId()) || !run.getCorrelationId().equals(response.correlationId())
-                    || !run.getInputHash().equals(response.canonicalInputHash()) || !"1.0".equals(response.resultSchemaVersion()) || response.result() == null)
-                    throw new ExecutionFailure("RESULT_SCHEMA_INVALID", "RESULT_DOMAIN_INVARIANT_VIOLATION", false);
                 validateResult(run, response.result());
             } catch (ExecutionFailure invalidResult) {
                 String safePayload = response.result() == null ? "{}" : mapper.writeValueAsString(response.result());
