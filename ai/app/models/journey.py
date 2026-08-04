@@ -126,6 +126,42 @@ class ConceptLegalValidationResult(StrictResult):
     legalTrace: list[ConceptLegalTrace]
 
 
+class ConceptLegalGuardrails(StrictResult):
+    hardConstraints: list[Any]
+    prohibitedPatterns: list[Any]
+    conditionalConstraints: list[Any]
+    requiredDisclosures: list[Any]
+    requiredOperationalControls: list[Any]
+
+
+class ConceptLegalValidationDraft(ConceptCandidate):
+    candidateKey: NonBlankMarketingText
+
+
+class ConceptLegalValidationBatchInput(StrictResult):
+    guardrails: ConceptLegalGuardrails
+    lockedValues: dict[str, Any]
+    conceptDrafts: list[ConceptLegalValidationDraft] = Field(min_length=1)
+
+
+class ConceptLegalValidationTrace(StrictResult):
+    guardrailType: NonBlankMarketingText
+    constraint: NonBlankMarketingText
+    implementation: NonBlankMarketingText
+
+
+class ConceptLegalValidationItem(StrictResult):
+    candidateKey: NonBlankMarketingText
+    status: Literal["PASS", "FAIL_LEGAL"]
+    reasons: list[NonBlankMarketingText]
+    violatedStructureKeys: list[NonBlankMarketingText]
+    legalTrace: list[ConceptLegalValidationTrace]
+
+
+class ConceptLegalValidationBatchResult(StrictResult):
+    validations: list[ConceptLegalValidationItem] = Field(min_length=1)
+
+
 class QuickAssessmentItem(StrictResult):
     conceptVersionId: int
     market: int

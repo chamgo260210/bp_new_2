@@ -34,10 +34,10 @@ class ProviderFailure(Exception):
         self.retryable = retryable
 
 
-def _configuration() -> tuple[str, str, str]:
+def _configuration(model_override: str | None = None) -> tuple[str, str, str]:
     provider = os.getenv("AI_PROVIDER", "").strip().lower()
     api_key = os.getenv("AI_API_KEY", "").strip()
-    model = os.getenv("AI_MODEL", "").strip()
+    model = (model_override or "").strip() or os.getenv("AI_MODEL", "").strip()
     base_url = os.getenv("AI_BASE_URL", "").strip().rstrip("/")
     if provider not in {"openai", "openai-compatible"} or not api_key or not model:
         raise ProviderFailure("DEPENDENCY_UNAVAILABLE", "AI_CONFIGURATION_INVALID", 503, False)
@@ -108,8 +108,10 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
 
 
-async def execute_structured_prompt(system: str, user: str) -> dict[str, Any]:
-    api_key, model, base_url = _configuration()
+async def execute_structured_prompt(
+    system: str, user: str, model_override: str | None = None
+) -> dict[str, Any]:
+    api_key, model, base_url = _configuration(model_override)
     try:
         timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "60"))
         if timeout_seconds <= 0:

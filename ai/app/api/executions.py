@@ -139,7 +139,10 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     provenance = {"category": "AI_PROPOSAL", "statementKey": "interpretation-1", "sourceKeys": source_keys,
                   "externalSourceReferences": [], "generatedAt": generated_at, "verificationNeeded": True}
     try:
-        if body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL":
+        if body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL_BATCH":
+            from app.legal.concept_validation import execute_concept_legal_validation_batch
+            result = await execute_concept_legal_validation_batch(body.input, text)
+        elif body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL":
             from app.legal.concept_validation import execute_concept_legal_validation
             result = await execute_concept_legal_validation(body.input, text)
         elif body.taskType in {"IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION"}:
