@@ -86,8 +86,30 @@ def _extract_json(content: str) -> dict[str, Any]:
 
 
 async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
-    api_key, model, base_url = _configuration()
     system, user = _load_prompts(task_type, text)
+    raw_result = await execute_structured_prompt(system, user)
+    try:
+        model_types = {
+            "IDEA_INTERPRETATION": IdeaInterpretationResult,
+            "LEGAL_REVIEW": LegalReviewResult,
+            "CONCEPT_GENERATION": ConceptGenerationResult,
+            "QUICK_ASSESSMENT": QuickAssessmentResult,
+            "DETAILED_ANALYSIS": DetailedAnalysisResult,
+            "PERSONA_CARD_GENERATION": PersonaCardGenerationResult,
+            "PERSONA_INTERVIEW": PersonaInterviewResult,
+            "INTERVIEW_SYNTHESIS": InterviewSynthesisResult,
+            "MARKETING_GENERATION": MarketingGenerationResult,
+            "MARKETING_COMPARISON": MarketingComparisonResult,
+            "FINAL_REPORT_GENERATION": FinalReportResult,
+        }
+        model_type = model_types[task_type]
+        return model_type.model_validate(raw_result).model_dump(by_alias=True, exclude_unset=True)
+    except (KeyError, ValidationError) as failure:
+        raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
+
+
+async def execute_structured_prompt(system: str, user: str) -> dict[str, Any]:
+    api_key, model, base_url = _configuration()
     try:
         timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "60"))
         if timeout_seconds <= 0:
@@ -125,21 +147,6 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
         content = payload["choices"][0]["message"]["content"]
         if isinstance(content, list):
             content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-        raw_result = _extract_json(content)
-        model_types = {
-            "IDEA_INTERPRETATION": IdeaInterpretationResult,
-            "LEGAL_REVIEW": LegalReviewResult,
-            "CONCEPT_GENERATION": ConceptGenerationResult,
-            "QUICK_ASSESSMENT": QuickAssessmentResult,
-            "DETAILED_ANALYSIS": DetailedAnalysisResult,
-            "PERSONA_CARD_GENERATION": PersonaCardGenerationResult,
-            "PERSONA_INTERVIEW": PersonaInterviewResult,
-            "INTERVIEW_SYNTHESIS": InterviewSynthesisResult,
-            "MARKETING_GENERATION": MarketingGenerationResult,
-            "MARKETING_COMPARISON": MarketingComparisonResult,
-            "FINAL_REPORT_GENERATION": FinalReportResult,
-        }
-        model_type = model_types[task_type]
-        return model_type.model_validate(raw_result).model_dump(by_alias=True, exclude_unset=True)
-    except (KeyError, IndexError, TypeError, AttributeError, ValueError, json.JSONDecodeError, ValidationError) as failure:
+        return _extract_json(content)
+    except (KeyError, IndexError, TypeError, AttributeError, ValueError, json.JSONDecodeError) as failure:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
