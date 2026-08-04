@@ -2496,6 +2496,8 @@
       "category": "NEGATIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
+        "IdeaClarificationQuestionV1",
+        "IdeaInputMetadataV1",
         "IdeaInterpretationResultV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1"
@@ -3098,6 +3100,8 @@
       "category": "POSITIVE",
       "contractObject": "EXECUTION_SUCCESS",
       "coveredSchemas": [
+        "IdeaClarificationQuestionV1",
+        "IdeaInputMetadataV1",
         "IdeaInterpretationResultV1",
         "InternalExecutionSuccessResponseV1",
         "ProvenanceItemV1"

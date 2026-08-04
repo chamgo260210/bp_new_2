@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -101,6 +102,10 @@ public class InternalAiExecutionClient {
             byte[] responseBytes = responseFailure.getResponseBodyAsByteArray();
             enforceSize(responseBytes, "RESPONSE_BYTES_EXCEEDED");
             throw parseFailure(responseBytes);
+        } catch (ResourceAccessException timeoutOrConnectionFailure) {
+            throw new ExecutionFailure(
+                "DEADLINE_EXCEEDED", "REQUEST_DEADLINE_EXCEEDED", true
+            );
         }
     }
 

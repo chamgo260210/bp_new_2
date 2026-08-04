@@ -176,7 +176,7 @@ Internal request bug의 raw detail은 public에 숨긴다. 이미 public command
 
 ### IDEA_INTERPRETATION
 
-`IdeaInterpretationInputV1`은 하나 이상의 verified `TextContent`, source-safe label, source statement keys, readiness/normalization options, locale와 limit profile을 가진다. `IdeaInterpretationResultV1`은 `originalSourceSummary`, `normalizedDescription`, structured `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness`, `warnings`, `evidenceNeeds`, `provenance`를 가진다. Statement item은 stable local key, text, provenance category, source keys, confidence/uncertainty, verificationNeeded를 구분한다. 불확실성을 fact로 승격하거나 사용자 constraint를 삭제하거나 IdeaVersion/User Decision을 자동 생성하지 않는다.
+`IdeaInterpretationInputV1`은 하나 이상의 verified `TextContent`, source-safe label, source statement keys, readiness/normalization options, locale와 limit profile을 가진다. 현재 Production `IdeaInterpretationResultV1`은 `originalSourceSummary`, `normalizedDescription`, 문자열 배열인 `facts`, `assumptions`, `constraints`, `openQuestions`, `readiness`, `warnings`, `evidenceNeeds`와 Idea Origin용 `originDraft`, `fieldMetadata`, `clarificationQuestions`를 가진다. 불확실성을 fact로 승격하거나 사용자 constraint를 삭제하거나 IdeaVersion/User Decision을 자동 생성하지 않는다. Provenance는 execution response envelope에 유지하며 현재 result body에는 중복 저장하지 않는다.
 
 ### LEGAL_REVIEW
 
@@ -840,16 +840,38 @@ AI는 입력에 없던 local source reference를 임의 생성하지 않는다. 
 |---|---|---|---|---|---|
 | originalSourceSummary | string | REQUIRED | NO | 1–8,000 | source-faithful summary |
 | normalizedDescription | string | REQUIRED | NO | 1–16,000 | confirmed IdeaVersion 아님 |
-| facts | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 200 | fact evidence required |
-| assumptions | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 200 | facts와 분리 |
-| constraints | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 200 | 사용자 constraint 삭제 금지 |
-| openQuestions | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 50 | input maxOpenQuestions 이하 |
+| facts | array<string> | REQUIRED | NO | minItems 0, maxItems 200 | 원문에서 확인한 사실 |
+| assumptions | array<string> | REQUIRED | NO | minItems 0, maxItems 200 | facts와 분리 |
+| constraints | array<string> | REQUIRED | NO | minItems 0, maxItems 200 | 사용자 constraint 삭제 금지 |
+| openQuestions | array<string> | REQUIRED | NO | minItems 0, maxItems 50 | clarificationQuestions.question과 같은 순서 |
 | readiness | string enum | REQUIRED | NO | `UNDER_SPECIFIED`, `APPROPRIATE`, `OVER_SPECIFIED` | domain meaning 유지 |
-| warnings | array<WarningV1> | REQUIRED | NO | minItems 0, maxItems 100 | empty allowed |
-| evidenceNeeds | array<IdeaStatementItemV1> | REQUIRED | NO | minItems 0, maxItems 100 | research needs |
-| provenance | array<ProvenanceItemV1> | REQUIRED | NO | minItems 1, maxItems 500 | AI_PROPOSAL; source keys valid |
+| warnings | array<string> | REQUIRED | NO | minItems 0, maxItems 100 | empty allowed |
+| evidenceNeeds | array<string> | REQUIRED | NO | minItems 0, maxItems 100 | research needs |
+| originDraft | JSON value | REQUIRED | NO | exact object | nullable/array fields도 생략 금지 |
+| fieldMetadata | array<IdeaInputMetadataV1> | REQUIRED | NO | minItems 0, maxItems 100 | `MISSING`이면 `sourceType=AI_PROPOSED`, `locked=false` |
+| clarificationQuestions | array<IdeaClarificationQuestionV1> | REQUIRED | NO | minItems 0, maxItems 50 | 누락된 Origin 필수 필드별 질문 필요 |
 
-Adoption은 fact/assumption 분리, constraint 보존, 모든 key resolution을 요구하며 IdeaVersion/User Decision을 생성하지 않는다.
+`originDraft`는 `productServiceDescription`, `problem`, `target`, `solution`, `coreValue`, `primaryCategory`, `targetRegion`, `fixedValues`, `confirmedValues`, `assumptions`, `pricingIntent`, `revenueModelIntent`, `salesChannelIntent`, `knownUnitCost`, `alternatives`, `knownCompetitors`, `differentiationIntent`, `internalConstraints`만 가진다. `fieldMetadata` 항목은 `key`, `sourceType`, `requiredForStages`, `status`, `locked`, `fallbackPolicy`만, `clarificationQuestions` 항목은 `targetField`, `requirement`, `question`, `reason`만 가진다. Adoption은 이 exact 구조와 fact/assumption 분리, constraint 보존을 검증하며 IdeaVersion/User Decision을 자동 생성하지 않는다.
+
+### IdeaInputMetadataV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| key | string | REQUIRED | NO | 1–200 | Idea Origin field key |
+| sourceType | string enum | REQUIRED | NO | `USER_CONFIRMED`, `AI_PROPOSED` | model output은 확정값을 임의 승격하지 않음 |
+| requiredForStages | array<string> | REQUIRED | NO | minItems 0, maxItems 3; each 1–200 | values are `IDEA_ORIGIN`, `LEGAL_PRECHECK`, `CONCEPT_BUILD` |
+| status | string enum | REQUIRED | NO | `MISSING`, `AI_PROPOSED`, `USER_CONFIRMED` | current value state |
+| locked | boolean | REQUIRED | NO | true/false | missing/proposed는 false |
+| fallbackPolicy | string enum | REQUIRED | NO | `NO_FALLBACK`, `AI_MAY_PROPOSE`, `BLOCK_STAGE` | downstream fallback rule |
+
+### IdeaClarificationQuestionV1
+
+| Field | JSON type | Presence | Nullable | Bounds/enum | Semantic rule |
+|---|---|---|---|---|---|
+| targetField | string | REQUIRED | NO | 1–200 | missing or legal-sensitive field |
+| requirement | string enum | REQUIRED | NO | `REQUIRED_FOR_IDEA_ORIGIN`, `REQUIRED_FOR_LEGAL_PRECHECK` | question gate |
+| question | string | REQUIRED | NO | 1–2,000 | user-facing question |
+| reason | string | REQUIRED | NO | 1–2,000 | why the answer is required |
 
 ### LegalReviewInputV1
 
@@ -1218,7 +1240,7 @@ Spring은 `reportDecision` value equality, exact upstream references와 category
 
 ## 17. P2.6 fixture readiness matrix
 
-`required`는 fixture/validator coverage gate에 포함되어야 한다는 뜻이다. 현재 named field-table schema는 기존 65개에 Idea Legal/Concept Legal 12개를 더한 총 77개다. 실제 실행 결과는 이 narrative에 복사하지 않고 validator 출력과 [fixture root](fixtures/internal-ai-v1/README.md)를 verification source로 사용한다.
+`required`는 fixture/validator coverage gate에 포함되어야 한다는 뜻이다. 현재 named field-table schema는 기존 65개, Idea Legal/Concept Legal 12개, 현재 Idea Origin metadata 2개를 합한 총 79개다. 실제 실행 결과는 이 narrative에 복사하지 않고 validator 출력과 [fixture root](fixtures/internal-ai-v1/README.md)를 verification source로 사용한다.
 
 | Schema | Positive fixture required | Negative fixture required | Critical invariant | Public/domain matching source | P2.6 file name direction |
 |---|---|---|---|---|---|
@@ -1267,6 +1289,8 @@ Spring은 `reportDecision` value equality, exact upstream references와 category
 | MarketingComparisonDimensionV1 | YES | YES | unique comparison dimension key | Marketing comparison request | `shared/marketing-comparison-dimension.*.json` |
 | IdeaInterpretationInputV1 | YES | YES | verified chunks/local sources | interpretation create request | `tasks/idea-interpretation.input.*.json` |
 | IdeaInterpretationResultV1 | YES | YES | facts/assumptions/constraints | IdeaInterpretationResultView | `tasks/idea-interpretation.result.*.json` |
+| IdeaInputMetadataV1 | YES | YES | missing/proposed source and lock semantics | Idea Origin draft | `tasks/idea-interpretation.result.*.json` |
+| IdeaClarificationQuestionV1 | YES | YES | target/requirement/question exact structure | Idea Origin draft | `tasks/idea-interpretation.result.*.json` |
 | LegalReviewInputV1 | YES | YES | exact confirmed idea/KR | LegalReviewRun model | `tasks/legal-review.input.*.json` |
 | LegalReviewResultV1 | YES | YES | degraded/authority/legal enum | LegalReviewRunView | `tasks/legal-review.result.*.json` |
 | LegalConfirmedFactV1 | YES | YES | confirmed value snapshot | IdeaOriginVersion | `tasks/idea-legal-precheck.input.*.json` |

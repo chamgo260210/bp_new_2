@@ -120,7 +120,7 @@ TASK_INPUT_FIELDS = {
     "FINAL_REPORT_GENERATION": {"upstreamReferences", "facts", "legalSources", "aiProposals", "assumptions", "researchNeeds", "userDecisions", "reportDecision", "userRationale"},
 }
 TASK_RESULT_FIELDS = {
-    "IDEA_INTERPRETATION": {"originalSourceSummary", "normalizedDescription", "facts", "assumptions", "constraints", "openQuestions", "readiness", "warnings", "evidenceNeeds", "provenance"},
+    "IDEA_INTERPRETATION": {"originalSourceSummary", "normalizedDescription", "facts", "assumptions", "constraints", "openQuestions", "readiness", "warnings", "evidenceNeeds", "originDraft", "fieldMetadata", "clarificationQuestions"},
     "LEGAL_REVIEW": {"legalResult", "findings", "sourceReferences", "sourceCoverage", "conditions", "warnings", "expertReviewReasons", "provenance"},
     "IDEA_LEGAL_PRECHECK": {"taskType", "sourceStatus", "registryVersion", "routes", "findings", "evidence", "requiredUserInputs", "sourceWarnings"},
     "CONCEPT_LEGAL_VALIDATION": {"validations"},
@@ -259,8 +259,8 @@ def parse_field_schemas(internal: str) -> dict[str, dict[str, dict[str, str]]]:
             }
             cursor += 1
         schemas[heading.group(1)] = fields
-    if len(schemas) != 77:
-        fail(str(INTERNAL_DOC), "NAMED_SCHEMA_REGISTRY", 77, len(schemas))
+    if len(schemas) != 79:
+        fail(str(INTERNAL_DOC), "NAMED_SCHEMA_REGISTRY", 79, len(schemas))
     return schemas
 
 
@@ -338,8 +338,8 @@ def parse_registries(
     if "| 기능 | Method | 실제 Path | Request | HTTP Status | Response Envelope | 실행 방식 | 현재 UI 사용 여부 |" not in catalog:
         fail(str(PUBLIC_DOC), "PUBLIC_MATRIX_HEADER", "current As-Is matrix columns", "missing")
     endpoint_count = len(re.findall(r"(?m)^\| [^|]+ \| (?:GET|POST|PUT|DELETE|PATCH) \|", catalog))
-    if endpoint_count != 45:
-        fail(str(PUBLIC_DOC), "PUBLIC_AS_IS_ENDPOINT_COUNT", 45, endpoint_count)
+    if endpoint_count != 48:
+        fail(str(PUBLIC_DOC), "PUBLIC_AS_IS_ENDPOINT_COUNT", 48, endpoint_count)
     internal_registry, internal_invariants = parse_consistency_registry(internal)
     expected_registry = {
         "Legal Result": LEGAL_RESULTS,
@@ -810,9 +810,11 @@ def validate_success(
             fail(path, "TASK_RESULT_FIELDS", "Detailed base plus one named result", sorted(result_fields))
     elif result_fields != TASK_RESULT_FIELDS[task]:
         fail(path, "TASK_RESULT_FIELDS", sorted(TASK_RESULT_FIELDS[task]), sorted(result_fields))
-    if not obj.get("provenance") or (task not in {"IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION"}
+    if not obj.get("provenance") or (task not in {"IDEA_INTERPRETATION", "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION"}
                                     and not obj["result"].get("provenance")):
         fail(path, "PROVENANCE_MIN", ">=1", 0)
+    if task == "IDEA_INTERPRETATION":
+        validate_idea_interpretation_result(path, obj["result"])
     validate_usage(path, obj.get("usage"))
     proposal_keys = [value for key, value in iter_items(obj["result"]) if key == "proposalKey"]
     if len(proposal_keys) != len(set(proposal_keys)):
@@ -867,6 +869,58 @@ def validate_success(
         fail(path, "MARKETING_CAVEAT", ">=1", 0)
     if task == "FINAL_REPORT_GENERATION" and obj["result"]["reportDecision"] != request["input"]["reportDecision"]:
         fail(path, "FINAL_REPORT_DECISION_MISMATCH", request["input"]["reportDecision"], obj["result"]["reportDecision"])
+
+
+def validate_idea_interpretation_result(path: str, result: dict[str, Any]) -> None:
+    origin_fields = {
+        "productServiceDescription", "problem", "target", "solution", "coreValue",
+        "primaryCategory", "targetRegion", "fixedValues", "confirmedValues", "assumptions",
+        "pricingIntent", "revenueModelIntent", "salesChannelIntent", "knownUnitCost",
+        "alternatives", "knownCompetitors", "differentiationIntent", "internalConstraints",
+    }
+    metadata_fields = {
+        "key", "sourceType", "requiredForStages", "status", "locked", "fallbackPolicy",
+    }
+    question_fields = {"targetField", "requirement", "question", "reason"}
+    origin = result.get("originDraft")
+    if not isinstance(origin, dict) or set(origin) != origin_fields:
+        fail(path, "IDEA_ORIGIN_DRAFT_FIELDS", sorted(origin_fields), sorted(origin or {}))
+    if not isinstance(origin.get("confirmedValues"), dict):
+        fail(path, "IDEA_CONFIRMED_VALUES", "object", type(origin.get("confirmedValues")).__name__)
+    for field in ("problem", "solution", "coreValue", "fixedValues", "assumptions",
+                  "alternatives", "knownCompetitors", "internalConstraints"):
+        if not isinstance(origin.get(field), list):
+            fail(path, "IDEA_ORIGIN_ARRAY", field, type(origin.get(field)).__name__)
+    target = origin.get("target")
+    if target is not None and (not isinstance(target, dict)
+                               or set(target) != {"customerTypes", "segment", "situation", "needs"}):
+        fail(path, "IDEA_TARGET_FIELDS", "exact target object or null", target)
+    for metadata in result.get("fieldMetadata", []):
+        if not isinstance(metadata, dict) or set(metadata) != metadata_fields:
+            fail(path, "IDEA_FIELD_METADATA_FIELDS", sorted(metadata_fields), sorted(metadata or {}))
+        if metadata["status"] == "MISSING" and (metadata["sourceType"] != "AI_PROPOSED" or metadata["locked"] is not False):
+            fail(path, "IDEA_MISSING_METADATA", "AI_PROPOSED/false", "mismatch")
+    for question in result.get("clarificationQuestions", []):
+        if not isinstance(question, dict) or set(question) != question_fields:
+            fail(path, "IDEA_QUESTION_FIELDS", sorted(question_fields), sorted(question or {}))
+    questions = [item.get("question") for item in result.get("clarificationQuestions", [])]
+    if result.get("openQuestions") != questions:
+        fail(path, "IDEA_OPEN_QUESTION_ALIGNMENT", questions, result.get("openQuestions"))
+    question_targets = {
+        item.get("targetField") for item in result.get("clarificationQuestions", [])
+    }
+    required_values = {
+        field: origin.get(field) for field in (
+            "productServiceDescription", "problem", "target", "solution", "coreValue",
+            "primaryCategory", "targetRegion", "fixedValues",
+        )
+    }
+    missing_questions = sorted(
+        field for field, value in required_values.items()
+        if (value is None or value == "" or value == []) and field not in question_targets
+    )
+    if missing_questions:
+        fail(path, "IDEA_REQUIRED_QUESTION", missing_questions, "missing")
 
 
 def iter_items(value: Any):

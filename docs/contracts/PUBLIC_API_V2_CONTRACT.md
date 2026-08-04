@@ -82,9 +82,12 @@ TaskRun v2 success/error는 별도 envelope다.
 | 이전 Legal Review 실행 | POST | `/api/v2/projects/{projectId}/legal-reviews` | 없음 | 200 | ApiResponse | 이전 Journey 동기 경로 | 아니오 |
 | 이전 Legal Review 조회 | GET | `/api/v2/projects/{projectId}/legal-reviews/current` | 없음 | 200 | ApiResponse | 이전 Journey 조회 | 아니오 |
 | Legal Precheck 시작 | POST | `/api/v2/projects/{projectId}/legal-prechecks` | 없음 | 202 | ApiResponse | Persistent Worker TaskRun | 예, 현재 Journey |
+| Legal 공식 Source 재확인 | POST | `/api/v2/projects/{projectId}/legal-prechecks/refresh` | 없음 | 202 | ApiResponse | 현재 확정 Origin을 유지하고 새 Persistent Worker TaskRun 시작 | 예, SOURCE_PARTIAL/REGISTRY_GAP 후속 확인 |
 | 현재 Legal Precheck | GET | `/api/v2/projects/{projectId}/legal-prechecks/current` | 없음 | 200 | ApiResponse | Run/result/guardrail 조회 | 예, 현재 Journey |
 | Legal 질문 반영 | POST | `/api/v2/projects/{projectId}/legal-prechecks/answers/apply` | `{ideaOriginVersionId}` | 200 | ApiResponse | 새 Origin 생성 | 예, 현재 Journey |
-| Revision 제안 수락 | POST | `/api/v2/projects/{projectId}/legal-prechecks/versions/{versionId}/revision-suggestions/{index}/accept` | 없음 | 200 | ApiResponse | 새 Origin draft 생성 | 예, 현재 Journey |
+| Legal 질문 일괄 반영·재검토 | POST | `/api/v2/projects/{projectId}/legal-prechecks/answers/apply-and-restart` | `{ideaOriginVersionId}` | 200 | ApiResponse | 새 Origin 1개 생성 후 Precheck 자동 시작 | 예, 현재 Journey |
+| Revision 제안 단건 수락 | POST | `/api/v2/projects/{projectId}/legal-prechecks/versions/{versionId}/revision-suggestions/{index}/accept` | 없음 | 200 | ApiResponse | 호환용 단건 Origin 생성 | 아니오, Compatibility |
+| Revision 계획 일괄 반영·재검토 | POST | `/api/v2/projects/{projectId}/legal-prechecks/versions/{versionId}/revision-suggestions/accept` | `{indexes:[...]}` | 200 | ApiResponse | 선택 Category를 Origin 1개에 반영 후 Precheck 자동 시작 | 예, 현재 Journey |
 | Concept Generation 시작 | POST | `/api/v2/projects/{projectId}/concept-generations` | 없음 | 202 | ApiResponse | In-memory Executor + TaskRun | 예, 현재 Journey |
 | 현재 Concept batch | GET | `/api/v2/projects/{projectId}/concept-generations/current` | 없음 | 200 | ApiResponse | 동기 조회 | 예, 현재 Journey |
 | 적격 Concept 조회 | GET | `/api/v2/projects/{projectId}/concepts` | 없음 | 200 | ApiResponse | ELIGIBLE 결과 조회 | 예, 현재 Journey |

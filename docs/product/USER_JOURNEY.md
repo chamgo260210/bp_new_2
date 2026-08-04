@@ -10,6 +10,7 @@
 | Origin 보완 | 질문별 답변과 확인 출처 입력 | USER_CONFIRMED 값 누적 | 현재 Journey |
 | Origin 확정 | 보완 내용을 적용 | CONFIRMED Origin version | 현재 Journey |
 | Legal Precheck | 실행 후 진행/실패 상태 확인 | Precheck result와 source/evidence | 현재 Journey |
+| Legal 보완 | 질문 답변 또는 Category별 통합 수정 계획을 한 번에 승인 | 새 Origin 1개와 자동 재검토 Run | 현재 Journey |
 | Legal 보완 | 추가 질문 답변 또는 revision 제안 수락 | 새 Origin draft/version | 현재 Journey |
 | Legal Guardrail | 통과 가능한 법률 결과 확인 | Concept용 Guardrail | 현재 Journey |
 | Concept 생성 | 후보 생성 요청 | Origin/Legal 검증과 내부 대체 생성 | 현재 Journey |

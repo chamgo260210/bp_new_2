@@ -38,11 +38,14 @@ public class TaskRunWorker {
         } catch (ExecutionFailure failure) {
             if ("RESULT_SCHEMA_INVALID".equals(failure.code()))
                 service.rejectAndFail(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(), "{}", "1.0", failure.reason());
-            else service.fail(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(), failure.code(), failure.reason(), failure.retryable());
+            else service.failWithLegalAutoRetry(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(),
+                failure.code(), failure.reason(), failure.retryable());
         } catch (TaskRunFailure failure) {
-            service.fail(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(), "RESULT_SCHEMA_INVALID", failure.getReason(), false);
+            service.failWithLegalAutoRetry(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(),
+                "RESULT_SCHEMA_INVALID", failure.getReason(), false);
         } catch (RuntimeException failure) {
-            service.fail(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(), "EXECUTION_FAILED", "TRANSIENT_EXECUTION_FAILURE", true);
+            service.failWithLegalAutoRetry(claim.taskRunId(), claim.taskAttemptId(), claim.claimToken(),
+                "EXECUTION_FAILED", "TRANSIENT_EXECUTION_FAILURE", true);
         }
         return true;
     }
