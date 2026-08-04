@@ -1,6 +1,6 @@
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationInfo, model_validator
 from pydantic_core import PydanticCustomError
 
 
@@ -150,8 +150,86 @@ class ConceptCandidate(StrictResult):
     legalTrace: list[ConceptLegalTrace]
 
 
+def _validate_concept_origin_trace(
+    concept: ConceptCandidate, context: dict[str, Any], concept_index: int
+) -> None:
+    required = context.get("requiredOriginTrace")
+    if required is None:
+        return
+    expected = {item["structureKey"]: item["sourceValue"] for item in required}
+    required_keys = set(expected)
+    field_mapping = {
+        "target": "targetSegment",
+        "pricing": "pricing",
+        "pricingIntent": "pricing",
+        "revenueModel": "revenueModel",
+        "revenueModelIntent": "revenueModel",
+        "channels": "channels",
+        "salesChannelIntent": "channels",
+    }
+    traces = {}
+    duplicate = False
+    for trace in concept.originTrace:
+        if trace.structureKey in traces:
+            duplicate = True
+        traces[trace.structureKey] = trace
+    if duplicate or set(traces) != required_keys:
+        raise PydanticCustomError(
+            "concept_origin_trace_key_mismatch",
+            "originTrace must contain every required key exactly once",
+            {"conceptIndex": concept_index},
+        )
+    for key, source_value in expected.items():
+        trace = traces[key]
+        if trace.sourceValue != source_value:
+            raise PydanticCustomError(
+                "concept_origin_source_mismatch",
+                "originTrace sourceValue must be preserved",
+                {"conceptIndex": concept_index},
+            )
+        candidate_field = field_mapping.get(key)
+        if candidate_field is not None and trace.conceptValue != getattr(
+            concept, candidate_field
+        ):
+            raise PydanticCustomError(
+                "concept_origin_value_mismatch",
+                "originTrace conceptValue must match the candidate field",
+                {"conceptIndex": concept_index},
+            )
+
+
+class SingleConceptGenerationResult(StrictResult):
+    concept: ConceptCandidate
+
+    @model_validator(mode="after")
+    def preserve_required_origin_trace(self, info: ValidationInfo):
+        _validate_concept_origin_trace(
+            self.concept,
+            info.context or {},
+            (info.context or {}).get("slotIndex", 0),
+        )
+        return self
+
+
 class ConceptGenerationResult(StrictResult):
     concepts: list[ConceptCandidate]
+
+    @model_validator(mode="after")
+    def preserve_required_origin_trace(self, info: ValidationInfo):
+        context = info.context or {}
+        desired_count = context.get("desiredCount")
+        required = context.get("requiredOriginTrace")
+        if desired_count is None or required is None:
+            return self
+        if len(self.concepts) != desired_count:
+            raise PydanticCustomError(
+                "concept_desired_count_mismatch",
+                "Concept count must equal desiredCount",
+                {"conceptIndex": -1},
+            )
+        for index, concept in enumerate(self.concepts):
+            _validate_concept_origin_trace(concept, context, index)
+        return self
 
 
 class ConceptLegalValidationResult(StrictResult):

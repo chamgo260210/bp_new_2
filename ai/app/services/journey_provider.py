@@ -1,9 +1,11 @@
+import asyncio
 import json
 import logging
 import os
 import re
 from copy import deepcopy
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import httpx
@@ -20,6 +22,7 @@ from app.models.journey import (
     PersonaCardGenerationResult,
     PersonaInterviewResult,
     QuickAssessmentResult,
+    SingleConceptGenerationResult,
     FinalReportResult,
 )
 
@@ -89,6 +92,8 @@ def _extract_json(content: str) -> dict[str, Any]:
 
 
 async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
+    if task_type == "CONCEPT_GENERATION":
+        return await _execute_concept_generation(text)
     system, user = _load_prompts(task_type, text)
     try:
         raw_result = await execute_structured_prompt(system, user)
@@ -205,6 +210,37 @@ def _validation_issues(failure: ValidationError, model_type) -> list[dict[str, s
     return issues
 
 
+def _concept_generation_context(text: str) -> dict[str, Any]:
+    try:
+        task_input = json.loads(text)
+        desired_count = task_input["desiredCount"]
+        required = task_input["requiredOriginTrace"]
+        if (
+            not isinstance(desired_count, int)
+            or desired_count < 1
+            or not isinstance(required, list)
+            or not required
+            or any(
+                not isinstance(item, dict)
+                or set(item) != {"structureKey", "sourceValue"}
+                or not isinstance(item["structureKey"], str)
+                or not item["structureKey"].strip()
+                for item in required
+            )
+            or len({item["structureKey"] for item in required}) != len(required)
+        ):
+            raise ValueError
+        return {
+            "originalInput": task_input,
+            "desiredCount": desired_count,
+            "requiredOriginTrace": required,
+        }
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as failure:
+        raise ProviderFailure(
+            "RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False
+        ) from failure
+
+
 def _only_missing_clarification_fields(failure: ValidationError) -> list[str]:
     errors = failure.errors(
         include_url=False, include_context=True, include_input=False
@@ -312,6 +348,287 @@ async def _repair_idea_interpretation_result(
         separators=(",", ":"),
     )
     return await execute_structured_prompt(system, user)
+
+
+CONCEPT_VARIATION_FOCUSES = (
+    "TARGET_AND_USER_EXPERIENCE",
+    "OPERATING_MODEL_AND_PARTNERS",
+    "REVENUE_AND_CHANNELS",
+)
+
+
+def _concept_generation_concurrency() -> int:
+    raw_value = os.getenv("AI_CONCEPT_GENERATION_CONCURRENCY", "3").strip()
+    try:
+        value = int(raw_value)
+    except ValueError as failure:
+        raise ProviderFailure(
+            "DEPENDENCY_UNAVAILABLE", "AI_CONFIGURATION_INVALID", 503, False
+        ) from failure
+    if value < 1 or value > 3:
+        raise ProviderFailure(
+            "DEPENDENCY_UNAVAILABLE", "AI_CONFIGURATION_INVALID", 503, False
+        )
+    return value
+
+
+def _single_concept_issues(failure: ValidationError) -> list[dict[str, str]]:
+    known_fields = _schema_property_names(
+        SingleConceptGenerationResult.model_json_schema()
+    )
+    return [
+        {
+            "path": ".".join(
+                str(part)
+                if isinstance(part, int)
+                else part
+                if part in known_fields
+                else "<unknown-field>"
+                for part in error["loc"]
+            ),
+            "type": error["type"],
+        }
+        for error in failure.errors(
+            include_url=False, include_context=True, include_input=False
+        )[:20]
+    ]
+
+
+def _concept_slot_payload(
+    context: dict[str, Any], slot_index: int, variation_focus: str
+) -> dict[str, Any]:
+    original = context["originalInput"]
+    return {
+        "slotIndex": slot_index,
+        "variationFocus": variation_focus,
+        "round": original.get("round", 0),
+        "ideaOrigin": original.get("ideaOrigin", {}),
+        "requiredOriginTrace": context["requiredOriginTrace"],
+        "lockedValues": original.get("lockedValues", {}),
+        "legalGuardrail": original.get("legalGuardrail", {}),
+        "negativeConstraints": original.get("negativeConstraints", []),
+        "acceptedConcepts": original.get("acceptedConcepts", []),
+        "requiredSchema": SingleConceptGenerationResult.model_json_schema(),
+    }
+
+
+def _concept_slot_prompts(
+    context: dict[str, Any],
+    slot_index: int,
+    variation_focus: str,
+    phase: str,
+    invalid_result: dict[str, Any] | None = None,
+    validation_issues: list[dict[str, str]] | None = None,
+) -> tuple[str, str]:
+    payload = _concept_slot_payload(context, slot_index, variation_focus)
+    if phase == "repair":
+        payload["validationIssues"] = validation_issues or []
+        payload["invalidResult"] = invalid_result
+        system = (
+            "Repair exactly one invalid Concept candidate. Return one JSON object with exactly "
+            "the field concept containing a complete ConceptCandidate. Preserve the candidate's "
+            "business meaning and do not invent defaults merely to satisfy JSON. Follow "
+            "requiredSchema, requiredOriginTrace, lockedValues, legalGuardrail, and "
+            "negativeConstraints. Do not return concepts, repairs, Markdown, or explanation."
+        )
+        return system, json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":")
+        )
+    return _load_prompts(
+        "CONCEPT_GENERATION",
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+    )
+
+
+async def _call_concept_slot(
+    context: dict[str, Any],
+    slot_index: int,
+    variation_focus: str,
+    phase: str,
+    semaphore: asyncio.Semaphore,
+    invalid_result: dict[str, Any] | None = None,
+    validation_issues: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    system, user = _concept_slot_prompts(
+        context,
+        slot_index,
+        variation_focus,
+        phase,
+        invalid_result,
+        validation_issues,
+    )
+    started = perf_counter()
+    try:
+        async with semaphore:
+            raw_result = await execute_structured_prompt(system, user)
+    except ProviderFailure as failure:
+        duration_ms = round((perf_counter() - started) * 1000)
+        logger.warning(
+            "Concept generation slot failed taskType=CONCEPT_GENERATION slotIndex=%s variationFocus=%s phase=%s validationPath=%s validationType=%s durationMs=%s",
+            slot_index,
+            variation_focus,
+            phase,
+            [""],
+            [failure.code],
+            duration_ms,
+        )
+        return {
+            "slotIndex": slot_index,
+            "variationFocus": variation_focus,
+            "rawResult": None,
+            "issues": [{"path": "", "type": failure.code}],
+            "concept": None,
+            "providerFailure": failure,
+        }
+
+    duration_ms = round((perf_counter() - started) * 1000)
+    slot_context = {
+        "slotIndex": slot_index,
+        "requiredOriginTrace": context["requiredOriginTrace"],
+    }
+    try:
+        validated = SingleConceptGenerationResult.model_validate(
+            raw_result, context=slot_context
+        )
+        logger.info(
+            "Concept generation slot valid taskType=CONCEPT_GENERATION slotIndex=%s variationFocus=%s phase=%s validationPath=[] validationType=[] durationMs=%s",
+            slot_index,
+            variation_focus,
+            phase,
+            duration_ms,
+        )
+        return {
+            "slotIndex": slot_index,
+            "variationFocus": variation_focus,
+            "rawResult": raw_result,
+            "issues": [],
+            "concept": validated.concept,
+            "providerFailure": None,
+        }
+    except ValidationError as failure:
+        issues = _single_concept_issues(failure)
+        logger.warning(
+            "Concept generation slot invalid taskType=CONCEPT_GENERATION slotIndex=%s variationFocus=%s phase=%s validationPath=%s validationType=%s durationMs=%s",
+            slot_index,
+            variation_focus,
+            phase,
+            [issue["path"] for issue in issues],
+            [issue["type"] for issue in issues],
+            duration_ms,
+        )
+        return {
+            "slotIndex": slot_index,
+            "variationFocus": variation_focus,
+            "rawResult": raw_result,
+            "issues": issues,
+            "concept": None,
+            "providerFailure": None,
+        }
+
+
+async def _execute_concept_generation(text: str) -> dict[str, Any]:
+    context = _concept_generation_context(text)
+    desired_count = context["desiredCount"]
+    concurrency = _concept_generation_concurrency()
+    semaphore = asyncio.Semaphore(concurrency)
+    started = perf_counter()
+    slots = [
+        (index, CONCEPT_VARIATION_FOCUSES[index % len(CONCEPT_VARIATION_FOCUSES)])
+        for index in range(desired_count)
+    ]
+    initial_results = await asyncio.gather(
+        *(
+            _call_concept_slot(context, index, focus, "initial", semaphore)
+            for index, focus in slots
+        )
+    )
+
+    fatal_provider_failures = [
+        result["providerFailure"]
+        for result in initial_results
+        if result["providerFailure"] is not None
+        and result["providerFailure"].code != "RESULT_SCHEMA_INVALID"
+    ]
+    invalid_results = [
+        result for result in initial_results if result["concept"] is None
+    ]
+    repair_results: list[dict[str, Any]] = []
+    if not fatal_provider_failures and invalid_results:
+        repair_results = await asyncio.gather(
+            *(
+                _call_concept_slot(
+                    context,
+                    result["slotIndex"],
+                    result["variationFocus"],
+                    "repair",
+                    semaphore,
+                    result["rawResult"],
+                    result["issues"],
+                )
+                for result in invalid_results
+            )
+        )
+
+    fatal_provider_failures.extend(
+        result["providerFailure"]
+        for result in repair_results
+        if result["providerFailure"] is not None
+        and result["providerFailure"].code != "RESULT_SCHEMA_INVALID"
+    )
+
+    results_by_slot = {result["slotIndex"]: result for result in initial_results}
+    for result in repair_results:
+        results_by_slot[result["slotIndex"]] = result
+    valid_slot_count = sum(
+        result["concept"] is not None for result in results_by_slot.values()
+    )
+    failed_slot_indices = sorted(
+        index
+        for index, result in results_by_slot.items()
+        if result["concept"] is None
+    )
+    total_duration_ms = round((perf_counter() - started) * 1000)
+    log_method = logger.info if not failed_slot_indices else logger.warning
+    log_method(
+        "Concept generation fan-out taskType=CONCEPT_GENERATION desiredCount=%s concurrency=%s initialCallCount=%s repairCallCount=%s validSlotCount=%s failedSlotIndices=%s totalDurationMs=%s",
+        desired_count,
+        concurrency,
+        len(initial_results),
+        len(repair_results),
+        valid_slot_count,
+        failed_slot_indices,
+        total_duration_ms,
+    )
+
+    if fatal_provider_failures:
+        raise fatal_provider_failures[0]
+    if failed_slot_indices:
+        raise ProviderFailure(
+            "RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False
+        )
+
+    aggregate = {
+        "concepts": [
+            results_by_slot[index]["concept"].model_dump(by_alias=True)
+            for index in range(desired_count)
+        ]
+    }
+    try:
+        return ConceptGenerationResult.model_validate(
+            aggregate, context=context
+        ).model_dump(by_alias=True, exclude_unset=True)
+    except ValidationError as failure:
+        logger.warning(
+            "Concept generation aggregate invalid taskType=CONCEPT_GENERATION desiredCount=%s validSlotCount=%s failedSlotIndices=%s validationType=%s totalDurationMs=%s",
+            desired_count,
+            valid_slot_count,
+            list(range(desired_count)),
+            [issue["type"] for issue in _single_concept_issues(failure)],
+            round((perf_counter() - started) * 1000),
+        )
+        raise ProviderFailure(
+            "RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False
+        ) from failure
 
 
 async def execute_structured_prompt(
