@@ -382,3 +382,29 @@ Evidence는 Boundary Version 안에서 `lawName + article + effectiveDate + cont
 최신 Confirmed Brief ID/hash와 불일치하는 과거 Boundary는 삭제하지 않고 `STALE`로 보존하며
 current API와 Concept Builder 입력에서 제외한다. G5는 `conceptBuilderAllowed=true`인 `READY`
 Version의 명시적 입력 계약만 사용할 수 있다.
+
+## 20. G5 Concept Core 구현 반영 (2026-08-05)
+
+| 기존 자산 | G5 분류 | 실제 연결 결과 |
+|---|---|---|
+| AI `journey_provider.py` single-candidate fan-out | 제한 재사용/보정 | concurrency 기본 1, sibling failure 격리; 신규 `concept_core.py`가 strict Slot pipeline 제공 |
+| AI generated origin/legal trace와 sourceValue | 대체 | AI 출력에서 금지하고 Confirmed Brief/G4 Boundary에서 서버가 deterministic trace 생성 |
+| 기존 Concept batch/draft/version | legacy 유지 | 삭제·변환하지 않고 기존 Journey가 계속 사용 |
+| `ConceptVersion.eligible()` 축약 매핑 | 신규 경로에서 미사용 | G5 전체 Skeleton은 `exploration_concepts.skeleton_json`과 assessment에 보존 |
+| G3-H/G4 TaskRun worker | 재사용 | `CONCEPT_EXPLORATION` claim/lease/retry/recovery/idempotency 적용 |
+| G2 JobEvent | 재사용/확장 | Batch 및 실제 Slot phase event를 safe params로 발행 |
+| G4 Concept Builder input | 상위 정본 | 최신 Confirmed Brief와 READY Boundary의 ID/hash 일치 시에만 start |
+| Quick Assessment/Selection/Legal Report | 미변경 | G7/G9 범위로 유지 |
+
+V5는 Batch, Slot, Attempt, Origin validation, Legal assessment, Boundary Rule trace, 공개 Concept를 additive table로 분리한다. Batch COMPLETED와 `IMPLEMENTABLE|IMPLEMENTABLE_WITH_CONTROLS`, current ID/hash, uniqueness를 모두 만족한 정확히 3개만 `GET /api/v2/projects/{projectId}/concepts?contract=concept-core-v1`에 공개한다. 나머지 candidate는 내부 이력으로만 보존한다.
+
+G6 입력은 Slot View와 공개 Concept View다. G5는 Workboard, 비교, Quick Assessment, 선택 UI를 구현하지 않는다.
+## 21. G6 Async Concept Workboard 반영 (2026-08-05)
+
+- `ConversationalIdeaWorkspace`의 Confirmed Brief + READY Boundary 이후에 Feature Flag 내부 `Concept 탐색 시작`과 Workboard 전환을 연결했다. 기존 Journey/flag-off 경로는 유지한다.
+- `features/concept-workboard`가 G5 Batch·Slot·Public Concept safe view와 G2 authenticated SSE/polling fallback을 소비한다. Event는 refresh signal이고 Query가 상세 정본이다.
+- Batch/Slot은 safe status/message만 진행 중에 노출한다. Draft·repair/redesign/rejected Candidate는 숨기고, strict 3-Concept gate 통과 후 세 상세 Card를 동시에 공개한다.
+- G5 API를 additive하게 확장해 safe Batch input hashes/stale/retryable, full public Card fields/input hashes/duplicate status를 제공하고 FAILED retry endpoint를 추가했다.
+- Migration은 없다. V5 Concept Core 저장 계약을 재사용한다.
+- Desktop 30:70, Mobile Workboard-first/collapsible Summary, `aria-live`, alert, `aria-expanded`, keyboard/reduced-motion 및 Workboard-local typography를 적용했다.
+- G7은 `concept-core-v1` 공개 3개와 validated snapshot hash만 Quick Assessment 입력으로 사용해야 하며 G6는 평가·선택 상태를 만들지 않는다.

@@ -24,7 +24,7 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .locations("classpath:db/migration")
             .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
         flyway.validate();
 
         var appliedVersions = Arrays.stream(flyway.info().applied())
@@ -32,8 +32,8 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .map(info -> info.getVersion().getVersion())
             .toList();
 
-        assertThat(appliedVersions).containsExactly("1", "2", "3", "4");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(appliedVersions).containsExactly("1", "2", "3", "4", "5");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
 
         try (Connection connection = DriverManager.getConnection(
                  POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -51,7 +51,10 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
                 "idea_conversations", "idea_messages", "idea_attachments",
                 "opportunity_brief_versions", "opportunity_field_values",
                 "regulatory_boundary_runs", "regulatory_boundary_versions",
-                "boundary_rules", "boundary_evidence", "boundary_questions", "job_events");
+                "boundary_rules", "boundary_evidence", "boundary_questions", "job_events",
+                "concept_exploration_batches", "concept_slots", "concept_attempts",
+                "concept_origin_validations", "concept_legal_assessments", "concept_rule_traces",
+                "exploration_concepts");
 
             // Final effects formerly supplied by Java V5 and V10.
             assertThat(columnNullable(connection, schema, "users", "email")).isTrue();
@@ -94,8 +97,8 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .locations("classpath:db/migration")
             .load();
 
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(3);
-        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(4);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("5");
     }
 
     @Test
@@ -108,8 +111,8 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
         Flyway upgrade = Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
-        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("5");
         try (Connection connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             assertThat(columnNullable(connection, schema, "idea_messages", "message_type")).isFalse();
@@ -129,8 +132,8 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
         Flyway upgrade = Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
-        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("5");
         try (Connection connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             assertThat(columnNullable(connection, schema, "regulatory_boundary_versions", "brief_snapshot_hash")).isFalse();
@@ -138,6 +141,27 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             assertThat(columnNullable(connection, schema, "boundary_rules", "normalized_requirement")).isFalse();
             assertThat(columnNullable(connection, schema, "boundary_questions", "answer_type")).isFalse();
             assertThat(indexExists(connection, schema, "uk_boundary_evidence_content")).isTrue();
+        }
+    }
+
+    @Test
+    void upgradesAnExistingV4SchemaWithOnlyV5ConceptCore() throws Exception {
+        String schema = "upgrade_v4_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway baseline = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").target("4").load();
+        assertThat(baseline.migrate().migrationsExecuted).isEqualTo(4);
+        Flyway upgrade = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").load();
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("5");
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+            assertThat(foreignKeyExists(connection, schema, "concept_exploration_batches", "brief_version_id")).isTrue();
+            assertThat(foreignKeyExists(connection, schema, "concept_exploration_batches", "boundary_version_id")).isTrue();
+            assertThat(indexExists(connection, schema, "idx_concept_slots_batch")).isTrue();
+            assertThat(indexExists(connection, schema, "idx_exploration_concepts_public")).isTrue();
         }
     }
 

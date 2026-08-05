@@ -20,6 +20,7 @@ TASK_TYPES = {
     "INTERVIEW_SYNTHESIS", "MARKETING_GENERATION", "MARKETING_COMPARISON",
     "FINAL_REPORT_GENERATION",
     "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION", "REGULATORY_BOUNDARY_GENERATION",
+    "CONCEPT_EXPLORATION",
 }
 
 
@@ -131,6 +132,7 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
         "PERSONA_INTERVIEW", "INTERVIEW_SYNTHESIS",
         "MARKETING_GENERATION", "MARKETING_COMPARISON", "FINAL_REPORT_GENERATION",
         "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION", "REGULATORY_BOUNDARY_GENERATION",
+        "CONCEPT_EXPLORATION",
     }:
         return internal_error(correlation, "DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", 503, True,
                               body.taskRunId, body.taskAttemptId)
@@ -143,7 +145,10 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     provenance = {"category": "AI_PROPOSAL", "statementKey": "interpretation-1", "sourceKeys": source_keys,
                   "externalSourceReferences": [], "generatedAt": generated_at, "verificationNeeded": True}
     try:
-        if body.taskType == "REGULATORY_BOUNDARY_GENERATION":
+        if body.taskType == "CONCEPT_EXPLORATION":
+            from app.services.concept_core import execute_concept_exploration
+            result = await execute_concept_exploration(body.input)
+        elif body.taskType == "REGULATORY_BOUNDARY_GENERATION":
             from app.legal.boundary import execute_regulatory_boundary
             result = await execute_regulatory_boundary(text, body.input)
         elif body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL_BATCH":

@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom';
 import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
 import { JobTimeline, useJobEvents } from '../../shared/async-events/index.js';
+import { ConceptWorkboard } from '../concept-workboard/ConceptWorkboard.jsx';
+import { useConceptWorkboard } from '../concept-workboard/useConceptWorkboard.js';
 import { createConversationalIdeaApi } from './conversationalIdeaApi.js';
 import './conversationalIdea.css';
 
@@ -28,7 +30,12 @@ export function ConversationalIdeaWorkspace() {
   const [error, setError] = useState('');
   const [briefOpen, setBriefOpen] = useState(false);
   const [boundary, setBoundary] = useState(null);
+  const [showIdeaWorkspace, setShowIdeaWorkspace] = useState(false);
   const job = useJobEvents(jobId);
+  const conceptReady = workspace?.brief?.state === 'CONFIRMED'
+    && boundary?.version?.status === 'READY' && !boundary?.stale;
+  // The current batch must remain recoverable even after its Brief or Boundary becomes stale.
+  const workboard = useConceptWorkboard(projectId, true);
 
   const load = async () => {
     const [current, currentBoundary] = await Promise.all([api.current(), api.currentBoundary()]);
@@ -117,6 +124,12 @@ export function ConversationalIdeaWorkspace() {
     } catch (failure) { setError(getUserErrorMessage(failure)); }
     finally { setBusy(false); }
   }
+  async function startConceptExploration() {
+    const boundaryId = boundary?.version?.boundaryVersionId;
+    if (!conceptReady || !workspace?.brief?.id || !boundaryId || workboard.hasBatch) return;
+    const started = await workboard.start(workspace.brief.id, boundaryId);
+    if (started?.batchId) setShowIdeaWorkspace(false);
+  }
 
   const fields = new Map((workspace?.brief?.fields || []).map((field) => [field.fieldKey, field]));
   const contradictions = workspace?.messages?.at(-1)?.contradictions || [];
@@ -126,6 +139,8 @@ export function ConversationalIdeaWorkspace() {
       <span className={`idea-workspace__state state-${(workspace?.domainState || 'EMPTY').toLowerCase()}`}>{workspace?.domainState || 'EMPTY'}</span>
     </header>
     {error && <div className="idea-workspace__error" role="alert">{error}</div>}
+    {workboard.hasBatch && showIdeaWorkspace && <button className="idea-workspace__workboard-return" type="button" onClick={() => setShowIdeaWorkspace(false)}>Concept Workboard 보기</button>}
+    {!workboard.hasBatch || showIdeaWorkspace ? <>
     <button className="idea-workspace__brief-toggle" type="button" onClick={() => setBriefOpen((value) => !value)} aria-expanded={briefOpen}>Opportunity Brief {briefOpen ? '닫기' : '보기'}</button>
     <div className="idea-workspace__columns">
       <main className="idea-workspace__conversation" aria-label="아이디어 대화">
@@ -156,13 +171,15 @@ export function ConversationalIdeaWorkspace() {
         {!!contradictions.length && <div className="idea-brief-missing" role="status"><strong>해결되지 않은 모순</strong><ul>{contradictions.map((item) => <li key={item}>{item}</li>)}</ul></div>}
         <button className="idea-brief-confirm" type="button" disabled={busy || !workspace?.brief || workspace.brief.missingFields.length > 0 || contradictions.length > 0 || workspace.brief.state === 'CONFIRMED'} onClick={() => void confirm()}>Brief 전체 확인</button>
         <BoundarySummary boundary={boundary} confirmedBrief={workspace?.brief?.state === 'CONFIRMED'}
-          busy={busy} onStart={startBoundary} />
+          busy={busy || workboard.network === 'LOADING'} onStart={startBoundary}
+          conceptAction={conceptReady && !workboard.hasBatch ? <button type="button" onClick={() => void startConceptExploration()}>Concept 탐색 시작</button> : null} />
       </aside>
-    </div>
+    </div></> : <ConceptWorkboard workboard={workboard} brief={workspace?.brief} boundary={boundary}
+      messages={workspace?.messages} onReturnToBrief={() => setShowIdeaWorkspace(true)} />}
   </div>;
 }
 
-export function BoundarySummary({ boundary, confirmedBrief, busy, onStart }) {
+export function BoundarySummary({ boundary, confirmedBrief, busy, onStart, conceptAction = null }) {
   const status = boundary?.version?.status || boundary?.run?.status;
   const rules = boundary?.version?.rules || [];
   const byType = (type) => rules.filter((rule) => rule.ruleType === type);
@@ -178,6 +195,7 @@ export function BoundarySummary({ boundary, confirmedBrief, busy, onStart }) {
       <RuleGroup title="파트너·자격" rules={byType('REQUIRED_PARTNER')} />
       <RuleGroup title="필수 고지" rules={byType('REQUIRED_DISCLOSURE')} />
       {!!boundary.version.sourceWarnings?.length && <div className="idea-boundary__notice"><strong>Source Warning</strong><ul>{boundary.version.sourceWarnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
+      {conceptAction && <div className="idea-boundary__concept-action"><p>확정된 Brief와 READY Boundary를 기준으로 검증 가능한 Concept 3개를 탐색합니다.</p>{conceptAction}</div>}
     </div>}
     {status === 'NEEDS_INPUT' && <div className="idea-boundary__notice"><strong>추가 확인이 필요합니다</strong>
       {(boundary?.version?.questions || []).map((question) => <article key={question.questionId}><h4>{question.question}</h4><p>{question.reason}</p><small>관련 Brief Field: {question.fieldKey}</small></article>)}</div>}

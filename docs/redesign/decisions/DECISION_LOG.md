@@ -176,3 +176,25 @@ additive `V4__regulatory_boundary_contract.sql`을 적용한다.
 - clean 및 V1/V2/V3→V4 Migration과 PostgreSQL repository/lease/idempotency를 검증한다.
 - G5는 `READY` Boundary의 explicit Concept Builder input만 소비한다.
 - 기존 Legal Precheck, Concept Generator, Legal Report와 인증 구조는 변경하지 않는다.
+
+## ADR-CVW-0005 — G5 Concept Core additive V5와 legacy 분리
+
+- 상태: 승인됨
+- 결정일: 2026-08-05
+
+### 배경
+
+기존 Concept batch/draft/version은 single-candidate aggregate와 PASS/FAIL legal gate를 저장한다. 독립 Slot/Attempt, phase별 실패, 시스템 Origin/Boundary Trace, 5단계 법률 구현 가능성, validated snapshot hash, 공개/내부 draft 분리를 안전하게 표현할 수 없다. 기존 `ConceptVersion` 매핑에는 필드 축약과 의미 중복도 있어 신규 정본으로 재사용하면 기존 데이터 의미를 추측해야 한다.
+
+### 결정
+
+additive `V5__concept_core.sql`을 적용하고 G5 전용 Batch/Slot/Attempt/Trace/Assessment/Public Concept 구조를 사용한다. 기존 Concept 테이블과 `/concepts` legacy 계약은 삭제·rename·자동 변환하지 않는다. 신규 공개 조회는 `contract=concept-core-v1`으로 명시한다.
+
+AI는 Strict Skeleton만 생성한다. Origin/Boundary Trace, Evidence 연결과 authoritative legal state는 저장된 Brief/Boundary에서 서버가 결정론적으로 생성한다. 기본 concurrency는 1이고 1~3만 허용한다. Slot failure는 격리하며 schema repair, transient retry, redesign, replacement에 각각 제한을 둔다.
+
+### 영향
+
+- G6/G7은 신규 공개 Concept 계약을 명시적으로 소비해야 한다.
+- legacy Quick Assessment에는 자동 연결하지 않는다.
+- clean 및 V1~V4 upgrade, idempotency, uniqueness, recovery, stale을 PostgreSQL targeted test로 검증한다.
+- 개발 failure injection은 명시적 flag가 true일 때만 활성화한다.

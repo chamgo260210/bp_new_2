@@ -375,7 +375,7 @@ CONCEPT_VARIATION_FOCUSES = (
 
 
 def _concept_generation_concurrency() -> int:
-    raw_value = os.getenv("AI_CONCEPT_GENERATION_CONCURRENCY", "3").strip()
+    raw_value = os.getenv("AI_CONCEPT_GENERATION_CONCURRENCY", "1").strip()
     try:
         value = int(raw_value)
     except ValueError as failure:
@@ -570,7 +570,7 @@ async def _execute_concept_generation(text: str) -> dict[str, Any]:
         result for result in initial_results if result["concept"] is None
     ]
     repair_results: list[dict[str, Any]] = []
-    if not fatal_provider_failures and invalid_results:
+    if invalid_results:
         repair_results = await asyncio.gather(
             *(
                 _call_concept_slot(

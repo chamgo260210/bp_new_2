@@ -401,6 +401,7 @@ def test_concept_generation_supports_desired_count_one(monkeypatch):
 def test_concept_generation_preserves_slot_order_after_out_of_order_completion(
     monkeypatch,
 ):
+    monkeypatch.setenv("AI_CONCEPT_GENERATION_CONCURRENCY", "3")
     task_input = concept_input()
     completion_order = []
     delays = {0: 0.02, 1: 0.04, 2: 0.0}

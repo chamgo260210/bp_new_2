@@ -89,4 +89,46 @@ describe('ConversationalIdeaWorkspace', () => {
     expect(client.post.mock.calls[0][1]).toEqual({ importCurrentIdeaSource: true });
     expect(client.post.mock.calls[1][1]).toMatchObject({ text: '냉장고 음식 낭비' });
   });
+
+  it('starts Concept Exploration only from a confirmed Brief and READY Boundary', async () => {
+    const current = {
+      ...loadedWorkspace(), domainState: 'CONFIRMED', activeJobId: null,
+      brief: { ...loadedWorkspace().brief, id: 12, version: 4, state: 'CONFIRMED', hash: 'sha256:brief', missingFields: [] },
+    };
+    const boundary = {
+      stale: false,
+      run: { runId: 20, jobId: 'boundary-job', status: 'READY' },
+      version: {
+        boundaryVersionId: 22, versionNumber: 2, status: 'READY',
+        regulatoryBoundaryHash: 'sha256:boundary', rules: [], sourceWarnings: [],
+      },
+    };
+    const started = {
+      batchId: 31, jobId: 'concept-job', status: 'QUEUED',
+      confirmedBriefVersionId: 12, briefHash: 'sha256:brief',
+      regulatoryBoundaryVersionId: 22, boundaryHash: 'sha256:boundary', stale: false,
+    };
+    const client = {
+      get: vi.fn(async (path) => {
+        if (path.endsWith('/idea-conversations/current')) return { data: current };
+        if (path.endsWith('/regulatory-boundaries/current')) return { data: boundary };
+        if (path.endsWith('/concept-explorations/current')) return { data: { batch: null, slots: [], concepts: [] } };
+        throw new Error(path);
+      }),
+      post: vi.fn(async (path, body) => {
+        if (path.endsWith('/concept-explorations')) {
+          expect(body).toEqual({ confirmedBriefVersionId: 12, regulatoryBoundaryVersionId: 22 });
+          return { data: started };
+        }
+        throw new Error(path);
+      }),
+    };
+
+    renderWorkspace(client);
+    fireEvent.click(await screen.findByRole('button', { name: 'Concept 탐색 시작' }));
+
+    await waitFor(() => expect(client.post).toHaveBeenCalledOnce());
+    expect(await screen.findByRole('region', { name: 'Concept Workboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
 });
