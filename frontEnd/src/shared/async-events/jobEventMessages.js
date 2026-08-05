@@ -4,13 +4,14 @@ const messages = {
   'job.idea.attachment.received': '첨부파일을 안전하게 저장했습니다.',
   'job.idea.attachment.parsing.started': '첨부파일에서 텍스트를 추출하고 있습니다.',
   'job.idea.attachment.parsing.failed': '첨부파일을 처리하지 못했습니다. 파일 형식을 확인해 주세요.',
-  'job.idea.information.extraction.started': '대화와 자료에서 필요한 정보를 정리하고 있습니다.',
-  'job.idea.information.extraction.completed': '자료에서 필요한 정보를 정리했습니다.',
+  'job.idea.information.extraction.started': '입력 내용을 이해하고 있습니다.',
+  'job.idea.information.extraction.completed': '사업 기회에 필요한 정보를 정리했습니다.',
+  'job.idea.result.repairing': '응답 형식을 정리하고 있습니다.',
   'job.idea.brief.draft.queued': 'Opportunity Brief 초안 생성을 준비하고 있습니다.',
-  'job.idea.brief.draft.started': 'Opportunity Brief 초안을 만들고 있습니다.',
+  'job.idea.brief.draft.started': '사업 기회에 필요한 정보를 정리하고 있습니다.',
   'job.idea.brief.draft.completed': 'Opportunity Brief 초안이 준비되었습니다.',
   'job.idea.brief.draft.failed': 'Opportunity Brief 초안을 만들지 못했습니다. 다시 시도해 주세요.',
-  'job.idea.questions.completed': '추가 확인이 필요한 질문을 준비했습니다.',
+  'job.idea.questions.completed': '추가 질문을 준비했습니다.',
   'job.boundary.lookup.started': '관련 공식 법령 근거를 확인하고 있습니다.',
   'job.boundary.queued': '규제 경계 생성을 준비하고 있습니다.',
   'job.boundary.classification.started': '사업 활동과 규제 경로를 분류하고 있습니다.',
@@ -45,6 +46,12 @@ const messages = {
   'job.concept.batch.recovered': '중단된 Concept 탐색 작업을 복구했습니다.',
   'job.legal-report.build.started': '선택한 Concept의 법률 보고서를 구성하고 있습니다.',
 };
+
+const hiddenKeys = new Set(['job.claimed', 'job.started']);
+
+export function isUserVisibleJobEvent(event) {
+  return !hiddenKeys.has(event?.messageKey);
+}
 
 export function jobEventMessage(event) {
   const template = messages[event?.messageKey] ?? '작업 상태가 업데이트되었습니다.';

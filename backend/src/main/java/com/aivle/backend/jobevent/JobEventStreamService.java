@@ -41,14 +41,14 @@ public class JobEventStreamService {
                             break;
                         }
                         if (event.terminal()) {
-                            emitter.complete();
+                            safeComplete(emitter);
                             group.emitters.remove(subscriptionId);
                             break;
                         }
                     }
                 } catch (RuntimeException exception) {
                     group.emitters.remove(subscriptionId);
-                    emitter.completeWithError(exception);
+                    safeComplete(emitter);
                     replayFailure.set(exception);
                 }
                 return group.emitters.isEmpty() ? null : group;
@@ -67,7 +67,7 @@ public class JobEventStreamService {
                 if (!sendEvent(emitter, event)) {
                     completed.add(id);
                 } else if (event.terminal()) {
-                    emitter.complete();
+                    safeComplete(emitter);
                     completed.add(id);
                 }
             });
@@ -85,7 +85,6 @@ public class JobEventStreamService {
                     try {
                         emitter.send(SseEmitter.event().comment("heartbeat"));
                     } catch (IOException | IllegalStateException exception) {
-                        emitter.completeWithError(exception);
                         failed.add(id);
                     }
                 });
@@ -99,7 +98,7 @@ public class JobEventStreamService {
     public void shutdown() {
         groups.values().forEach(group -> {
             synchronized (group) {
-                group.emitters.values().forEach(SseEmitter::complete);
+                group.emitters.values().forEach(this::safeComplete);
                 group.emitters.clear();
             }
         });
@@ -122,7 +121,6 @@ public class JobEventStreamService {
                 .data(event));
             return true;
         } catch (IOException | IllegalStateException exception) {
-            emitter.completeWithError(exception);
             return false;
         }
     }
@@ -143,6 +141,14 @@ public class JobEventStreamService {
                 return current.emitters.isEmpty() ? null : current;
             }
         });
+    }
+
+    private void safeComplete(SseEmitter emitter) {
+        try {
+            emitter.complete();
+        } catch (RuntimeException ignored) {
+            // A disconnected async response is already closed and only needs registry cleanup.
+        }
     }
 
     private static final class StreamGroup {

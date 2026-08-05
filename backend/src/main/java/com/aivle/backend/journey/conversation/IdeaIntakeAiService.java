@@ -12,12 +12,10 @@ import com.aivle.backend.jobevent.JobEventPublisher;
 import com.aivle.backend.taskrun.domain.TaskRun;
 import com.aivle.backend.taskrun.domain.TaskType;
 import com.aivle.backend.taskrun.integration.InternalAiExecutionClient;
-import com.aivle.backend.taskrun.integration.InternalAiExecutionClient.ExecutionFailure;
 import com.aivle.backend.taskrun.service.CanonicalInputHasher;
 import com.aivle.backend.taskrun.service.TaskRunService;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -64,7 +62,7 @@ public class IdeaIntakeAiService {
     }
 
     public TaskView start(Long ownerId, Long projectId, IdeaConversation conversation, IdeaMessage userMessage) {
-        String input = buildInput(ownerId, projectId, conversation);
+        String input = buildInput(ownerId, projectId, conversation, userMessage);
         String key = "idea-conversation-turn:" + userMessage.getId();
         TaskRun run = taskRuns.create(ownerId, projectId, TaskType.IDEA_CONVERSATION_TURN,
             "IDEA_CONVERSATION_MESSAGE", userMessage.getId().toString(), input,
@@ -74,21 +72,27 @@ public class IdeaIntakeAiService {
         return new TaskView(run.getId(), run.getState().name());
     }
 
-    void executeClaim(TaskRunService.Claim claim) {
-        String taskRunId = claim.taskRunId();
-        TaskRun run = taskRuns.getOwnedForWorker(taskRunId);
-        Long projectId = run.getProject().getId();
-        Long ownerId = run.getProject().getOwner().getId();
-        Long sourceMessageId = Long.valueOf(run.getSubjectId());
-        IdeaMessage source = messages.findById(sourceMessageId).orElseThrow();
-        Long conversationId = source.getConversation().getId();
-        try {
+    TerminalOutcome executeClaim(IdeaIntakeClaimService.ClaimContext context) {
+        TaskRunService.Claim claim = context.claim();
+        var run = context.task();
+        String taskRunId = run.taskRunId();
+        Long projectId = run.projectId();
+        Long ownerId = run.ownerId();
+        Long sourceMessageId = context.sourceMessageId();
+        Long conversationId = context.conversationId();
             events.publish(command(projectId, taskRunId, taskRunId, "INFORMATION_EXTRACTION",
                 "job.idea.information.extraction.started", JobEvent.Status.RUNNING,
                 "job.idea.information.extraction.started", null));
-            var response = ai.execute(run, claim.taskAttemptId(), LocalDateTime.now().plusMinutes(2));
+            var response = ai.executeWorker(run, claim.taskAttemptId(), LocalDateTime.now().plusMinutes(2));
             JsonNode result = response.result();
             validate(result);
+            Integer repairIssueCount = repairIssueCount(response.warnings());
+            if (repairIssueCount != null) {
+                events.publish(new JobEventPublisher.Command(projectId, taskRunId, taskRunId,
+                    "BRIEF_DRAFT", "job.idea.result.repairing", JobEvent.Status.RUNNING,
+                    "job.idea.result.repairing",
+                    Map.of("attemptPhase", "REPAIR", "issueCount", repairIssueCount), null));
+            }
             events.publish(command(projectId, taskRunId, taskRunId, "BRIEF_DRAFT",
                 "job.idea.brief.draft.started", JobEvent.Status.RUNNING, "job.idea.brief.draft.started", null));
             List<OpportunityBriefWorkspaceService.AiField> proposals = fields(result);
@@ -98,31 +102,14 @@ public class IdeaIntakeAiService {
             List<IdeaMessageContract.Question> questions = questions(result.get("clarificationQuestions"));
             IdeaMessageContract.Type messageType = questions.isEmpty()
                 ? IdeaMessageContract.Type.BRIEF_REVIEW : IdeaMessageContract.Type.QUESTION_SET;
-            completion.complete(ownerId, projectId, conversationId, sourceMessageId, run, claim,
+            completion.complete(ownerId, projectId, conversationId, sourceMessageId,
+                taskRunId, run.inputHash(), claim,
                 result.toString(), proposals, IdeaMessageContract.assistant(mapper, messageType,
                     result.get("userFacingSummary").asText(), questions,
                     strings(result.get("contradictions")), result.get("readiness").asText()));
             boolean needsInput = "NEEDS_INPUT".equals(result.get("readiness").asText());
-            events.publish(command(projectId, taskRunId, taskRunId, "FOLLOW_UP_QUESTIONS",
-                needsInput ? "job.idea.questions.completed" : "job.idea.brief.draft.completed",
-                needsInput ? JobEvent.Status.NEEDS_INPUT : JobEvent.Status.COMPLETED,
-                needsInput ? "job.idea.questions.completed" : "job.idea.brief.draft.completed", null));
-        } catch (ExecutionFailure failure) {
-            taskRuns.fail(taskRunId, claim.taskAttemptId(), claim.claimToken(),
-                failure.code(), failure.reason(), failure.retryable());
-            if (failure.retryable() && taskRuns.scheduleRetry(taskRunId,
-                    IdeaIntakeDurableWorker.backoff(run.getAttemptCount()))) {
-                events.publish(command(projectId, taskRunId, taskRunId, "RETRY",
-                    "job.retry.scheduled", JobEvent.Status.RUNNING, "job.retry.scheduled", null));
-            } else events.publish(command(projectId, taskRunId, taskRunId, "BRIEF_DRAFT",
-                    "job.failed", JobEvent.Status.FAILED, "job.idea.brief.draft.failed", safeCode(failure.reason())));
-        } catch (RuntimeException invalid) {
-            taskRuns.rejectAndFail(taskRunId, claim.taskAttemptId(), claim.claimToken(),
-                "{}", "1.0", "AI_RESULT_INVALID");
-            events.publish(command(projectId, taskRunId, taskRunId, "BRIEF_DRAFT",
-                "job.failed", JobEvent.Status.FAILED, "job.idea.brief.draft.failed",
-                "AI_RESULT_INVALID"));
-        }
+            return new TerminalOutcome(needsInput,
+                needsInput ? "job.idea.questions.completed" : "job.idea.brief.draft.completed");
     }
 
     public void validate(JsonNode result) {
@@ -161,29 +148,50 @@ public class IdeaIntakeAiService {
         }
     }
 
-    private String buildInput(Long ownerId, Long projectId, IdeaConversation conversation) {
+    private String buildInput(Long ownerId, Long projectId, IdeaConversation conversation,
+            IdeaMessage sourceMessage) {
         ObjectNode input = mapper.createObjectNode();
+        input.put("schemaVersion", "1.0");
         input.put("conversationContract", "opportunity-brief-v1");
+        input.put("projectId", projectId);
+        input.put("ownerId", ownerId);
+        input.put("conversationId", conversation.getId());
+        input.put("sourceMessageId", sourceMessage.getId());
+        input.put("locale", "ko-KR");
         input.set("supportedFields", mapper.valueToTree(OpportunityBriefWorkspaceService.FIELD_KEYS));
         input.set("sourceRules", mapper.valueToTree(Map.of(
             "aiAllowed", List.of("SOURCE_EXTRACTED", "AI_PROPOSED", "MISSING"),
             "neverAutoConfirm", true, "neverDefaultAssumption", true)));
         ArrayNode messageArray = input.putArray("messages");
         conversations.messages(ownerId, projectId, conversation.getId()).forEach(message -> {
-            ObjectNode item = messageArray.addObject(); item.put("role", message.getRole().name());
-            item.put("content", message.getContent());
+            IdeaMessageContract.View view = IdeaMessageContract.view(mapper, message);
+            ObjectNode item = messageArray.addObject();
+            item.put("messageId", view.id());
+            item.put("sequence", view.sequence());
+            item.put("role", view.role());
+            item.put("messageType", view.type().name());
+            item.put("content", view.text());
+            if (view.envelope() == null) item.putNull("envelope");
+            else item.set("envelope", mapper.valueToTree(view.envelope()));
         });
-        if (conversation.getSource() != null) input.put("legacyIdeaSource", conversation.getSource().getOriginalText());
+        if (conversation.getSource() != null) {
+            input.put("legacyIdeaSource", conversation.getSource().getOriginalText());
+        } else input.putNull("legacyIdeaSource");
         var brief = briefs.current(ownerId, projectId, conversation.getId());
-        ObjectNode currentBrief = mapper.createObjectNode();
-        if (brief != null) brief.fields().forEach(field -> {
-            ObjectNode value = currentBrief.putObject(field.fieldKey());
-            value.put("valueJson", field.value() == null ? "null" : mapper.writeValueAsString(field.value()));
-            value.put("decisionStatus", field.decisionStatus().name());
-            value.put("sourceType", field.sourceType().name());
-            value.put("userConfirmed", field.userConfirmed());
-        });
-        input.set("currentBrief", currentBrief);
+        if (brief == null) {
+            input.putNull("briefVersionId");
+            input.putNull("currentBrief");
+        } else {
+            input.put("briefVersionId", brief.id());
+            ObjectNode currentBrief = input.putObject("currentBrief");
+            brief.fields().forEach(field -> {
+                ObjectNode value = currentBrief.putObject(field.fieldKey());
+                value.set("valueJson", field.value() == null ? mapper.nullNode() : field.value());
+                value.put("decisionStatus", field.decisionStatus().name());
+                value.put("sourceType", field.sourceType().name());
+                value.put("userConfirmed", field.userConfirmed());
+            });
+        }
         ArrayNode sources = input.putArray("attachments");
         for (IdeaAttachment attachment : attachments.findByConversationIdAndDeletedAtIsNullOrderByCreatedAtAscIdAsc(conversation.getId())) {
             if (attachment.getStatus() != IdeaAttachment.Status.EXTRACTED) continue;
@@ -192,7 +200,10 @@ public class IdeaIntakeAiService {
                     ? new String(stream.readAllBytes(), StandardCharsets.UTF_8)
                     : parser.parse(stream, new DocumentParseRequest(attachment.getStoredFile().getOriginalFilename(),
                         attachment.getStoredFile().getMimeType(), attachment.getStoredFile().getSizeBytes(), Map.of())).plainText();
-                ObjectNode item = sources.addObject(); item.put("attachmentId", attachment.getId()); item.put("text", text);
+                ObjectNode item = sources.addObject();
+                item.put("attachmentId", attachment.getId());
+                item.put("contentHash", attachment.getExtractedTextHash());
+                item.put("text", text);
             } catch (Exception unreadable) { /* failed attachments are not silently promoted into AI input */ }
         }
         return mapper.writeValueAsString(input);
@@ -215,9 +226,22 @@ public class IdeaIntakeAiService {
         return result;
     }
     private List<String> strings(JsonNode array) { List<String> values = new ArrayList<>(); for (JsonNode item : array) values.add(item.asText()); return values; }
+    private Integer repairIssueCount(JsonNode warnings) {
+        if (warnings == null || !warnings.isArray()) return null;
+        for (JsonNode warning : warnings) {
+            if (warning.isObject()
+                && "RESULT_SCHEMA_REPAIRED".equals(warning.path("code").asText())
+                && "REPAIR".equals(warning.path("attemptPhase").asText())
+                && warning.path("issueCount").canConvertToInt()) {
+                int count = warning.path("issueCount").asInt();
+                if (count >= 1 && count <= 20) return count;
+            }
+        }
+        return null;
+    }
     private JsonNode array(JsonNode root, String key) { JsonNode value = root.get(key); if (value == null || !value.isArray()) throw invalid(); return value; }
     private String text(JsonNode root, String key) { JsonNode value = root.get(key); if (value == null || !value.isTextual() || value.asText().isBlank()) throw invalid(); return value.asText(); }
-    private IllegalArgumentException invalid() { return new IllegalArgumentException("invalid opportunity brief AI result"); }
+    private InvalidResultException invalid() { return new InvalidResultException(); }
     private String safeCode(String value) { return value != null && value.matches("[A-Z0-9._-]{1,80}") ? value : "AI_SERVICE_UNAVAILABLE"; }
     private JobEventPublisher.Command command(Long projectId, String jobId, String taskRunId, String stage,
             String type, JobEvent.Status status, String key, String code) {
@@ -230,4 +254,8 @@ public class IdeaIntakeAiService {
         });
     }
     public record TaskView(String jobId, String status) { }
+    record TerminalOutcome(boolean needsInput, String messageKey) { }
+    static final class InvalidResultException extends IllegalArgumentException {
+        InvalidResultException() { super("AI_RESULT_INVALID"); }
+    }
 }

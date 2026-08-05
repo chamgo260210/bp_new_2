@@ -5,8 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientProvider } from '../../shared/api/ApiClientProvider.jsx';
 import { ConversationalIdeaWorkspace } from './ConversationalIdeaWorkspace.jsx';
 
+const { jobEventsMock } = vi.hoisted(() => ({ jobEventsMock: vi.fn() }));
+
 vi.mock('../../shared/async-events/index.js', () => ({
-  useJobEvents: () => ({ events: [], transport: 'SSE', connectionState: 'CONNECTED', stop: vi.fn(), reconnect: vi.fn() }),
+  useJobEvents: (...args) => jobEventsMock(...args),
   JobTimeline: ({ title }) => <section aria-label={title}>{title}</section>,
 }));
 
@@ -33,7 +35,13 @@ function loadedWorkspace() {
 }
 
 describe('ConversationalIdeaWorkspace', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    jobEventsMock.mockReturnValue({
+      events: [], transport: 'SSE', connectionState: 'CONNECTED',
+      stop: vi.fn(), reconnect: vi.fn(),
+    });
+  });
 
   it('shows the empty conversation while preserving a prominent workspace heading', async () => {
     const client = { get: vi.fn(async () => ({ data: null })) };
@@ -130,5 +138,56 @@ describe('ConversationalIdeaWorkspace', () => {
     await waitFor(() => expect(client.post).toHaveBeenCalledOnce());
     expect(await screen.findByRole('region', { name: 'Concept Workboard' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('refetches once for a duplicated terminal sequence and renders the Assistant question and Brief', async () => {
+    const processing = {
+      ...loadedWorkspace(), domainState: 'PROCESSING', brief: null,
+      messages: [{ id: 8, sequence: 1, role: 'USER', type: 'TEXT', text: '사업 아이디어',
+        occurredAt: '2026-08-05T10:16:57.894Z', questions: [], contradictions: [] }],
+      activeJobId: 'job-terminal',
+    };
+    const completed = {
+      ...loadedWorkspace(), activeJobId: null,
+      messages: [...processing.messages, {
+        id: 9, sequence: 2, role: 'ASSISTANT', type: 'QUESTION_SET', text: '두 가지를 확인할게요.',
+        occurredAt: '2026-08-05T10:16:58.000Z', contradictions: [], readiness: 'NEEDS_INPUT',
+        questions: [{ id: 'q2', fieldKey: 'targetRegion', prompt: '어느 지역인가요?',
+          type: 'FREE_TEXT', options: [], allowUndecided: true }],
+        envelope: { schemaVersion: '1.0', messageType: 'QUESTION_SET', payload: {
+          text: '두 가지를 확인할게요.', contradictions: [], readiness: 'NEEDS_INPUT',
+          questions: [{ id: 'q2', fieldKey: 'targetRegion', prompt: '어느 지역인가요?',
+            type: 'FREE_TEXT', options: [], allowUndecided: true }],
+        } },
+      }],
+      brief: { ...loadedWorkspace().brief, hash: 'sha256:refreshed' },
+    };
+    jobEventsMock.mockImplementation((jobId) => ({
+      events: jobId === 'job-terminal' ? [
+        { jobId, sequence: 7, status: 'NEEDS_INPUT', messageKey: 'job.idea.questions.completed' },
+        { jobId, sequence: 7, status: 'NEEDS_INPUT', messageKey: 'job.idea.questions.completed' },
+      ] : [],
+      transport: 'SSE', connectionState: 'terminal', stop: vi.fn(), reconnect: vi.fn(),
+    }));
+    let conversationReads = 0;
+    const client = {
+      get: vi.fn(async (path) => {
+        if (path.endsWith('/idea-conversations/current')) {
+          conversationReads += 1;
+          return { data: conversationReads === 1 ? processing : completed };
+        }
+        if (path.endsWith('/regulatory-boundaries/current')) return { data: null };
+        if (path.endsWith('/concept-explorations/current')) return { data: { batch: null, slots: [], concepts: [] } };
+        throw new Error(path);
+      }),
+    };
+
+    renderWorkspace(client);
+
+    expect(await screen.findByText('두 가지를 확인할게요.')).toBeInTheDocument();
+    expect(screen.getByText('어느 지역인가요?')).toBeInTheDocument();
+    expect(screen.getByText('Version 1 · DRAFT')).toBeInTheDocument();
+    await waitFor(() => expect(conversationReads).toBe(2));
+    expect(screen.queryByText(/technicalCode|providerBody/i)).not.toBeInTheDocument();
   });
 });

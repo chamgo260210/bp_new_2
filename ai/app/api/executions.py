@@ -3,17 +3,25 @@ import json
 import os
 import unicodedata
 import re
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.models.executions import InternalExecutionRequestV1, InternalExecutionSuccessResponseV1
+from pydantic import ValidationError
+
+from app.models.executions import (
+    IdeaConversationTurnInputV1,
+    InternalExecutionRequestV1,
+    InternalExecutionSuccessResponseV1,
+)
 from app.services.journey_provider import ProviderFailure, execute_journey_task
 
 
 router = APIRouter(prefix="/internal/v1/ai", tags=["Internal AI Executions"])
+logger = logging.getLogger(__name__)
 TASK_TYPES = {
     "IDEA_INTERPRETATION", "IDEA_CONVERSATION_TURN", "LEGAL_REVIEW", "CONCEPT_GENERATION", "QUICK_ASSESSMENT",
     "DETAILED_ANALYSIS", "PERSONA_CARD_GENERATION", "PERSONA_INTERVIEW",
@@ -26,13 +34,37 @@ TASK_TYPES = {
 
 def internal_error(correlation_id: str, code: str, reason: str, status_code: int,
                    retryable: bool, task_run_id: str | None = None,
-                   task_attempt_id: str | None = None) -> JSONResponse:
+                   task_attempt_id: str | None = None,
+                   validation_fields: list[dict[str, str]] | None = None) -> JSONResponse:
+    detail: dict[str, Any] = {"reason": reason}
+    if validation_fields:
+        detail["fields"] = validation_fields[:12]
     return JSONResponse(status_code=status_code, content={"error": {
         "code": code, "message": "Internal execution request could not be processed.",
         "correlationId": correlation_id, "taskRunId": task_run_id,
         "taskAttemptId": task_attempt_id, "retryable": retryable,
-        "details": [{"reason": reason}],
+        "details": [detail],
     }})
+
+
+def safe_validation_fields(failure: ValidationError, prefix: str = "input") -> list[dict[str, str]]:
+    expected_types = {
+        "missing": "required", "int_type": "integer", "int_parsing": "integer",
+        "string_type": "string", "list_type": "array", "dict_type": "object",
+        "model_type": "object", "literal_error": "allowed literal", "extra_forbidden": "no extra field",
+        "bool_type": "boolean",
+    }
+    fields = []
+    for issue in failure.errors()[:12]:
+        location = ".".join(str(part) for part in issue.get("loc", ()))
+        path = f"{prefix}.{location}" if location else prefix
+        category = str(issue.get("type", "invalid"))[:80]
+        fields.append({
+            "path": path[:200],
+            "expectedType": expected_types.get(category, "valid contract value"),
+            "category": category,
+        })
+    return fields
 
 
 def canonical_value(value: Any) -> Any:
@@ -136,14 +168,33 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     }:
         return internal_error(correlation, "DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", 503, True,
                               body.taskRunId, body.taskAttemptId)
-    reason = validate_text_contents(body.input)
-    if reason:
-        return internal_error(correlation, "INVALID_REQUEST", reason, 400, False, body.taskRunId, body.taskAttemptId)
-    text = "\n".join(chunk["text"] for content in body.input["textContents"] for chunk in content["chunks"])
+    if body.taskType == "IDEA_CONVERSATION_TURN":
+        try:
+            conversation_input = IdeaConversationTurnInputV1.model_validate(body.input)
+        except ValidationError as failure:
+            fields = safe_validation_fields(failure)
+            logger.warning(
+                "Internal AI request rejected taskType=%s code=REQUEST_SCHEMA_INVALID fields=%s",
+                body.taskType, fields,
+            )
+            return internal_error(correlation, "INVALID_REQUEST", "FIELD_CONSTRAINT_VIOLATION",
+                                  400, False, body.taskRunId, body.taskAttemptId, fields)
+        text = json.dumps(conversation_input.model_dump(mode="json"), ensure_ascii=False,
+                          sort_keys=True, separators=(",", ":"))
+        source_keys = [f"message:{body.input['sourceMessageId']}"] + [
+            f"attachment:{attachment['attachmentId']}" for attachment in body.input["attachments"]
+        ]
+    else:
+        reason = validate_text_contents(body.input)
+        if reason:
+            return internal_error(correlation, "INVALID_REQUEST", reason, 400, False,
+                                  body.taskRunId, body.taskAttemptId)
+        text = "\n".join(chunk["text"] for content in body.input["textContents"] for chunk in content["chunks"])
+        source_keys = [content["contentKey"] for content in body.input["textContents"]]
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    source_keys = [content["contentKey"] for content in body.input["textContents"]]
     provenance = {"category": "AI_PROPOSAL", "statementKey": "interpretation-1", "sourceKeys": source_keys,
                   "externalSourceReferences": [], "generatedAt": generated_at, "verificationNeeded": True}
+    execution_warnings = []
     try:
         if body.taskType == "CONCEPT_EXPLORATION":
             from app.services.concept_core import execute_concept_exploration
@@ -160,6 +211,17 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
         elif body.taskType in {"IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION"}:
             from app.legal.pipeline import execute_legal_source_pipeline
             result = await execute_legal_source_pipeline(body.taskType, text, body.input)
+        elif body.taskType == "IDEA_CONVERSATION_TURN":
+            def record_schema_repair(issue_count: int) -> None:
+                execution_warnings.append({
+                    "code": "RESULT_SCHEMA_REPAIRED",
+                    "attemptPhase": "REPAIR",
+                    "issueCount": issue_count,
+                })
+
+            result = await execute_journey_task(
+                body.taskType, text, on_schema_repair=record_schema_repair
+            )
         else:
             result = await execute_journey_task(body.taskType, text)
     except ProviderFailure as failure:
@@ -168,4 +230,5 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     return InternalExecutionSuccessResponseV1(contractVersion="1.0", taskType=body.taskType,
         taskSchemaVersion="1.0", taskRunId=body.taskRunId, taskAttemptId=body.taskAttemptId,
         correlationId=body.correlationId, canonicalInputHash=body.canonicalInputHash,
-        resultSchemaVersion="1.0", result=result, warnings=[], provenance=[provenance], usage=None)
+        resultSchemaVersion="1.0", result=result, warnings=execution_warnings,
+        provenance=[provenance], usage=None)

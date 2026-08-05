@@ -66,6 +66,11 @@ public class TaskRunService {
     @Transactional(readOnly = true)
     public TaskRun getOwnedForWorker(String id) { return runs.findById(id).orElseThrow(this::notFound); }
 
+    @Transactional(readOnly = true)
+    public TaskRunWorkerContext workerContext(String id) {
+        return runs.findWorkerContext(id).orElseThrow(this::notFound);
+    }
+
     @Transactional
     public Claim claimNext(String workerId, Duration lease, Duration timeout) {
         LocalDateTime now = LocalDateTime.now(clock);

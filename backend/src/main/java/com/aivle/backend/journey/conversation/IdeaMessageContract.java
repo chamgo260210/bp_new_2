@@ -3,6 +3,8 @@ package com.aivle.backend.journey.conversation;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -42,7 +44,7 @@ public final class IdeaMessageContract {
         try {
             if (message.getRole() == IdeaMessage.Role.USER) {
                 return new View(message.getId(), message.getSequenceNumber(), "USER", Type.TEXT,
-                    message.getContent(), List.of(), List.of(), null, null, message.getCreatedAt());
+                    message.getContent(), List.of(), List.of(), null, null, utc(message.getCreatedAt()));
             }
             ObjectNode root = mapper.createObjectNode();
             root.put("schemaVersion", message.getSchemaVersion());
@@ -57,7 +59,7 @@ public final class IdeaMessageContract {
             return new View(message.getId(), message.getSequenceNumber(), "ASSISTANT", envelope.messageType(),
                 payload.path("text").asText(""), questions, contradictions,
                 payload.hasNonNull("readiness") ? payload.get("readiness").asText() : null,
-                envelope, message.getCreatedAt());
+                envelope, utc(message.getCreatedAt()));
         } catch (RuntimeException invalid) {
             throw new InvalidEnvelopeException();
         }
@@ -97,11 +99,15 @@ public final class IdeaMessageContract {
     }
 
     public record Envelope(String schemaVersion, Type messageType, JsonNode payload) { }
+
+    private static String utc(LocalDateTime value) {
+        return value == null ? null : value.toInstant(ZoneOffset.UTC).toString();
+    }
     public static final class InvalidEnvelopeException extends RuntimeException {
         public InvalidEnvelopeException() { super("구조화 메시지를 표시할 수 없습니다."); }
     }
 
     public record View(Long id, int sequence, String role, Type type, String text,
                        List<Question> questions, List<String> contradictions,
-                       String readiness, Envelope envelope, java.time.LocalDateTime occurredAt) { }
+                       String readiness, Envelope envelope, String occurredAt) { }
 }

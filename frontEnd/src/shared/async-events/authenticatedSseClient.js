@@ -29,13 +29,16 @@ export async function parseSseStream(body, onEvent, signal) {
   signal?.addEventListener('abort', abort, { once: true });
   try {
     while (true) {
-      if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+      if (signal?.aborted) return;
       const { done, value } = await reader.read();
       buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
       buffer = drainFrames(buffer, onEvent);
       if (done) break;
     }
     if (buffer.trim()) dispatchFrame(buffer, onEvent);
+  } catch (error) {
+    if (signal?.aborted) return;
+    throw error;
   } finally {
     signal?.removeEventListener('abort', abort);
     reader.releaseLock();

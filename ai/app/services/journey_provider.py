@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 from pydantic import ValidationError
@@ -94,14 +94,29 @@ def _extract_json(content: str) -> dict[str, Any]:
     return value
 
 
-async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
+async def execute_journey_task(
+    task_type: str,
+    text: str,
+    on_schema_repair: Callable[[int], None] | None = None,
+) -> dict[str, Any]:
     if task_type == "CONCEPT_GENERATION":
         return await _execute_concept_generation(text)
     conversation_intake = _is_conversation_intake(task_type, text)
     prompt_type = "IDEA_CONVERSATION" if conversation_intake else task_type
     system, user = _load_prompts(prompt_type, text)
+    result_schema = OpportunityBriefDraftResult.model_json_schema() if conversation_intake else None
+    if conversation_intake:
+        system, user = _conversation_contract_prompt(system, user, result_schema)
     try:
-        raw_result = await execute_structured_prompt(system, user)
+        if conversation_intake:
+            raw_result = await execute_structured_prompt(
+                system,
+                user,
+                response_schema=result_schema,
+                schema_name="opportunity_brief_draft_v1",
+            )
+        else:
+            raw_result = await execute_structured_prompt(system, user)
     except ProviderFailure as first_failure:
         if (
             task_type != "IDEA_INTERPRETATION"
@@ -138,7 +153,31 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
     except ValidationError as first_failure:
         issues = _validation_issues(first_failure, model_type)
-        if task_type != "IDEA_INTERPRETATION" or conversation_intake:
+        if conversation_intake:
+            logger.warning(
+                "Journey provider result schema invalid taskType=%s phase=initial issues=%s",
+                task_type,
+                issues,
+            )
+            if on_schema_repair is not None:
+                on_schema_repair(len(issues))
+            repaired_result = await _repair_conversation_result(
+                model_type, raw_result, issues
+            )
+            try:
+                return model_type.model_validate(repaired_result).model_dump(
+                    by_alias=True, exclude_unset=True
+                )
+            except ValidationError as repair_failure:
+                logger.warning(
+                    "Journey provider result schema invalid taskType=%s phase=repair issues=%s",
+                    task_type,
+                    _validation_issues(repair_failure, model_type),
+                )
+                raise ProviderFailure(
+                    "RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False
+                ) from repair_failure
+        if task_type != "IDEA_INTERPRETATION":
             logger.warning(
                 "Journey provider result schema invalid taskType=%s phase=initial issues=%s",
                 task_type,
@@ -225,6 +264,86 @@ def _validation_issues(failure: ValidationError, model_type) -> list[dict[str, s
             issue["fields"] = ",".join(safe_fields)
         issues.append(issue)
     return issues
+
+
+def _conversation_contract_prompt(
+    system: str, user: str, result_schema: dict[str, Any]
+) -> tuple[str, str]:
+    valid_example = OpportunityBriefDraftResult.model_validate({
+        "extractedFields": [],
+        "fieldSuggestions": [{
+            "fieldKey": "problem",
+            "valueJson": "반복되는 고객 문제",
+            "decisionStatus": "OPEN",
+            "sourceType": "AI_PROPOSED",
+            "confidence": 0.72,
+        }],
+        "assumptions": [],
+        "openFields": ["targetCustomer", "targetRegion"],
+        "contradictions": [],
+        "clarificationQuestions": [
+            {
+                "id": "target-customer-1",
+                "fieldKey": "targetCustomer",
+                "prompt": "이 문제를 가장 자주 겪는 대상은 누구인가요?",
+                "type": "FREE_TEXT",
+                "options": [],
+                "allowUndecided": True,
+            },
+            {
+                "id": "target-region-1",
+                "fieldKey": "targetRegion",
+                "prompt": "우선 검토할 국가 또는 지역은 어디인가요?",
+                "type": "FREE_TEXT",
+                "options": [],
+                "allowUndecided": True,
+            },
+        ],
+        "readiness": "NEEDS_INPUT",
+        "userFacingSummary": "확인을 위해 두 가지 정보가 더 필요합니다.",
+    }).model_dump(mode="json")
+    contract = {
+        "rules": [
+            "Human-facing Korean text is allowed only in descriptive text fields.",
+            "Machine enum fields must use the exact English literals in resultSchema.",
+            "confidence must be a JSON number from 0.0 through 1.0, or null where allowed.",
+            "clarificationQuestions.id must be a non-empty JSON string.",
+            "clarificationQuestions.options must always be a JSON array.",
+            "Return exactly one JSON object without Markdown or code fences.",
+            "Do not add fields outside resultSchema.",
+        ],
+        "resultSchema": result_schema,
+        "validExample": valid_example,
+    }
+    return system, user + "\n\nRESULT CONTRACT\n" + json.dumps(
+        contract, ensure_ascii=False, separators=(",", ":")
+    )
+
+
+async def _repair_conversation_result(
+    model_type,
+    raw_result: dict[str, Any],
+    issues: list[dict[str, str]],
+) -> dict[str, Any]:
+    schema = model_type.model_json_schema()
+    system = (
+        "You repair one Opportunity Brief result to the supplied strict JSON schema. "
+        "Preserve valid information and meaning. Correct only types, canonical literals, "
+        "and schema structure. Do not invent missing business facts. Return exactly one "
+        "JSON object without Markdown or code fences."
+    )
+    user = json.dumps({
+        "attemptPhase": "REPAIR",
+        "validationIssues": issues,
+        "resultSchema": schema,
+        "invalidCandidate": raw_result,
+    }, ensure_ascii=False, separators=(",", ":"))
+    return await execute_structured_prompt(
+        system,
+        user,
+        response_schema=schema,
+        schema_name="opportunity_brief_draft_repair_v1",
+    )
 
 
 def _concept_generation_context(text: str) -> dict[str, Any]:
@@ -649,7 +768,11 @@ async def _execute_concept_generation(text: str) -> dict[str, Any]:
 
 
 async def execute_structured_prompt(
-    system: str, user: str, model_override: str | None = None
+    system: str,
+    user: str,
+    model_override: str | None = None,
+    response_schema: dict[str, Any] | None = None,
+    schema_name: str | None = None,
 ) -> dict[str, Any]:
     api_key, model, base_url = _configuration(model_override)
     try:
@@ -658,6 +781,16 @@ async def execute_structured_prompt(
             raise ValueError
     except ValueError as failure:
         raise ProviderFailure("DEPENDENCY_UNAVAILABLE", "AI_CONFIGURATION_INVALID", 503, False) from failure
+    response_format = {"type": "json_object"}
+    if response_schema is not None:
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": schema_name or "structured_result",
+                "strict": True,
+                "schema": response_schema,
+            },
+        }
     body = {
         "model": model,
         "messages": [
@@ -665,7 +798,7 @@ async def execute_structured_prompt(
             {"role": "user", "content": user},
         ],
         "temperature": 0.1,
-        "response_format": {"type": "json_object"},
+        "response_format": response_format,
     }
     try:
         async with httpx.AsyncClient(timeout=timeout_seconds) as client:

@@ -574,9 +574,10 @@ def valid_conversation_result():
 def test_conversation_intake_uses_dedicated_prompt_and_strict_schema(monkeypatch):
     captured = {}
 
-    async def fake_prompt(system, user):
+    async def fake_prompt(system, user, **kwargs):
         captured["system"] = system
         captured["user"] = user
+        captured["schema"] = kwargs["response_schema"]
         return valid_conversation_result()
 
     monkeypatch.setattr(journey_provider, "execute_structured_prompt", fake_prompt)
@@ -587,10 +588,15 @@ def test_conversation_intake_uses_dedicated_prompt_and_strict_schema(monkeypatch
 
     assert result["fieldSuggestions"][0]["sourceType"] == "AI_PROPOSED"
     assert "Opportunity Brief" in captured["system"]
+    assert captured["schema"] == journey_provider.OpportunityBriefDraftResult.model_json_schema()
 
 
 def test_conversation_intake_never_accepts_user_confirmed_from_ai(monkeypatch):
-    async def fake_prompt(system, user):
+    calls = 0
+
+    async def fake_prompt(system, user, **kwargs):
+        nonlocal calls
+        calls += 1
         result = valid_conversation_result()
         result["fieldSuggestions"][0]["sourceType"] = "USER_CONFIRMED"
         return result
@@ -602,3 +608,4 @@ def test_conversation_intake_never_accepts_user_confirmed_from_ai(monkeypatch):
             json.dumps({"conversationContract": "opportunity-brief-v1"}),
         ))
     assert failure.value.code == "RESULT_SCHEMA_INVALID"
+    assert calls == 2

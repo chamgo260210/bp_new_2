@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
 import { JobTimeline, useJobEvents } from '../../shared/async-events/index.js';
+import { formatLocalTime } from '../../shared/async-events/formatLocalTime.js';
 import { ConceptWorkboard } from '../concept-workboard/ConceptWorkboard.jsx';
 import { useConceptWorkboard } from '../concept-workboard/useConceptWorkboard.js';
 import { createConversationalIdeaApi } from './conversationalIdeaApi.js';
@@ -17,6 +18,13 @@ const labels = {
 };
 const allFields = Object.keys(labels);
 const statusLabels = { LOCKED: '고정', PREFERRED: '선호', OPEN: '열림', ASSUMPTION: '가정' };
+const CONVERSATION_REFRESH_EVENTS = new Set([
+  'job.idea.information.extraction.completed',
+  'job.idea.brief.draft.completed',
+  'job.idea.questions.completed',
+  'job.completed',
+  'job.failed',
+]);
 
 export function ConversationalIdeaWorkspace() {
   const { projectId } = useParams();
@@ -31,6 +39,7 @@ export function ConversationalIdeaWorkspace() {
   const [briefOpen, setBriefOpen] = useState(false);
   const [boundary, setBoundary] = useState(null);
   const [showIdeaWorkspace, setShowIdeaWorkspace] = useState(false);
+  const lastConversationRefresh = useRef({ jobId: null, sequence: 0 });
   const job = useJobEvents(jobId);
   const conceptReady = workspace?.brief?.state === 'CONFIRMED'
     && boundary?.version?.status === 'READY' && !boundary?.stale;
@@ -41,23 +50,27 @@ export function ConversationalIdeaWorkspace() {
     const [current, currentBoundary] = await Promise.all([api.current(), api.currentBoundary()]);
     setWorkspace(current);
     setBoundary(currentBoundary);
-    setJobId(currentBoundary?.run?.jobId || current?.activeJobId || null);
+    setJobId(current?.activeJobId || currentBoundary?.run?.jobId || null);
   };
   useEffect(() => { let live = true; Promise.all([api.current(), api.currentBoundary()]).then(([value, currentBoundary]) => {
     if (!live) return; setWorkspace(value); setBoundary(currentBoundary);
-    setJobId(currentBoundary?.run?.jobId || value?.activeJobId || null);
+    setJobId(value?.activeJobId || currentBoundary?.run?.jobId || null);
   }).catch((failure) => live && setError(getUserErrorMessage(failure)));
   return () => { live = false; }; }, [api]);
 
   const lastEvent = job.events.at(-1);
   useEffect(() => {
-    if (!lastEvent || !['COMPLETED', 'FAILED', 'NEEDS_INPUT', 'BLOCKED'].includes(lastEvent.status)) return;
+    const refreshed = lastConversationRefresh.current;
+    const refreshEvent = lastEvent && (CONVERSATION_REFRESH_EVENTS.has(lastEvent.messageKey)
+      || CONVERSATION_REFRESH_EVENTS.has(lastEvent.eventType));
+    if (!refreshEvent
+        || (refreshed.jobId === jobId && lastEvent.sequence <= refreshed.sequence)) return;
+    lastConversationRefresh.current = { jobId, sequence: lastEvent.sequence };
     // Loading persisted state is the external synchronization triggered by a durable event.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().catch((failure) => setError(getUserErrorMessage(failure)));
     // The durable terminal event is the refresh trigger for the persisted workspace.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastEvent?.sequence, lastEvent?.status]);
+  }, [jobId, lastEvent?.sequence, lastEvent?.status]);
 
   async function ensureConversation() {
     if (workspace) return workspace;
@@ -154,7 +167,7 @@ export function ConversationalIdeaWorkspace() {
               {question.type === 'FREE_TEXT' && <input aria-label={`${question.fieldKey} 답변`} onChange={(event) => setAnswers((current) => ({ ...current, [question.fieldKey]: event.target.value }))} />}
               {question.allowUndecided && <label><input type="radio" name={question.id} onChange={() => setAnswers((current) => ({ ...current, [question.fieldKey]: '__OPEN__' }))} />아직 결정하지 않음</label>}
             </fieldset>)}</div>}
-            <time>{formatTime(message.occurredAt)}</time>
+            <time dateTime={message.occurredAt}>{formatLocalTime(message.occurredAt)}</time>
           </article>)}
         </div>
         {(workspace?.attachments || []).map((file) => <div className="idea-attachment" key={file.id}><span>{file.filename}</span><small>{file.status}{file.failureCode ? ' · 처리 실패' : ''}</small></div>)}
@@ -225,4 +238,3 @@ function BriefField({ fieldKey, field, disabled, onSave, onDecide }) {
   </section>;
 }
 function display(value) { if (value == null) return ''; return typeof value === 'string' ? value : JSON.stringify(value); }
-function formatTime(value) { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }

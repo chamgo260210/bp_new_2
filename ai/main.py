@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -17,7 +18,7 @@ from app.api.errors import (
 )
 from app.api.marketing import router as marketing_router
 from app.api.tasks import router as task_router
-from app.api.executions import router as execution_router, internal_error
+from app.api.executions import router as execution_router, internal_error, safe_validation_fields
 from app.models.contracts import EchoResponse, HealthResponse
 from app.request_context import (
     REQUEST_ID_HEADER,
@@ -31,6 +32,7 @@ app = FastAPI(
     title="AIVLE Test AI Server",
     version="0.2.0",
 )
+logger = logging.getLogger(__name__)
 INTERNAL_JSON_MAX_BYTES = 2 * 1024 * 1024
 
 
@@ -47,7 +49,13 @@ async def routed_validation_exception_handler(request: Request, exception: Reque
             "UNKNOWN_FIELD" if "extra_forbidden" in error_types else "FIELD_CONSTRAINT_VIOLATION"
         )
         correlation = request.headers.get("X-Correlation-Id") or resolve_request_id(None)
-        return internal_error(correlation, "INVALID_REQUEST", reason, 400, False)
+        fields = safe_validation_fields(exception, "request")
+        logger.warning(
+            "Internal AI request rejected taskType=%s code=REQUEST_SCHEMA_INVALID fields=%s",
+            getattr(request.state, "internal_task_type", None), fields,
+        )
+        return internal_error(correlation, "INVALID_REQUEST", reason, 400, False,
+                              validation_fields=fields)
     return await validation_exception_handler(request, exception)
 
 
@@ -80,6 +88,7 @@ async def request_id_middleware(request: Request, call_next):
             parsed = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
             request.state.internal_task_run_id = parsed.get("taskRunId") if isinstance(parsed, dict) else None
             request.state.internal_task_attempt_id = parsed.get("taskAttemptId") if isinstance(parsed, dict) else None
+            request.state.internal_task_type = parsed.get("taskType") if isinstance(parsed, dict) else None
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
             correlation = request.headers.get("X-Correlation-Id") or resolve_request_id(None)
             return internal_error(correlation, "INVALID_REQUEST", "JSON_PARSE_FAILED", 400, False)

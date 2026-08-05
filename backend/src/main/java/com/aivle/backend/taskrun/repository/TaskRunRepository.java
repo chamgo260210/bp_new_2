@@ -2,6 +2,7 @@ package com.aivle.backend.taskrun.repository;
 
 import com.aivle.backend.taskrun.domain.TaskRun;
 import com.aivle.backend.taskrun.domain.TaskRunState;
+import com.aivle.backend.taskrun.service.TaskRunWorkerContext;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface TaskRunRepository extends JpaRepository<TaskRun, String> {
+    @Query("""
+        select new com.aivle.backend.taskrun.service.TaskRunWorkerContext(
+            r.id, p.id, o.id, r.taskType, r.subjectType, r.subjectId,
+            r.inputSnapshot, r.inputHash, r.idempotencyKey, r.correlationId,
+            r.contractVersion, r.taskSchemaVersion, r.locale, r.attemptCount, r.maxAttempts)
+        from TaskRun r join r.project p join p.owner o
+        where r.id=:id and r.deletedAt is null
+        """)
+    Optional<TaskRunWorkerContext> findWorkerContext(@Param("id") String id);
+
     @Query("select r from TaskRun r join fetch r.project p where r.id=:id and p.id=:projectId and p.owner.id=:ownerId and p.deletedAt is null")
     Optional<TaskRun> findOwned(@Param("ownerId") Long ownerId, @Param("projectId") Long projectId, @Param("id") String id);
 

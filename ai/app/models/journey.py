@@ -119,14 +119,17 @@ OpportunityFieldKey = Literal[
 class OpportunityBriefFieldProposal(StrictResult):
     fieldKey: OpportunityFieldKey
     valueJson: Any
-    decisionStatus: Literal["LOCKED", "PREFERRED", "OPEN", "ASSUMPTION"]
-    sourceType: Literal["SOURCE_EXTRACTED", "AI_PROPOSED"]
-    confidence: float | None
+    decisionStatus: Literal["PREFERRED", "OPEN", "ASSUMPTION"]
+    sourceType: Literal["SOURCE_EXTRACTED", "AI_PROPOSED", "MISSING"]
+    confidence: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] | None
 
     @model_validator(mode="after")
     def validate_confidence(self):
-        if self.valueJson is None or (
-            self.confidence is not None and not 0 <= self.confidence <= 1
+        missing = self.sourceType == "MISSING"
+        if (
+            missing != (self.valueJson is None)
+            or (missing and self.confidence is not None)
+            or (self.confidence is not None and not 0 <= self.confidence <= 1)
         ):
             raise ValueError("field proposal value and confidence are invalid")
         return self

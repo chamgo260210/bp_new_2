@@ -1,6 +1,14 @@
 # 대화형 사업검증 워크스페이스 현행→목표 매핑
 
 - 상태: G0 기준선 감사 완료 / 구현 전 설계 동결
+
+## 24. Conversational Intake Runtime Hotfix R3 반영 (2026-08-05)
+
+- `IDEA_CONVERSATION_TURN` Provider 요청은 `OpportunityBriefDraftResult.model_json_schema()`를 strict `json_schema` response format과 최종 Pydantic validation에 함께 사용한다. 다른 Journey Task는 기존 `json_object` 계약을 유지한다.
+- Conversation result의 AI 허용 provenance는 `decisionStatus=PREFERRED|OPEN|ASSUMPTION`, `sourceType=SOURCE_EXTRACTED|AI_PROPOSED|MISSING`이다. AI는 `LOCKED`, `USER_CONFIRMED`, 자동 확정값을 생성할 수 없다.
+- Initial 결과가 schema-invalid이면 path/type만 진단하여 한 번의 REPAIR를 수행한다. Repair도 실패하면 `RESULT_SCHEMA_INVALID`, non-retryable FAILED이며 추가 Provider 호출이나 durable retry는 없다.
+- Repair 성공은 기존 Assistant Message, Brief Draft, provenance, Conversation state, TaskRun completion 경로를 그대로 사용한다. Backend에는 bounded `job.idea.result.repairing` event만 추가되며 invalid value/Provider body/Prompt/사용자 원문은 저장하지 않는다.
+- Frontend 전체 구조는 변경하지 않고 공통 Timeline에 `job.idea.result.repairing` 안전 문구만 추가했다. Migration과 G4/G5/G6 계약은 변경하지 않았으며 G7은 구현하지 않았다.
 - 감사 기준 SHA: `967c19a8eca17ff24f159175fb3e7ecc9fb6cf9d`
 - 감사 브랜치: `main`
 - 감사 일자: 2026-08-05
@@ -408,3 +416,22 @@ G6 입력은 Slot View와 공개 Concept View다. G5는 Workboard, 비교, Quick
 - Migration은 없다. V5 Concept Core 저장 계약을 재사용한다.
 - Desktop 30:70, Mobile Workboard-first/collapsible Summary, `aria-live`, alert, `aria-expanded`, keyboard/reduced-motion 및 Workboard-local typography를 적용했다.
 - G7은 `concept-core-v1` 공개 3개와 validated snapshot hash만 Quick Assessment 입력으로 사용해야 하며 G6는 평가·선택 상태를 만들지 않는다.
+
+## 22. Conversational Intake Runtime Hotfix 반영 (2026-08-05)
+
+- Idea Intake claim은 detached `TaskRun`/`Project` Entity 전달에서 transaction 내부 scalar `TaskRunWorkerContext`/`ClaimContext` 캡처로 교체했다. Worker와 AI 실행은 ID/hash/attempt/idempotency scalar만 사용하며 필요한 Entity는 명시적 transaction에서 다시 조회한다.
+- Conversation Turn 성공은 Assistant Envelope, Brief Draft/provenance, Conversation state/active job, TaskRun result를 atomic commit하고 그 뒤 terminal Job Event를 발행한다.
+- Worker claim 단위 error boundary가 retryable/permanent/unknown failure를 bounded retry 또는 FAILED로 수렴시킨다. project/conversation 불일치 capture는 claim transaction 전체를 rollback한다.
+- SSE registry는 completion/timeout/error/broken heartbeat/terminal에서 job별 emitter를 제거하고 client abort 후 JSON error body를 쓰지 않는다.
+- Conversation terminal event는 durable sequence를 job별 dedupe한 뒤 current Conversation 재조회 신호로 사용한다. 2초 화면 polling은 추가하지 않았다.
+- Message와 Job Event API `occurredAt`은 UTC ISO-8601 `...Z`로 통일하고 Frontend는 공통 local formatter를 사용한다. Migration은 없다.
+- 기존 Journey, G4 Boundary, G5 Concept Core, G6 Workboard 계약은 변경하지 않았으며 G7은 구현하지 않았다.
+
+## 23. Conversational Intake Runtime Hotfix R2 반영 (2026-08-05)
+
+- `IDEA_CONVERSATION_TURN`은 canonical Task Type으로 유지하고 `contracts/internal-ai/idea-conversation-turn-v1.*.json`을 Backend/AI shared fixture로 사용한다.
+- AI Internal Execution endpoint의 legacy 공통 `textContents` 검증에서 Conversation Task를 분리해 strict `IdeaConversationTurnInputV1`으로 검증한다. 다른 Task의 기존 input 계약은 유지한다.
+- Conversation input은 version/Project/Owner/Conversation/Source Message/Brief ID, ordered USER·versioned Assistant Message, extracted attachment hash/text, current Brief provenance, supported fields/source rules를 보존한다.
+- Draft 없음은 `currentBrief=null`, attachment 없음은 `attachments=[]`로 구분한다. Brief field `valueJson`은 JSON 문자열이 아닌 실제 JSON value다.
+- Contract 400은 값 없는 bounded field path/type/category만 내부 진단에 사용하고 permanent FAILED로 종료한다. Job Event와 사용자 UI에는 field path나 원문을 노출하지 않는다.
+- Migration, Frontend, G4/G5/G6 상태 의미는 변경하지 않았으며 G7은 구현하지 않았다.

@@ -1,11 +1,14 @@
 import { useId } from 'react';
 
-import { jobEventMessage } from './jobEventMessages.js';
+import { isUserVisibleJobEvent, jobEventMessage } from './jobEventMessages.js';
+import { formatLocalTime } from './formatLocalTime.js';
 import './jobTimeline.css';
 
 export function JobTimeline({ events = [], title = '작업 진행 상황' }) {
   const titleId = useId();
-  const ordered = [...events].sort((left, right) => left.sequence - right.sequence);
+  const ordered = [...events]
+    .filter(isUserVisibleJobEvent)
+    .sort((left, right) => left.sequence - right.sequence);
   return (
     <section className="job-timeline" aria-labelledby={titleId}>
       <h3 id={titleId} className="job-timeline__title">{title}</h3>
@@ -17,7 +20,7 @@ export function JobTimeline({ events = [], title = '작업 진행 상황' }) {
             </span>
             <span className="job-timeline__message">{jobEventMessage(event)}</span>
             <time className="job-timeline__time" dateTime={event.occurredAt}>
-              {formatTime(event.occurredAt)}
+              {formatLocalTime(event.occurredAt)}
             </time>
           </li>
         ))}
@@ -35,11 +38,4 @@ function statusLabel(status) {
     NEEDS_INPUT: '확인 필요',
     BLOCKED: '수정 필요',
   })[status] ?? '업데이트';
-}
-
-function formatTime(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }

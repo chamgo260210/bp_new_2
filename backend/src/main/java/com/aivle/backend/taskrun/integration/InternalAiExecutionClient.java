@@ -2,9 +2,14 @@ package com.aivle.backend.taskrun.integration;
 
 import com.aivle.backend.integration.ai.AiServerProperties;
 import com.aivle.backend.taskrun.domain.TaskRun;
+import com.aivle.backend.taskrun.domain.TaskType;
+import com.aivle.backend.taskrun.service.TaskRunWorkerContext;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,9 +21,12 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class InternalAiExecutionClient {
+    private static final Logger log = LoggerFactory.getLogger(InternalAiExecutionClient.class);
     public static final int MAX_JSON_BYTES = 2 * 1024 * 1024;
     private static final Set<String> SUCCESS_FIELDS = Set.of(
         "contractVersion", "taskType", "taskSchemaVersion", "taskRunId", "taskAttemptId",
@@ -84,30 +92,32 @@ public class InternalAiExecutionClient {
     }
 
     public ExecutionResponse execute(TaskRun run, String attemptId, LocalDateTime deadline) {
+        return execute(ExecutionRequest.from(run), attemptId, deadline);
+    }
+
+    public ExecutionResponse executeWorker(TaskRunWorkerContext run, String attemptId, LocalDateTime deadline) {
+        return execute(new ExecutionRequest(run.taskRunId(), run.taskType(), run.inputSnapshot(),
+            run.inputHash(), run.correlationId(), run.contractVersion(), run.taskSchemaVersion(),
+            run.locale()), attemptId, deadline);
+    }
+
+    private ExecutionResponse execute(ExecutionRequest run, String attemptId, LocalDateTime deadline) {
         if (properties.internalApiKey() == null || properties.internalApiKey().isBlank())
             throw new ExecutionFailure("UNAUTHORIZED_INTERNAL_CALL", "SERVICE_TOKEN_MISSING", false);
-        JsonNode input = mapper.readTree(run.getInputSnapshot());
-        Map<String, Object> body = Map.of(
-            "contractVersion", "1.0", "taskType", run.getTaskType().name(),
-            "taskSchemaVersion", run.getTaskSchemaVersion(), "taskRunId", run.getId(),
-            "taskAttemptId", attemptId, "correlationId", run.getCorrelationId(),
-            "deadlineAt", deadline.atOffset(ZoneOffset.UTC).toString(),
-            "canonicalInputHash", run.getInputHash(), "locale", run.getLocale(), "input", input
-        );
-        byte[] requestBytes = mapper.writeValueAsBytes(body);
+        byte[] requestBytes = mapper.writeValueAsBytes(requestEnvelope(run, attemptId, deadline));
         enforceSize(requestBytes, "REQUEST_BYTES_EXCEEDED");
         try {
             byte[] responseBytes = client.post().uri("/internal/v1/ai/executions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.internalApiKey())
-                .header("X-Correlation-Id", run.getCorrelationId())
+                .header("X-Correlation-Id", run.correlationId())
                 .body(requestBytes).retrieve().body(byte[].class);
             enforceSize(responseBytes, "RESPONSE_BYTES_EXCEEDED");
             return validateResponse(run, attemptId, parseSuccess(responseBytes));
         } catch (RestClientResponseException responseFailure) {
             byte[] responseBytes = responseFailure.getResponseBodyAsByteArray();
             enforceSize(responseBytes, "RESPONSE_BYTES_EXCEEDED");
-            throw parseFailure(responseBytes);
+            throw parseFailure(responseBytes, run.taskType());
         } catch (ResourceAccessException timeoutOrConnectionFailure) {
             throw new ExecutionFailure(
                 "DEADLINE_EXCEEDED", "REQUEST_DEADLINE_EXCEEDED", true
@@ -115,14 +125,31 @@ public class InternalAiExecutionClient {
         }
     }
 
+    JsonNode requestPayload(TaskRunWorkerContext run, String attemptId, LocalDateTime deadline) {
+        return mapper.valueToTree(requestEnvelope(new ExecutionRequest(
+            run.taskRunId(), run.taskType(), run.inputSnapshot(), run.inputHash(), run.correlationId(),
+            run.contractVersion(), run.taskSchemaVersion(), run.locale()), attemptId, deadline));
+    }
+
+    private RequestEnvelope requestEnvelope(ExecutionRequest run, String attemptId, LocalDateTime deadline) {
+        return new RequestEnvelope(run.contractVersion(), run.taskType().name(), run.taskSchemaVersion(),
+            run.taskRunId(), attemptId, run.correlationId(),
+            DateTimeFormatter.ISO_INSTANT.format(deadline.toInstant(ZoneOffset.UTC)),
+            run.inputHash(), run.locale(), mapper.readTree(run.inputSnapshot()));
+    }
+
     public ExecutionResponse validateResponse(TaskRun run, String attemptId, ExecutionResponse response) {
-        if (!run.getContractVersion().equals(response.contractVersion())
-            || !run.getTaskType().name().equals(response.taskType())
-            || !run.getTaskSchemaVersion().equals(response.taskSchemaVersion())
-            || !run.getId().equals(response.taskRunId())
+        return validateResponse(ExecutionRequest.from(run), attemptId, response);
+    }
+
+    private ExecutionResponse validateResponse(ExecutionRequest run, String attemptId, ExecutionResponse response) {
+        if (!run.contractVersion().equals(response.contractVersion())
+            || !run.taskType().name().equals(response.taskType())
+            || !run.taskSchemaVersion().equals(response.taskSchemaVersion())
+            || !run.taskRunId().equals(response.taskRunId())
             || !attemptId.equals(response.taskAttemptId())
-            || !run.getCorrelationId().equals(response.correlationId())
-            || !run.getInputHash().equals(response.canonicalInputHash())
+            || !run.correlationId().equals(response.correlationId())
+            || !run.inputHash().equals(response.canonicalInputHash())
             || !"1.0".equals(response.resultSchemaVersion())
             || response.result() == null) {
             throw invalid("RESULT_DOMAIN_INVARIANT_VIOLATION");
@@ -151,7 +178,7 @@ public class InternalAiExecutionClient {
         }
     }
 
-    private ExecutionFailure parseFailure(byte[] raw) {
+    private ExecutionFailure parseFailure(byte[] raw, TaskType taskType) {
         try {
             JsonNode error = mapper.readTree(raw).get("error");
             String code = text(error, "code");
@@ -163,12 +190,41 @@ public class InternalAiExecutionClient {
             if (!INTERNAL_CODES.contains(code) || !ERROR_REASONS.getOrDefault(code, Set.of()).contains(reason)
                 || RETRYABLE_REASONS.contains(reason) != retryable)
                 return invalid("RESULT_DOMAIN_INVARIANT_VIOLATION");
-            return new ExecutionFailure(code, reason, retryable);
+            List<ValidationIssue> fields = validationIssues(details);
+            if ("INVALID_REQUEST".equals(code) && !fields.isEmpty()) {
+                log.warn("Internal AI request rejected taskType={} code=REQUEST_SCHEMA_INVALID fields={}",
+                    taskType.name(), fields);
+            }
+            return new ExecutionFailure(code, reason, retryable, fields);
         } catch (ExecutionFailure known) {
             return known;
         } catch (RuntimeException invalidError) {
             return new ExecutionFailure("INTERNAL_ERROR", "UNEXPECTED_INTERNAL_ERROR", true);
         }
+    }
+
+    private List<ValidationIssue> validationIssues(JsonNode details) {
+        if (details == null || !details.isArray() || details.isEmpty()) return List.of();
+        JsonNode fields = details.get(0).get("fields");
+        if (fields == null || !fields.isArray()) return List.of();
+        List<ValidationIssue> safe = new ArrayList<>();
+        for (JsonNode field : fields) {
+            if (safe.size() == 12 || !field.isObject()) break;
+            String path = safeDiagnostic(field, "path", 200);
+            String expected = safeDiagnostic(field, "expectedType", 80);
+            String category = safeDiagnostic(field, "category", 80);
+            if (path != null && expected != null && category != null) {
+                safe.add(new ValidationIssue(path, expected, category));
+            }
+        }
+        return List.copyOf(safe);
+    }
+
+    private String safeDiagnostic(JsonNode node, String field, int maxLength) {
+        JsonNode value = node.get(field);
+        if (value == null || !value.isTextual()) return null;
+        String text = value.asText();
+        return text.length() <= maxLength && text.matches("[A-Za-z0-9_.\\[\\] -]+") ? text : null;
     }
 
     private String text(JsonNode node, String field) {
@@ -191,20 +247,44 @@ public class InternalAiExecutionClient {
         private final String code;
         private final String reason;
         private final boolean retryable;
+        private final List<ValidationIssue> validationFields;
 
         public ExecutionFailure(String code, String reason, boolean retryable) {
+            this(code, reason, retryable, List.of());
+        }
+
+        public ExecutionFailure(String code, String reason, boolean retryable,
+                List<ValidationIssue> validationFields) {
             super(code + ":" + reason);
             this.code = code;
             this.reason = reason;
             this.retryable = retryable;
+            this.validationFields = List.copyOf(validationFields);
         }
 
         public String code() { return code; }
         public String reason() { return reason; }
         public boolean retryable() { return retryable; }
+        public List<ValidationIssue> validationFields() { return validationFields; }
     }
+
+    public record ValidationIssue(String path, String expectedType, String category) { }
 
     public record ExecutionResponse(String contractVersion, String taskType, String taskSchemaVersion,
         String taskRunId, String taskAttemptId, String correlationId, String canonicalInputHash,
         String resultSchemaVersion, JsonNode result, JsonNode warnings, JsonNode provenance, JsonNode usage) { }
+
+    private record RequestEnvelope(String contractVersion, String taskType, String taskSchemaVersion,
+        String taskRunId, String taskAttemptId, String correlationId, String deadlineAt,
+        String canonicalInputHash, String locale, JsonNode input) { }
+
+    private record ExecutionRequest(String taskRunId, TaskType taskType, String inputSnapshot,
+            String inputHash, String correlationId, String contractVersion,
+            String taskSchemaVersion, String locale) {
+        private static ExecutionRequest from(TaskRun run) {
+            return new ExecutionRequest(run.getId(), run.getTaskType(), run.getInputSnapshot(),
+                run.getInputHash(), run.getCorrelationId(), run.getContractVersion(),
+                run.getTaskSchemaVersion(), run.getLocale());
+        }
+    }
 }

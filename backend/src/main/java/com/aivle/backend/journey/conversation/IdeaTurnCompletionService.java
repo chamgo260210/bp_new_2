@@ -25,9 +25,14 @@ public class IdeaTurnCompletionService {
 
     @Transactional
     public void complete(Long ownerId, Long projectId, Long conversationId, Long sourceMessageId,
-            TaskRun run, TaskRunService.Claim claim, String resultJson,
+            String taskRunId, String inputHash, TaskRunService.Claim claim, String resultJson,
             List<OpportunityBriefWorkspaceService.AiField> proposals,
             IdeaMessageContract.Envelope envelope) {
+        TaskRun run = tasks.getOwnedForWorker(taskRunId);
+        if (!run.getProject().getId().equals(projectId)
+                || !run.getProject().getOwner().getId().equals(ownerId)) {
+            throw new IllegalArgumentException("conversation task ownership mismatch");
+        }
         boolean messageExists = messages.findByTaskRunIdAndDeletedAtIsNull(run.getId()).isPresent();
         boolean briefExists = versions.findByTaskRunIdAndDeletedAtIsNull(run.getId()).isPresent();
         if (messageExists != briefExists) throw new IllegalStateException("partial conversation turn result");
@@ -35,7 +40,7 @@ public class IdeaTurnCompletionService {
             briefs.mergeAiDraft(ownerId, projectId, conversationId, proposals, sourceMessageId, null, run);
             conversations.appendAssistant(ownerId, projectId, conversationId, envelope, run);
         }
-        tasks.adopt(run.getId(), claim.taskAttemptId(), claim.claimToken(), resultJson,
-            run.getInputHash(), "1.0");
+        tasks.adopt(taskRunId, claim.taskAttemptId(), claim.claimToken(), resultJson,
+            inputHash, "1.0");
     }
 }

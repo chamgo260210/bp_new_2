@@ -60,6 +60,23 @@ describe('authenticated SSE client', () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 
+  it('treats an AbortError from a disconnected reader as cleanup', async () => {
+    const controller = new AbortController();
+    const reader = {
+      read: vi.fn(() => new Promise((resolve, reject) => controller.signal.addEventListener(
+        'abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true },
+      ))),
+      cancel: vi.fn(async () => {}),
+      releaseLock: vi.fn(),
+    };
+    const parsing = parseSseStream({ getReader: () => reader }, vi.fn(), controller.signal);
+
+    controller.abort();
+
+    await expect(parsing).resolves.toBeUndefined();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+  });
+
   it('ignores a comment line without dropping data in the same frame', async () => {
     const encoder = new TextEncoder();
     const body = new ReadableStream({
