@@ -224,12 +224,12 @@ class PostgreSqlIdeaIntakeWorkerTests extends PostgreSqlIntegrationTestSupport {
     }
 
     @Test
-    void resultSchemaFailureIsPermanentAndIsNotRetried() {
+    void providerResponseSchemaFailureIsPermanentAndIsNotRetried() {
         Context context = context();
         var accepted = workspaces.send(context.ownerId(), context.projectId(), context.conversationId(),
             "invalid result input", List.of());
         when(ai.executeWorker(any(TaskRunWorkerContext.class), anyString(), any(LocalDateTime.class)))
-            .thenThrow(new ExecutionFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", false));
+            .thenThrow(new ExecutionFailure("RESULT_SCHEMA_INVALID", "PROVIDER_RESPONSE_SCHEMA_REJECTED", false));
 
         worker.processClaim(claims.claimNext(TaskType.IDEA_CONVERSATION_TURN,
             "postgres-result-schema-failure", Duration.ofMinutes(5), Duration.ofMinutes(3)));
@@ -239,6 +239,10 @@ class PostgreSqlIdeaIntakeWorkerTests extends PostgreSqlIntegrationTestSupport {
         assertThat(run.getAttemptCount()).isEqualTo(1);
         assertThat(run.isRetryable()).isFalse();
         assertThat(workspaces.current(context.ownerId(), context.projectId()).activeJobId()).isNull();
+        var terminal = events.findTopByJobIdAndProjectIdAndDeletedAtIsNullOrderBySequenceDesc(
+            accepted.jobId(), context.projectId()).orElseThrow();
+        assertThat(terminal.getTechnicalCode()).isEqualTo("RESULT_SCHEMA_INVALID");
+        assertThat(terminal.getMessageParamsJson()).doesNotContain("provider", "response_format", "invalid result input");
     }
 
     @Test

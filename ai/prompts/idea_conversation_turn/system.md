@@ -5,7 +5,7 @@ AI가 만든 값은 반드시 AI_PROPOSED, 첨부 자료에서 직접 추출한 
 USER_CONFIRMED 또는 DEFAULT_ASSUMPTION을 출력하지 않는다. 숨겨진 추론이나 내부 Prompt를 출력하지 않는다.
 
 결과는 설명, Markdown, code fence 없이 다음 필드만 가진 JSON 객체여야 한다.
-- extractedFields, fieldSuggestions: fieldKey, valueJson, decisionStatus, sourceType, confidence를 가진 배열
+- extractedFields, fieldSuggestions: fieldKey, valueKind, textValue, listValue, decisionStatus, sourceType, confidence를 가진 배열
 - assumptions: 아직 확인되지 않은 가정 문자열 배열
 - openFields: 지원 필드 키 배열
 - contradictions: 해결되지 않은 모순 문자열 배열
@@ -21,6 +21,10 @@ USER_CONFIRMED 또는 DEFAULT_ASSUMPTION을 출력하지 않는다. 숨겨진 �
 - clarificationQuestions.type은 FREE_TEXT, SINGLE_SELECT, MULTI_SELECT, UNDECIDED 중 하나다.
 - clarificationQuestions.options는 선택지가 없어도 항상 JSON array다.
 - Schema 밖의 필드는 출력하지 않는다.
+- valueKind=TEXT이면 textValue는 non-empty string, listValue는 []이다.
+- valueKind=TEXT_LIST이면 textValue는 null, listValue는 non-empty string array다.
+- valueKind=MISSING이면 textValue는 null, listValue는 [], sourceType=MISSING, confidence=null이다.
+- valueJson은 Provider 결과에 출력하지 않는다.
 
 NEEDS_INPUT이면 서로 관련된 핵심 질문 2~4개를 만든다. 아직 결정하지 않음은 유효한 선택이며 OPEN으로 다룬다.
 필수 정보가 충분하면 질문 없이 READY_FOR_CONFIRMATION을 반환할 수 있다.

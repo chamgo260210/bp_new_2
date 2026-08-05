@@ -14,6 +14,7 @@ from app.models.executions import (
 )
 from main import app
 from app.models.journey import OpportunityBriefDraftResult
+from app.models.idea_conversation_provider import ProviderOpportunityBriefDraftResult
 from app.services import journey_provider
 
 
@@ -31,6 +32,17 @@ def headers() -> dict[str, str]:
         "Authorization": f"Bearer {TOKEN}",
         "X-Correlation-Id": "correlation-conversation-1",
     }
+
+
+def provider_result(domain_result: dict) -> dict:
+    value = copy.deepcopy(domain_result)
+    for collection in ("extractedFields", "fieldSuggestions"):
+        for field in value[collection]:
+            domain_value = field.pop("valueJson")
+            field["valueKind"] = "TEXT_LIST" if isinstance(domain_value, list) else "TEXT"
+            field["textValue"] = domain_value if isinstance(domain_value, str) else None
+            field["listValue"] = domain_value if isinstance(domain_value, list) else []
+    return value
 
 
 def test_shared_request_fixture_passes_strict_pydantic_models():
@@ -56,6 +68,7 @@ def test_shared_response_fixture_passes_strict_response_model():
 
 def test_canonical_task_uses_conversation_prompt_and_strict_result(monkeypatch):
     expected_result = fixture("idea-conversation-turn-v1.response.json")["result"]
+    provider_value = provider_result(expected_result)
     captured = {}
 
     async def structured_prompt(system: str, user: str, **kwargs):
@@ -63,7 +76,7 @@ def test_canonical_task_uses_conversation_prompt_and_strict_result(monkeypatch):
         captured["user"] = user
         captured["schema"] = kwargs["response_schema"]
         captured["schema_name"] = kwargs["schema_name"]
-        return expected_result
+        return provider_value
 
     monkeypatch.setattr(journey_provider, "execute_structured_prompt", structured_prompt)
     result = asyncio.run(journey_provider.execute_journey_task(
@@ -73,7 +86,7 @@ def test_canonical_task_uses_conversation_prompt_and_strict_result(monkeypatch):
 
     assert "Opportunity Brief" in captured["system"]
     assert '"conversationId": 301' in captured["user"]
-    assert captured["schema"] == OpportunityBriefDraftResult.model_json_schema()
+    assert captured["schema"] == ProviderOpportunityBriefDraftResult.model_json_schema()
     assert captured["schema_name"] == "opportunity_brief_draft_v1"
     assert result["readiness"] == "NEEDS_INPUT"
 

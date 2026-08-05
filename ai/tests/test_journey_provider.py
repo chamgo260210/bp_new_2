@@ -553,7 +553,8 @@ def valid_conversation_result():
     return {
         "extractedFields": [],
         "fieldSuggestions": [{
-            "fieldKey": "problem", "valueJson": "food waste",
+            "fieldKey": "problem", "valueKind": "TEXT",
+            "textValue": "food waste", "listValue": [],
             "decisionStatus": "OPEN", "sourceType": "AI_PROPOSED",
             "confidence": 0.7,
         }],
@@ -588,7 +589,7 @@ def test_conversation_intake_uses_dedicated_prompt_and_strict_schema(monkeypatch
 
     assert result["fieldSuggestions"][0]["sourceType"] == "AI_PROPOSED"
     assert "Opportunity Brief" in captured["system"]
-    assert captured["schema"] == journey_provider.OpportunityBriefDraftResult.model_json_schema()
+    assert captured["schema"] == journey_provider.ProviderOpportunityBriefDraftResult.model_json_schema()
 
 
 def test_conversation_intake_never_accepts_user_confirmed_from_ai(monkeypatch):

@@ -2,6 +2,15 @@
 
 - 상태: G0 기준선 감사 완료 / 구현 전 설계 동결
 
+## 25. Provider Output Contract Stabilization 반영 (2026-08-06)
+
+- 기존 `OpportunityBriefDraftResult`와 `valueJson` Domain/Backend 계약은 유지한다.
+- OpenAI strict response format에는 `ProviderOpportunityBriefDraftResult`를 사용하며 `valueKind=TEXT|TEXT_LIST|MISSING`, typed nullable value fields로 빈 `Any` schema를 제거했다.
+- Provider 결과는 결정론 mapper로 기존 `valueJson`에 복원한 뒤 Domain DTO로 재검증한다. Initial과 Repair 모두 Provider DTO schema를 사용한다.
+- OpenAI `invalid_request_error/response_format` 400은 `RESULT_SCHEMA_INVALID/PROVIDER_RESPONSE_SCHEMA_REJECTED`, non-retryable 502로 안전하게 분류한다.
+- 실제 `gpt-4o-mini` Provider smoke에서 strict schema 2xx, Provider validation PASSED, Domain mapping PASSED를 확인했다.
+- Migration, Frontend, Worker/Retry/SSE, G4/G5/G6 상태 계약은 변경하지 않았으며 G7은 구현하지 않았다.
+
 ## 24. Conversational Intake Runtime Hotfix R3 반영 (2026-08-05)
 
 - `IDEA_CONVERSATION_TURN` Provider 요청은 `OpportunityBriefDraftResult.model_json_schema()`를 strict `json_schema` response format과 최종 Pydantic validation에 함께 사용한다. 다른 Journey Task는 기존 `json_object` 계약을 유지한다.

@@ -2,6 +2,46 @@
 
 이 문서는 사용자가 Docker/PostgreSQL/OpenAI 환경에서 Runtime Hotfix를 검증하기 위한 절차다. Codex는 브라우저 수동 검증이나 실제 OpenAI 호출 완료를 주장하지 않는다.
 
+## Provider DTO strict-schema 최종 Smoke와 1 Turn
+
+Docker rebuild 후 브라우저로 진행하기 전에 반드시 Provider smoke를 먼저 실행한다.
+
+```powershell
+docker compose build --no-cache ai-server backend
+docker compose up -d ai-server backend
+docker compose exec ai-server python -m app.tools.idea_conversation_provider_smoke
+```
+
+다음 여섯 줄이 모두 있어야 다음 단계로 진행한다.
+
+```text
+provider=openai
+model=<configured model>
+responseFormat=json_schema
+providerStatus=2xx
+providerSchemaValidation=PASSED
+domainMappingValidation=PASSED
+```
+
+실패 출력은 `upstreamStatus`, `safeErrorType`, `safeErrorParam`, `schemaName` 네 항목만 제공한다. `PROVIDER_RESPONSE_SCHEMA_REJECTED`이면 AI container가 최신 코드인지 확인하고, Prompt/Provider body/API key를 수집하지 않는다.
+
+Smoke 통과 후 새 Project에서 다음 synthetic 성격의 입력을 한 번만 전송한다.
+
+> 도서관 좌석 이용 불편을 줄이는 예약 서비스를 검토하고 있습니다. 주요 사용자는 지역 주민이며 우선 지역은 서울입니다.
+
+성공 조건:
+
+- AI access log의 `POST /internal/v1/ai/executions`가 2xx
+- USER Message와 ASSISTANT `QUESTION_SET|BRIEF_REVIEW` Message가 각각 존재
+- Opportunity Brief가 null이 아님
+- Conversation `domainState=NEEDS_INPUT|READY_FOR_CONFIRMATION`
+- `activeJobId=null`
+- TaskRun `SUCCEEDED`
+- terminal `job.completed`
+- 실제 schema Repair가 발생한 경우에만 `RESULT_SCHEMA_REPAIRED` warning과 `job.idea.result.repairing` 존재
+
+Smoke가 PASSED가 아니면 브라우저 검증이나 G7로 진행하지 않는다.
+
 ## R3 Provider Result Schema 및 단일 Repair 확인
 
 R3가 포함된 AI/Backend 이미지를 다시 빌드한다.

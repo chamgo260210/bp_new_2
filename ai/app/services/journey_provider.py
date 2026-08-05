@@ -26,6 +26,10 @@ from app.models.journey import (
     SingleConceptGenerationResult,
     FinalReportResult,
 )
+from app.models.idea_conversation_provider import (
+    ProviderOpportunityBriefDraftResult,
+    provider_result_to_domain,
+)
 
 
 PROMPT_ROOT = Path(__file__).resolve().parents[2] / "prompts"
@@ -33,12 +37,27 @@ logger = logging.getLogger(__name__)
 
 
 class ProviderFailure(Exception):
-    def __init__(self, code: str, reason: str, status_code: int, retryable: bool):
+    def __init__(
+        self,
+        code: str,
+        reason: str,
+        status_code: int,
+        retryable: bool,
+        *,
+        upstream_status: int | None = None,
+        provider_error_type: str | None = None,
+        provider_error_param: str | None = None,
+        schema_name: str | None = None,
+    ):
         super().__init__(reason)
         self.code = code
         self.reason = reason
         self.status_code = status_code
         self.retryable = retryable
+        self.upstream_status = upstream_status
+        self.provider_error_type = provider_error_type
+        self.provider_error_param = provider_error_param
+        self.schema_name = schema_name
 
 
 def _configuration(model_override: str | None = None) -> tuple[str, str, str]:
@@ -104,7 +123,7 @@ async def execute_journey_task(
     conversation_intake = _is_conversation_intake(task_type, text)
     prompt_type = "IDEA_CONVERSATION" if conversation_intake else task_type
     system, user = _load_prompts(prompt_type, text)
-    result_schema = OpportunityBriefDraftResult.model_json_schema() if conversation_intake else None
+    result_schema = ProviderOpportunityBriefDraftResult.model_json_schema() if conversation_intake else None
     if conversation_intake:
         system, user = _conversation_contract_prompt(system, user, result_schema)
     try:
@@ -114,6 +133,7 @@ async def execute_journey_task(
                 user,
                 response_schema=result_schema,
                 schema_name="opportunity_brief_draft_v1",
+                task_type="IDEA_CONVERSATION_TURN",
             )
         else:
             raw_result = await execute_structured_prompt(system, user)
@@ -142,7 +162,11 @@ async def execute_journey_task(
         "FINAL_REPORT_GENERATION": FinalReportResult,
     }
     try:
-        model_type = OpportunityBriefDraftResult if conversation_intake else model_types[task_type]
+        if conversation_intake:
+            return provider_result_to_domain(raw_result).model_dump(
+                by_alias=True, exclude_unset=True
+            )
+        model_type = model_types[task_type]
         return model_type.model_validate(raw_result).model_dump(
             by_alias=True,
             # Spring validates the Idea Origin object as a closed contract and
@@ -152,7 +176,8 @@ async def execute_journey_task(
     except KeyError as failure:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
     except ValidationError as first_failure:
-        issues = _validation_issues(first_failure, model_type)
+        provider_model_type = ProviderOpportunityBriefDraftResult if conversation_intake else model_type
+        issues = _validation_issues(first_failure, provider_model_type)
         if conversation_intake:
             logger.warning(
                 "Journey provider result schema invalid taskType=%s phase=initial issues=%s",
@@ -161,18 +186,16 @@ async def execute_journey_task(
             )
             if on_schema_repair is not None:
                 on_schema_repair(len(issues))
-            repaired_result = await _repair_conversation_result(
-                model_type, raw_result, issues
-            )
+            repaired_result = await _repair_conversation_result(raw_result, issues)
             try:
-                return model_type.model_validate(repaired_result).model_dump(
+                return provider_result_to_domain(repaired_result).model_dump(
                     by_alias=True, exclude_unset=True
                 )
             except ValidationError as repair_failure:
                 logger.warning(
                     "Journey provider result schema invalid taskType=%s phase=repair issues=%s",
                     task_type,
-                    _validation_issues(repair_failure, model_type),
+                    _validation_issues(repair_failure, ProviderOpportunityBriefDraftResult),
                 )
                 raise ProviderFailure(
                     "RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False
@@ -269,11 +292,13 @@ def _validation_issues(failure: ValidationError, model_type) -> list[dict[str, s
 def _conversation_contract_prompt(
     system: str, user: str, result_schema: dict[str, Any]
 ) -> tuple[str, str]:
-    valid_example = OpportunityBriefDraftResult.model_validate({
+    valid_example = ProviderOpportunityBriefDraftResult.model_validate({
         "extractedFields": [],
         "fieldSuggestions": [{
             "fieldKey": "problem",
-            "valueJson": "반복되는 고객 문제",
+            "valueKind": "TEXT",
+            "textValue": "반복되는 고객 문제",
+            "listValue": [],
             "decisionStatus": "OPEN",
             "sourceType": "AI_PROPOSED",
             "confidence": 0.72,
@@ -321,11 +346,10 @@ def _conversation_contract_prompt(
 
 
 async def _repair_conversation_result(
-    model_type,
     raw_result: dict[str, Any],
     issues: list[dict[str, str]],
 ) -> dict[str, Any]:
-    schema = model_type.model_json_schema()
+    schema = ProviderOpportunityBriefDraftResult.model_json_schema()
     system = (
         "You repair one Opportunity Brief result to the supplied strict JSON schema. "
         "Preserve valid information and meaning. Correct only types, canonical literals, "
@@ -343,6 +367,7 @@ async def _repair_conversation_result(
         user,
         response_schema=schema,
         schema_name="opportunity_brief_draft_repair_v1",
+        task_type="IDEA_CONVERSATION_TURN",
     )
 
 
@@ -773,6 +798,7 @@ async def execute_structured_prompt(
     model_override: str | None = None,
     response_schema: dict[str, Any] | None = None,
     schema_name: str | None = None,
+    task_type: str | None = None,
 ) -> dict[str, Any]:
     api_key, model, base_url = _configuration(model_override)
     try:
@@ -815,6 +841,29 @@ async def execute_structured_prompt(
         raise ProviderFailure("RATE_LIMITED", "DEPENDENCY_RATE_LIMITED", 429, True)
     if response.status_code >= 500:
         raise ProviderFailure("DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", 503, True)
+    if response.status_code == 400 and response_schema is not None:
+        provider_error_type, provider_error_param = _safe_provider_error(response)
+        if provider_error_type == "invalid_request_error" and provider_error_param == "response_format":
+            safe_task_type = task_type if task_type == "IDEA_CONVERSATION_TURN" else "STRUCTURED_TASK"
+            safe_schema_name = schema_name if schema_name in {
+                "opportunity_brief_draft_v1", "opportunity_brief_draft_repair_v1"
+            } else "structured_result"
+            logger.warning(
+                "Provider response schema rejected taskType=%s model=%s upstreamStatus=400 providerErrorType=invalid_request_error providerErrorParam=response_format schemaName=%s",
+                safe_task_type,
+                model,
+                safe_schema_name,
+            )
+            raise ProviderFailure(
+                "RESULT_SCHEMA_INVALID",
+                "PROVIDER_RESPONSE_SCHEMA_REJECTED",
+                502,
+                False,
+                upstream_status=400,
+                provider_error_type="invalid_request_error",
+                provider_error_param="response_format",
+                schema_name=safe_schema_name,
+            )
     if response.status_code >= 400:
         raise ProviderFailure("EXECUTION_FAILED", "PERMANENT_EXECUTION_FAILURE", 500, False)
     if len(response.content) > 2 * 1024 * 1024:
@@ -827,3 +876,19 @@ async def execute_structured_prompt(
         return _extract_json(content)
     except (KeyError, IndexError, TypeError, AttributeError, ValueError, json.JSONDecodeError) as failure:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
+
+
+def _safe_provider_error(response) -> tuple[str | None, str | None]:
+    try:
+        payload = response.json()
+        error = payload.get("error") if isinstance(payload, dict) else None
+        if not isinstance(error, dict):
+            return None, None
+        error_type = error.get("type")
+        error_param = error.get("param")
+        return (
+            error_type if error_type in {"invalid_request_error"} else None,
+            error_param if error_param in {"response_format"} else None,
+        )
+    except (TypeError, ValueError, AttributeError):
+        return None, None
