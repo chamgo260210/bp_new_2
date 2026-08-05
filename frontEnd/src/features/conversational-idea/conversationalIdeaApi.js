@@ -27,6 +27,12 @@ export function createConversationalIdeaApi(client, projectId) {
     async confirm(conversationId) {
       return (await client.post(`${base}/opportunity-brief/confirm`, { conversationId })).data;
     },
+    async currentBoundary() {
+      return (await client.get(`${base}/regulatory-boundaries/current`)).data;
+    },
+    async startBoundary(confirmedBriefVersionId) {
+      return (await client.post(`${base}/regulatory-boundaries`, { confirmedBriefVersionId })).data;
+    },
   };
 }
 import { validateWorkspaceMessages } from './messageEnvelope';

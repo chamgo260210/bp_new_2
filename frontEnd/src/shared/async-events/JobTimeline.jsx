@@ -33,6 +33,7 @@ function statusLabel(status) {
     COMPLETED: '완료',
     FAILED: '오류',
     NEEDS_INPUT: '확인 필요',
+    BLOCKED: '수정 필요',
   })[status] ?? '업데이트';
 }
 

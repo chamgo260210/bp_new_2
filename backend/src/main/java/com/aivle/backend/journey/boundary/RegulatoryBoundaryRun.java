@@ -15,7 +15,11 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RegulatoryBoundaryRun extends BaseEntity {
-    public enum State { QUEUED, RUNNING, SUCCEEDED, FAILED }
+    public enum State {
+        QUEUED, CLASSIFYING, ROUTING, FETCHING_EVIDENCE, SCREENING,
+        NORMALIZING_RULES, CHECKING_CONFLICTS, READY, NEEDS_INPUT,
+        BLOCKED, FAILED, STALE
+    }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "project_id", nullable = false) private Project project;
@@ -51,22 +55,54 @@ public class RegulatoryBoundaryRun extends BaseEntity {
 
     public void start() {
         requireState(State.QUEUED);
-        state = State.RUNNING;
+        state = State.CLASSIFYING;
     }
 
-    public void succeed(LocalDateTime now) {
-        requireState(State.RUNNING);
-        state = State.SUCCEEDED;
+    public void advance(State next) {
+        if (next == null || next.ordinal() <= state.ordinal()
+                || next.ordinal() > State.CHECKING_CONFLICTS.ordinal()) {
+            throw new IllegalStateException("invalid boundary run stage transition");
+        }
+        state = next;
+    }
+
+    public void complete(State terminal, LocalDateTime now) {
+        if (state != State.CHECKING_CONFLICTS
+                || !java.util.Set.of(State.READY, State.NEEDS_INPUT, State.BLOCKED).contains(terminal)) {
+            throw new IllegalStateException("invalid boundary run terminal transition");
+        }
+        state = terminal;
         errorCode = null;
         completedAt = now;
     }
 
+    /** Compatibility helper for the G1 foundation service. */
+    public void succeed(LocalDateTime now) {
+        if (state == State.CLASSIFYING) state = State.CHECKING_CONFLICTS;
+        complete(State.READY, now);
+    }
+
     public void fail(String code, LocalDateTime now) {
-        requireState(State.RUNNING);
+        if (state == State.READY || state == State.NEEDS_INPUT || state == State.BLOCKED
+                || state == State.FAILED || state == State.STALE) {
+            throw new IllegalStateException("invalid boundary run state transition");
+        }
         if (code == null || code.isBlank()) throw new IllegalArgumentException("failure code is required");
         state = State.FAILED;
         errorCode = code;
         completedAt = now;
+    }
+
+    public void markStale() {
+        if (state == State.READY || state == State.NEEDS_INPUT || state == State.BLOCKED) state = State.STALE;
+    }
+
+    public void retryQueued() {
+        if (state == State.READY || state == State.NEEDS_INPUT || state == State.BLOCKED || state == State.STALE)
+            throw new IllegalStateException("terminal boundary cannot be requeued");
+        state = State.QUEUED;
+        errorCode = null;
+        completedAt = null;
     }
 
     private void requireState(State expected) {

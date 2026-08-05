@@ -4,6 +4,7 @@ import com.aivle.backend.common.entity.BaseEntity;
 import com.aivle.backend.journey.brief.OpportunityBriefVersion;
 import com.aivle.backend.project.entity.Project;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RegulatoryBoundaryVersion extends BaseEntity {
-    public enum Status { READY, NEEDS_INPUT, BLOCKED, FAILED }
+    public enum Status { READY, NEEDS_INPUT, BLOCKED, FAILED, STALE }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "project_id", nullable = false) private Project project;
@@ -23,11 +24,14 @@ public class RegulatoryBoundaryVersion extends BaseEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Status status;
     @Column(nullable = false, columnDefinition = "TEXT") private String snapshotJson;
     @Column(nullable = false, length = 71) private String snapshotHash;
+    @Column(nullable = false, length = 71) private String briefSnapshotHash;
+    private LocalDateTime staleAt;
 
     public static RegulatoryBoundaryVersion create(RegulatoryBoundaryRun run, int versionNumber,
             Status status, String snapshotJson, String snapshotHash) {
-        if (run.getState() != RegulatoryBoundaryRun.State.SUCCEEDED) {
-            throw new IllegalStateException("boundary version requires a successful run");
+        if (!java.util.Set.of(RegulatoryBoundaryRun.State.READY,
+                RegulatoryBoundaryRun.State.NEEDS_INPUT, RegulatoryBoundaryRun.State.BLOCKED).contains(run.getState())) {
+            throw new IllegalStateException("boundary version requires a terminal run");
         }
         if (versionNumber <= 0) throw new IllegalArgumentException("version number must be positive");
         if (snapshotHash == null || !snapshotHash.startsWith("sha256:")) {
@@ -41,6 +45,15 @@ public class RegulatoryBoundaryVersion extends BaseEntity {
         value.status = status;
         value.snapshotJson = snapshotJson;
         value.snapshotHash = snapshotHash;
+        value.briefSnapshotHash = run.getInputSnapshotHash();
         return value;
+    }
+
+    public void markStale(LocalDateTime now) {
+        if (status != Status.STALE) {
+            status = Status.STALE;
+            staleAt = now;
+            run.markStale();
+        }
     }
 }

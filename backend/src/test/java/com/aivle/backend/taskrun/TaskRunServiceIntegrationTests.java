@@ -76,7 +76,7 @@ class TaskRunServiceIntegrationTests {
         service.cancel(owner.getId(), project.getId(), run.getId());
         assertThatThrownBy(() -> service.adopt(run.getId(), claim.taskAttemptId(), claim.claimToken(), "{}", hash(), "1.0"))
             .isInstanceOfSatisfying(TaskRunFailure.class, failure -> assertThat(failure.getCode()).isEqualTo("AI_RESULT_INVALID"));
-        assertThat(results.findAll()).singleElement()
+        assertThat(results.findByTaskRunId(run.getId())).singleElement()
             .extracting(TaskResult::getValidationState).isEqualTo(TaskResultValidationState.REJECTED);
     }
 

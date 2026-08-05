@@ -27,21 +27,24 @@ export function ConversationalIdeaWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [briefOpen, setBriefOpen] = useState(false);
+  const [boundary, setBoundary] = useState(null);
   const job = useJobEvents(jobId);
 
   const load = async () => {
-    const current = await api.current();
+    const [current, currentBoundary] = await Promise.all([api.current(), api.currentBoundary()]);
     setWorkspace(current);
-    setJobId(current?.activeJobId || null);
+    setBoundary(currentBoundary);
+    setJobId(currentBoundary?.run?.jobId || current?.activeJobId || null);
   };
-  useEffect(() => { let live = true; api.current().then((value) => {
-    if (!live) return; setWorkspace(value); setJobId(value?.activeJobId || null);
+  useEffect(() => { let live = true; Promise.all([api.current(), api.currentBoundary()]).then(([value, currentBoundary]) => {
+    if (!live) return; setWorkspace(value); setBoundary(currentBoundary);
+    setJobId(currentBoundary?.run?.jobId || value?.activeJobId || null);
   }).catch((failure) => live && setError(getUserErrorMessage(failure)));
   return () => { live = false; }; }, [api]);
 
   const lastEvent = job.events.at(-1);
   useEffect(() => {
-    if (!lastEvent || !['COMPLETED', 'FAILED', 'NEEDS_INPUT'].includes(lastEvent.status)) return;
+    if (!lastEvent || !['COMPLETED', 'FAILED', 'NEEDS_INPUT', 'BLOCKED'].includes(lastEvent.status)) return;
     // Loading persisted state is the external synchronization triggered by a durable event.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load().catch((failure) => setError(getUserErrorMessage(failure)));
@@ -103,6 +106,17 @@ export function ConversationalIdeaWorkspace() {
     } catch (failure) { setError(getUserErrorMessage(failure)); }
     finally { setBusy(false); }
   }
+  async function startBoundary() {
+    if (!workspace?.brief?.id) return;
+    setBusy(true); setError('');
+    try {
+      const started = await api.startBoundary(workspace.brief.id);
+      setBoundary((current) => ({ ...current, run: started, version: null, stale: false }));
+      setJobId(started.jobId || null);
+      if (started.status === 'NEEDS_INPUT') setError(started.userMessage || '확정된 Brief가 필요합니다.');
+    } catch (failure) { setError(getUserErrorMessage(failure)); }
+    finally { setBusy(false); }
+  }
 
   const fields = new Map((workspace?.brief?.fields || []).map((field) => [field.fieldKey, field]));
   const contradictions = workspace?.messages?.at(-1)?.contradictions || [];
@@ -141,9 +155,43 @@ export function ConversationalIdeaWorkspace() {
         {!!workspace?.brief?.missingFields?.length && <div className="idea-brief-missing" role="status"><strong>확정 전 필요한 정보</strong><ul>{workspace.brief.missingFields.map((field) => <li key={field}>{labels[field] || field}</li>)}</ul></div>}
         {!!contradictions.length && <div className="idea-brief-missing" role="status"><strong>해결되지 않은 모순</strong><ul>{contradictions.map((item) => <li key={item}>{item}</li>)}</ul></div>}
         <button className="idea-brief-confirm" type="button" disabled={busy || !workspace?.brief || workspace.brief.missingFields.length > 0 || contradictions.length > 0 || workspace.brief.state === 'CONFIRMED'} onClick={() => void confirm()}>Brief 전체 확인</button>
+        <BoundarySummary boundary={boundary} confirmedBrief={workspace?.brief?.state === 'CONFIRMED'}
+          busy={busy} onStart={startBoundary} />
       </aside>
     </div>
   </div>;
+}
+
+export function BoundarySummary({ boundary, confirmedBrief, busy, onStart }) {
+  const status = boundary?.version?.status || boundary?.run?.status;
+  const rules = boundary?.version?.rules || [];
+  const byType = (type) => rules.filter((rule) => rule.ruleType === type);
+  return <section className="idea-boundary" aria-label="Regulatory Boundary">
+    <header><h3>Regulatory Boundary</h3>{status && <span className={`idea-boundary__status status-${status.toLowerCase()}`}>{status}</span>}</header>
+    {!status && <><p>확정된 Brief를 기준으로 공식 근거와 Concept 실행 경계를 생성합니다.</p>
+      <button type="button" disabled={!confirmedBrief || busy} onClick={() => void onStart()}>규제 경계 생성</button></>}
+    {boundary?.stale && <div className="idea-boundary__notice" role="status">Brief가 변경되어 이전 경계는 STALE입니다. 새 경계를 생성해 주세요.</div>}
+    {status === 'READY' && <div className="idea-boundary__groups">
+      <RuleGroup title="허용 가능한 구현 방향" rules={byType('ALLOWED_PATTERN')} />
+      <RuleGroup title="피해야 할 역할·활동" rules={[...byType('PROHIBITED_ROLE'), ...byType('PROHIBITED_ACTIVITY')]} />
+      <RuleGroup title="필수 통제" rules={byType('REQUIRED_CONTROL')} />
+      <RuleGroup title="파트너·자격" rules={byType('REQUIRED_PARTNER')} />
+      <RuleGroup title="필수 고지" rules={byType('REQUIRED_DISCLOSURE')} />
+      {!!boundary.version.sourceWarnings?.length && <div className="idea-boundary__notice"><strong>Source Warning</strong><ul>{boundary.version.sourceWarnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
+    </div>}
+    {status === 'NEEDS_INPUT' && <div className="idea-boundary__notice"><strong>추가 확인이 필요합니다</strong>
+      {(boundary?.version?.questions || []).map((question) => <article key={question.questionId}><h4>{question.question}</h4><p>{question.reason}</p><small>관련 Brief Field: {question.fieldKey}</small></article>)}</div>}
+    {status === 'BLOCKED' && <div className="idea-boundary__blocked"><strong>고정 조건과 규제 경계가 충돌합니다</strong>
+      {(boundary?.version?.conflicts || []).map((conflict) => <article key={conflict.conflictId}><h4>{conflict.affectedFieldKey}</h4><p>{conflict.reason}</p><ul>{conflict.userActionOptions?.map((option) => <li key={option}>{option}</li>)}</ul></article>)}
+      <p>Brief 수정으로 돌아가 새 Version을 확인해 주세요.</p></div>}
+    {status === 'FAILED' && <div className="idea-boundary__notice" role="alert">규제 경계를 생성하지 못했습니다. {boundary?.run?.retryable ? '잠시 후 다시 시도할 수 있습니다.' : '입력과 설정을 확인해 주세요.'}
+      {boundary?.run?.retryable && <button type="button" disabled={busy} onClick={() => void onStart()}>규제 경계 다시 시도</button>}</div>}
+  </section>;
+}
+
+function RuleGroup({ title, rules }) {
+  if (!rules.length) return null;
+  return <section><h4>{title}</h4><ul>{rules.map((rule) => <li key={rule.ruleId}><strong>{rule.title}</strong><p>{rule.normalizedRequirement}</p></li>)}</ul></section>;
 }
 
 function BriefField({ fieldKey, field, disabled, onSave, onDecide }) {

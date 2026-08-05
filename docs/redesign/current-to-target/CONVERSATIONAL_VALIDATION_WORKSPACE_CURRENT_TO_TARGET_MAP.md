@@ -363,3 +363,22 @@ Typography는 `.idea-workspace` 내부 semantic size만 축소했다. Project ti
 V3는 additive이며 기존 Journey/Idea Source/Origin/G2 Event 테이블을 삭제하거나
 rename하지 않는다. Frontend Docker build flag를 compose build arg로 전달할 수 있게 해
 사용자가 G3 Workspace를 PostgreSQL compose 환경에서 검증할 수 있다.
+
+## 19. G4 Regulatory Boundary 구현 반영 (2026-08-05)
+
+| 기존 자산 | G4 분류 | 실제 연결 결과 |
+|---|---|---|
+| `regulatory_boundary_runs/versions`, `boundary_*` | 재사용+V4 확장 | Brief hash, 세부 Run 상태, stale, 구조화 Rule/Evidence/Question을 additive 열로 보존 |
+| 기존 Legal Source route/MOLEG/screening | Adapter 재사용 | 공식 Evidence 조회까지만 재사용하고 Boundary normalization은 `REGULATORY_BOUNDARY_GENERATION` strict 계약으로 분리 |
+| Legal Precheck PASS/FAIL·plainSummary guardrail | 레거시 유지/미재사용 | 기존 Journey는 유지하지만 G4 Rule 또는 G5 입력으로 승격하지 않음 |
+| G3-H TaskRun lease/retry/recovery | 재사용 | Boundary 전용 Worker가 동일 DB claim, 3회 제한 retry, expired lease recovery 사용 |
+| G2 JobEvent/SSE/Timeline | 재사용+확장 | Boundary 실제 단계와 BLOCKED terminal 상태, 안전한 message mapper 연결 |
+| G3 Confirmed Brief | 상위 정본 | 최신 CONFIRMED Version ID/hash와 구조화 provenance만 Boundary 입력으로 사용 |
+| Conversational Idea Workspace | 제한 확장 | 기존 Brief panel 안에 READY/NEEDS_INPUT/BLOCKED/FAILED 요약만 추가; 제목·Stepper·기존 fallback 유지 |
+| Concept Generator/Legal Report | 미변경 | G5/G9 범위로 유지 |
+
+G4의 Rule dedupe key는 `ruleType + structureKey + canonical normalizedRequirement + canonical appliesWhen`이다.
+Evidence는 Boundary Version 안에서 `lawName + article + effectiveDate + contentHash`로 중복을 막는다.
+최신 Confirmed Brief ID/hash와 불일치하는 과거 Boundary는 삭제하지 않고 `STALE`로 보존하며
+current API와 Concept Builder 입력에서 제외한다. G5는 `conceptBuilderAllowed=true`인 `READY`
+Version의 명시적 입력 계약만 사용할 수 있다.

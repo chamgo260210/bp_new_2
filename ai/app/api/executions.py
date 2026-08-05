@@ -19,7 +19,7 @@ TASK_TYPES = {
     "DETAILED_ANALYSIS", "PERSONA_CARD_GENERATION", "PERSONA_INTERVIEW",
     "INTERVIEW_SYNTHESIS", "MARKETING_GENERATION", "MARKETING_COMPARISON",
     "FINAL_REPORT_GENERATION",
-    "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION",
+    "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION", "REGULATORY_BOUNDARY_GENERATION",
 }
 
 
@@ -130,7 +130,7 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
         "QUICK_ASSESSMENT", "DETAILED_ANALYSIS", "PERSONA_CARD_GENERATION",
         "PERSONA_INTERVIEW", "INTERVIEW_SYNTHESIS",
         "MARKETING_GENERATION", "MARKETING_COMPARISON", "FINAL_REPORT_GENERATION",
-        "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION",
+        "IDEA_LEGAL_PRECHECK", "CONCEPT_LEGAL_VALIDATION", "REGULATORY_BOUNDARY_GENERATION",
     }:
         return internal_error(correlation, "DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", 503, True,
                               body.taskRunId, body.taskAttemptId)
@@ -143,7 +143,10 @@ async def execute(request: Request, body: InternalExecutionRequestV1):
     provenance = {"category": "AI_PROPOSAL", "statementKey": "interpretation-1", "sourceKeys": source_keys,
                   "externalSourceReferences": [], "generatedAt": generated_at, "verificationNeeded": True}
     try:
-        if body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL_BATCH":
+        if body.taskType == "REGULATORY_BOUNDARY_GENERATION":
+            from app.legal.boundary import execute_regulatory_boundary
+            result = await execute_regulatory_boundary(text, body.input)
+        elif body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL_BATCH":
             from app.legal.concept_validation import execute_concept_legal_validation_batch
             result = await execute_concept_legal_validation_batch(body.input, text)
         elif body.taskType == "CONCEPT_LEGAL_VALIDATION" and body.input.get("validationMode") == "GUARDRAIL":

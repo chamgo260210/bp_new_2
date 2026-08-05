@@ -134,3 +134,45 @@ QUEUED/만료 RUNNING TaskRun을 자동 재개하지 못했다.
 
 - G4는 confirmed Brief의 구조화 provenance와 동일 TaskRun/JobEvent worker 계약을 사용한다.
 - G4 Regulatory Boundary, Concept Generator, 새 화면, 인증 방식은 변경하지 않는다.
+
+## ADR-CVW-0004 — G4 Regulatory Boundary 구조화 V4
+
+- 상태: 승인됨
+- 결정일: 2026-08-05
+
+### 배경
+
+G1 V2의 Boundary 표는 Version과 기본 Rule/Evidence/Question 행을 제공하지만 다음 G4
+불변식을 직접 보존하지 못한다.
+
+- Run의 실제 분류·라우팅·조회·선별·정규화·충돌 단계와 `STALE`
+- Boundary Version이 기준으로 삼은 Brief hash
+- Evidence의 source type, plain summary, 관련성, 조회 시각, content hash
+- Rule의 structure key, title/description, normalized requirement, appliesWhen, source status,
+  파트너·자격·고지·대안
+- Question의 answer type/options/required 및 Rule/Evidence 참조
+
+기존 `statement`, `rationale`, `source_reference`류 문자열에 새 의미를 겹쳐 넣으면 검색,
+검증, 중복 제거 및 G5 입력 계약이 불명확해진다.
+
+### 결정
+
+additive `V4__regulatory_boundary_contract.sql`을 적용한다.
+
+1. 기존 Boundary 표와 열은 삭제하거나 rename하지 않는다.
+2. Run 상태 check를 G4 pipeline/terminal/stale 상태로 확장하고 동일
+   `(project_id, brief_version_id, input_snapshot_hash)`와 TaskRun 연결을 유일하게 유지한다.
+3. Version에 `brief_snapshot_hash`, `stale_at`을 추가한다.
+4. Evidence·Rule·Question에 G4 구조 열과 검증 constraint/index를 추가한다.
+5. 기존 G1 행은 삭제하지 않으며 새 필수 열에는 명시적인 legacy warning 값만 적용한다.
+   기존 Legal Precheck 데이터를 Boundary Rule로 추측 변환하지 않는다.
+6. 동일 Evidence key는 Boundary Version + 법령명 + 조문 + 시행일 + content hash이고,
+   Rule dedupe key는 `ruleType + structureKey + canonical normalizedRequirement + canonical appliesWhen`이다.
+7. 공식 Evidence 조회는 기존 Legal Source pipeline을 재사용하지만 PASS/FAIL gate와
+   plainSummary→guardrail 복사 방식은 재사용하지 않는다.
+
+### 영향
+
+- clean 및 V1/V2/V3→V4 Migration과 PostgreSQL repository/lease/idempotency를 검증한다.
+- G5는 `READY` Boundary의 explicit Concept Builder input만 소비한다.
+- 기존 Legal Precheck, Concept Generator, Legal Report와 인증 구조는 변경하지 않는다.

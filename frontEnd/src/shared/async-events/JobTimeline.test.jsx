@@ -24,4 +24,12 @@ describe('JobTimeline', () => {
     expect(screen.queryByText(/INTERNAL_DIAGNOSTIC/)).not.toBeInTheDocument();
     expect(screen.getByRole('list')).toHaveAttribute('aria-live', 'polite');
   });
+
+  it('maps boundary blocked events without exposing technical codes', () => {
+    render(<JobTimeline events={[{ sequence: 1, status: 'BLOCKED', messageKey: 'job.boundary.blocked',
+      technicalCode: 'BOUNDARY_INTERNAL' }]} />);
+    expect(screen.getByText('고정 조건과 규제 경계가 충돌합니다.')).toBeInTheDocument();
+    expect(screen.getByText('수정 필요')).toBeInTheDocument();
+    expect(screen.queryByText('BOUNDARY_INTERNAL')).not.toBeInTheDocument();
+  });
 });

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class JobEvent extends BaseEntity {
-    public enum Status { QUEUED, RUNNING, COMPLETED, FAILED, NEEDS_INPUT }
+    public enum Status { QUEUED, RUNNING, COMPLETED, FAILED, NEEDS_INPUT, BLOCKED }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(nullable = false, length = 64) private String jobId;

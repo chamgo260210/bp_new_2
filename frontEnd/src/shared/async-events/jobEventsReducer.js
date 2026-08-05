@@ -7,7 +7,7 @@ export const initialJobEventsState = {
   terminal: false,
 };
 
-export const TERMINAL_JOB_STATUSES = new Set(['COMPLETED', 'FAILED', 'NEEDS_INPUT']);
+export const TERMINAL_JOB_STATUSES = new Set(['COMPLETED', 'FAILED', 'NEEDS_INPUT', 'BLOCKED']);
 
 export function isTerminalJobEvent(event) {
   return TERMINAL_JOB_STATUSES.has(event?.status);

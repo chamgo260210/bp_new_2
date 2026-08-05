@@ -159,6 +159,28 @@ def test_legal_source_task_forwards_incremental_contract(monkeypatch):
     assert response.json()["result"]["taskType"] == "IDEA_LEGAL_PRECHECK"
 
 
+def test_regulatory_boundary_task_uses_boundary_pipeline(monkeypatch):
+    monkeypatch.setenv("AI_INTERNAL_SERVICE_TOKEN", TOKEN)
+    async def boundary_result(text, task_input):
+        assert task_input["confirmedBriefVersionId"] == 7
+        return {"taskType": "REGULATORY_BOUNDARY_GENERATION", "sourceStatus": "COMPLETE",
+            "registryVersion": "legal-registry-v1", "routes": [], "evidence": [], "rules": [],
+            "questions": [], "conflicts": [], "status": "NEEDS_INPUT",
+            "userActionOptions": [], "sourceWarnings": ["NO_EVIDENCE"]}
+    monkeypatch.setattr("app.legal.boundary.execute_regulatory_boundary", boundary_result)
+    body = request_body("REGULATORY_BOUNDARY_GENERATION")
+    body["input"].update({"confirmedBriefVersionId": 7, "confirmedBriefHash": "sha256:" + "a" * 64,
+        "briefFields": [], "mode": "FULL", "rerunCategories": [], "confirmedFacts": [],
+        "registryVersion": "legal-registry-v1"})
+    canonical = unicodedata.normalize("NFC", json.dumps({key: body[key] for key in
+        ("contractVersion", "taskType", "taskSchemaVersion", "locale", "input")},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    body["canonicalInputHash"] = "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
+    response = client.post("/internal/v1/ai/executions", json=body, headers=headers())
+    assert response.status_code == 200
+    assert response.json()["result"]["status"] == "NEEDS_INPUT"
+
+
 def test_unknown_field_rejected(monkeypatch):
     monkeypatch.setenv("AI_INTERNAL_SERVICE_TOKEN", TOKEN)
     body = request_body(); body["unexpected"] = True

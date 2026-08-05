@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class BoundaryQuestion extends BaseEntity {
     public enum State { OPEN, ANSWERED }
+    public enum AnswerType { TEXT, SINGLE_SELECT, MULTI_SELECT, BOOLEAN }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "project_id", nullable = false) private Project project;
@@ -25,9 +26,21 @@ public class BoundaryQuestion extends BaseEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private State state;
     @Column(columnDefinition = "TEXT") private String answerJson;
     private LocalDateTime answeredAt;
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private AnswerType answerType;
+    @Column(nullable = false, columnDefinition = "TEXT") private String optionsJson;
+    @Column(nullable = false) private boolean required;
+    @Column(nullable = false, columnDefinition = "TEXT") private String relatedRuleIdsJson;
+    @Column(nullable = false, columnDefinition = "TEXT") private String relatedEvidenceIdsJson;
 
     public static BoundaryQuestion open(RegulatoryBoundaryVersion boundaryVersion, String questionKey,
             String question, String reason, String targetBriefField) {
+        return open(boundaryVersion, questionKey, targetBriefField, question, reason,
+            AnswerType.TEXT, "[]", true, "[]", "[]");
+    }
+
+    public static BoundaryQuestion open(RegulatoryBoundaryVersion boundaryVersion, String questionKey,
+            String targetBriefField, String question, String reason, AnswerType answerType,
+            String optionsJson, boolean required, String relatedRuleIdsJson, String relatedEvidenceIdsJson) {
         if (questionKey == null || questionKey.isBlank()) throw new IllegalArgumentException("question key is required");
         if (question == null || question.isBlank()) throw new IllegalArgumentException("question is required");
         if (reason == null || reason.isBlank()) throw new IllegalArgumentException("question reason is required");
@@ -39,6 +52,11 @@ public class BoundaryQuestion extends BaseEntity {
         value.reason = reason;
         value.targetBriefField = targetBriefField;
         value.state = State.OPEN;
+        value.answerType = answerType;
+        value.optionsJson = optionsJson;
+        value.required = required;
+        value.relatedRuleIdsJson = relatedRuleIdsJson;
+        value.relatedEvidenceIdsJson = relatedEvidenceIdsJson;
         return value;
     }
 

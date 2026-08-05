@@ -24,7 +24,7 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .locations("classpath:db/migration")
             .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
         flyway.validate();
 
         var appliedVersions = Arrays.stream(flyway.info().applied())
@@ -32,8 +32,8 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .map(info -> info.getVersion().getVersion())
             .toList();
 
-        assertThat(appliedVersions).containsExactly("1", "2", "3");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
+        assertThat(appliedVersions).containsExactly("1", "2", "3", "4");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
 
         try (Connection connection = DriverManager.getConnection(
                  POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -94,12 +94,12 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .locations("classpath:db/migration")
             .load();
 
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
-        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("3");
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("4");
     }
 
     @Test
-    void upgradesAnExistingV2SchemaWithOnlyV3Hardening() throws Exception {
+    void upgradesAnExistingV2SchemaThroughV4Hardening() throws Exception {
         String schema = "upgrade_v2_" + UUID.randomUUID().toString().replace("-", "");
         Flyway baseline = Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
@@ -108,14 +108,36 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
         Flyway upgrade = Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
-        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("3");
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("4");
         try (Connection connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             assertThat(columnNullable(connection, schema, "idea_messages", "message_type")).isFalse();
             assertThat(columnNullable(connection, schema, "opportunity_field_values", "user_confirmed")).isFalse();
             assertThat(foreignKeyExists(connection, schema, "opportunity_field_values", "source_message_id")).isTrue();
             assertThat(foreignKeyExists(connection, schema, "opportunity_field_values", "source_attachment_id")).isTrue();
+        }
+    }
+
+    @Test
+    void upgradesAnExistingV3SchemaWithOnlyV4BoundaryContract() throws Exception {
+        String schema = "upgrade_v3_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway baseline = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").target("3").load();
+        assertThat(baseline.migrate().migrationsExecuted).isEqualTo(3);
+        Flyway upgrade = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").load();
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("4");
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+            assertThat(columnNullable(connection, schema, "regulatory_boundary_versions", "brief_snapshot_hash")).isFalse();
+            assertThat(columnNullable(connection, schema, "boundary_evidence", "content_hash")).isFalse();
+            assertThat(columnNullable(connection, schema, "boundary_rules", "normalized_requirement")).isFalse();
+            assertThat(columnNullable(connection, schema, "boundary_questions", "answer_type")).isFalse();
+            assertThat(indexExists(connection, schema, "uk_boundary_evidence_content")).isTrue();
         }
     }
 

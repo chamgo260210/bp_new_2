@@ -26,4 +26,11 @@ describe('job events reducer', () => {
     expect(state.terminal).toBe(true);
     expect(state.connectionState).toBe('terminal');
   });
+
+  it('treats a blocked regulatory boundary as terminal', () => {
+    const state = jobEventsReducer(initialJobEventsState, {
+      type: 'APPEND', events: [{ sequence: 1, status: 'BLOCKED' }],
+    });
+    expect(state.terminal).toBe(true);
+  });
 });
