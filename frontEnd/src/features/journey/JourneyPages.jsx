@@ -5,6 +5,7 @@ import { useApiClient } from '../../shared/api/ApiClientProvider.jsx';
 import { getUserErrorMessage } from '../../shared/api/apiError.js';
 import { createJourneyApi } from './journeyApi.js';
 import { journeyFailureMessage, legalSourceMessage } from './journeyFailure.js';
+import { ConversationalIdeaWorkspace } from '../conversational-idea/ConversationalIdeaWorkspace.jsx';
 import './journey.css';
 
 const readinessLabel = {
@@ -46,6 +47,13 @@ function ResultList({ title, items }) {
 }
 
 export function IdeaJourneyPage() {
+  if (import.meta.env.VITE_CONVERSATIONAL_VALIDATION_WORKSPACE_ENABLED === 'true') {
+    return <ConversationalIdeaWorkspace />;
+  }
+  return <LegacyIdeaJourneyPage />;
+}
+
+function LegacyIdeaJourneyPage() {
   const { projectId } = useParams();
   const client = useApiClient();
   const api = useMemo(() => createJourneyApi(client, projectId), [client, projectId]);

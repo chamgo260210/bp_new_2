@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("postgres")
 class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport {
     @Test
-    void appliesAndValidatesSingleBaselineOnEmptyPostgreSqlSchema() throws Exception {
+    void appliesAndValidatesBaselineAndAdditiveWorkspaceMigrationOnEmptyPostgreSqlSchema() throws Exception {
         String schema = "baseline_" + UUID.randomUUID().toString().replace("-", "");
         Flyway flyway = Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
@@ -24,7 +24,7 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .locations("classpath:db/migration")
             .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
         flyway.validate();
 
         var appliedVersions = Arrays.stream(flyway.info().applied())
@@ -32,8 +32,8 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             .map(info -> info.getVersion().getVersion())
             .toList();
 
-        assertThat(appliedVersions).containsExactly("1");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
+        assertThat(appliedVersions).containsExactly("1", "2", "3");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
 
         try (Connection connection = DriverManager.getConnection(
                  POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -47,7 +47,11 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
                 "idea_sources", "idea_versions", "idea_origin_versions",
                 "legal_precheck_runs", "legal_precheck_versions", "legal_guardrail_sets",
                 "concept_eligibility_batches", "concept_drafts", "concept_versions",
-                "persona_studies", "marketing_workspaces", "final_reports");
+                "persona_studies", "marketing_workspaces", "final_reports",
+                "idea_conversations", "idea_messages", "idea_attachments",
+                "opportunity_brief_versions", "opportunity_field_values",
+                "regulatory_boundary_runs", "regulatory_boundary_versions",
+                "boundary_rules", "boundary_evidence", "boundary_questions", "job_events");
 
             // Final effects formerly supplied by Java V5 and V10.
             assertThat(columnNullable(connection, schema, "users", "email")).isTrue();
@@ -65,6 +69,53 @@ class PostgreSqlBaselineMigrationTests extends PostgreSqlIntegrationTestSupport 
             assertThat(indexExists(connection, schema, "idx_financial_journey_concept")).isTrue();
             assertThat(foreignKeyExists(connection, schema, "task_results", "task_attempt_id")).isTrue();
             assertThat(foreignKeyExists(connection, schema, "concept_versions", "eligibility_batch_id")).isTrue();
+            assertThat(foreignKeyExists(connection, schema, "job_events", "task_run_id")).isTrue();
+            assertThat(indexExists(connection, schema, "idx_job_event_replay")).isTrue();
+        }
+    }
+
+    @Test
+    void upgradesAnExistingV1SchemaWithOnlyTheAdditiveWorkspaceMigration() {
+        String schema = "upgrade_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway baseline = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema)
+            .schemas(schema)
+            .locations("classpath:db/migration")
+            .target("1")
+            .load();
+
+        assertThat(baseline.migrate().migrationsExecuted).isEqualTo(1);
+
+        Flyway upgrade = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema)
+            .schemas(schema)
+            .locations("classpath:db/migration")
+            .load();
+
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("3");
+    }
+
+    @Test
+    void upgradesAnExistingV2SchemaWithOnlyV3Hardening() throws Exception {
+        String schema = "upgrade_v2_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway baseline = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").target("2").load();
+        assertThat(baseline.migrate().migrationsExecuted).isEqualTo(2);
+        Flyway upgrade = Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .defaultSchema(schema).schemas(schema).locations("classpath:db/migration").load();
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("3");
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+            assertThat(columnNullable(connection, schema, "idea_messages", "message_type")).isFalse();
+            assertThat(columnNullable(connection, schema, "opportunity_field_values", "user_confirmed")).isFalse();
+            assertThat(foreignKeyExists(connection, schema, "opportunity_field_values", "source_message_id")).isTrue();
+            assertThat(foreignKeyExists(connection, schema, "opportunity_field_values", "source_attachment_id")).isTrue();
         }
     }
 

@@ -31,7 +31,7 @@ class PostgreSqlContainerSmokeTests extends PostgreSqlIntegrationTestSupport {
     }
 
     @Test
-    void startsPinnedPostgreSqlAndAppliesAllBaselineMigrations() {
+    void startsPinnedPostgreSqlAndAppliesAllMigrations() {
         String version = jdbcTemplate.queryForObject("select version()", String.class);
         String timezone = jdbcTemplate.queryForObject("show timezone", String.class);
         String encoding = jdbcTemplate.queryForObject(
@@ -42,12 +42,12 @@ class PostgreSqlContainerSmokeTests extends PostgreSqlIntegrationTestSupport {
         assertThat(version).contains("PostgreSQL 17.10");
         assertThat(timezone).isEqualTo("UTC");
         assertThat(encoding).isEqualTo("UTF8");
-        assertThat(flyway.info().applied()).hasSize(1);
+        assertThat(flyway.info().applied()).hasSize(3);
         assertThat(flyway.info().current().getVersion().getVersion())
-            .isEqualTo("1");
+            .isEqualTo("3");
         System.out.printf(
-            "D2_PG_FRESH postgres=\"%s\" flywayLatest=1 "
-                + "applied=1 applicationContext=PASS "
+            "D2_PG_FRESH postgres=\"%s\" flywayLatest=3 "
+                + "applied=3 applicationContext=PASS "
                 + "ddlAutoValidate=PASS%n",
             version
         );

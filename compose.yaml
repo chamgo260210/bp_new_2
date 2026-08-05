@@ -156,6 +156,8 @@ services:
     build:
       context: .
       dockerfile: frontEnd/Dockerfile
+      args:
+        VITE_CONVERSATIONAL_VALIDATION_WORKSPACE_ENABLED: ${VITE_CONVERSATIONAL_VALIDATION_WORKSPACE_ENABLED:-false}
     depends_on:
       backend:
         condition: service_healthy

@@ -20,19 +20,21 @@ public interface TaskRunRepository extends JpaRepository<TaskRun, String> {
     Optional<TaskRun> findFirstByProjectIdAndTaskTypeAndSubjectTypeAndSubjectIdAndInputHashAndStateIn(
         Long projectId, com.aivle.backend.taskrun.domain.TaskType taskType, String subjectType,
         String subjectId, String inputHash, List<TaskRunState> states);
+    List<TaskRun> findByProjectIdAndSubjectTypeAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(
+        Long projectId, String subjectType);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from TaskRun r join fetch r.project where r.id=:id")
     Optional<TaskRun> findLocked(@Param("id") String id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from TaskRun r join fetch r.project where r.state in :states order by r.createdAt, r.id")
-    List<TaskRun> findClaimable(@Param("states") List<TaskRunState> states, Pageable pageable);
+    @Query("select r from TaskRun r join fetch r.project where r.state in :states and r.nextAttemptAt<=:now order by r.createdAt, r.id")
+    List<TaskRun> findClaimable(@Param("states") List<TaskRunState> states, @Param("now") LocalDateTime now, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from TaskRun r join fetch r.project where r.taskType=:taskType and r.state in :states order by r.createdAt, r.id")
+    @Query("select r from TaskRun r join fetch r.project where r.taskType=:taskType and r.state in :states and r.nextAttemptAt<=:now order by r.createdAt, r.id")
     List<TaskRun> findClaimableByType(@Param("taskType") com.aivle.backend.taskrun.domain.TaskType taskType,
-        @Param("states") List<TaskRunState> states, Pageable pageable);
+        @Param("states") List<TaskRunState> states, @Param("now") LocalDateTime now, Pageable pageable);
 
     @Query("select r from TaskRun r where r.state=:state and r.updatedAt<:cutoff")
     List<TaskRun> findStale(@Param("state") TaskRunState state, @Param("cutoff") LocalDateTime cutoff);

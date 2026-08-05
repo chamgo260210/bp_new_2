@@ -54,7 +54,7 @@ class TaskRunServiceIntegrationTests {
         assertThatThrownBy(() -> service.create(owner.getId(), project.getId(), TaskType.IDEA_INTERPRETATION,
             "IDEA_INTERPRETATION_RUN", "subject-1", "{}", hash(), "other-key", "correlation-1", 3))
             .isInstanceOfSatisfying(TaskRunFailure.class, failure -> assertThat(failure.getCode()).isEqualTo("TASK_ALREADY_RUNNING"));
-        TaskRunService.Claim claim = service.claimNext("worker-1", Duration.ofSeconds(30), Duration.ofMinutes(2));
+        TaskRunService.Claim claim = service.claim(run.getId(), "worker-1", Duration.ofSeconds(30), Duration.ofMinutes(2));
         service.startExecution(run.getId(), claim.taskAttemptId(), claim.claimToken());
         service.adopt(run.getId(), claim.taskAttemptId(), claim.claimToken(), "{\"readiness\":\"APPROPRIATE\"}", hash(), "1.0");
         TaskRun completed = service.getOwned(owner.getId(), project.getId(), run.getId());
@@ -71,7 +71,7 @@ class TaskRunServiceIntegrationTests {
             "IDEA_INTERPRETATION_RUN", "subject-2", "{}", hash(), "create-key-2", "correlation-2", 3);
         assertThatThrownBy(() -> service.getOwned(other.getId(), project.getId(), run.getId()))
             .isInstanceOfSatisfying(TaskRunFailure.class, failure -> assertThat(failure.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
-        TaskRunService.Claim claim = service.claimNext("worker-1", Duration.ofSeconds(30), Duration.ofMinutes(2));
+        TaskRunService.Claim claim = service.claim(run.getId(), "worker-1", Duration.ofSeconds(30), Duration.ofMinutes(2));
         service.startExecution(run.getId(), claim.taskAttemptId(), claim.claimToken());
         service.cancel(owner.getId(), project.getId(), run.getId());
         assertThatThrownBy(() -> service.adopt(run.getId(), claim.taskAttemptId(), claim.claimToken(), "{}", hash(), "1.0"))
@@ -85,9 +85,10 @@ class TaskRunServiceIntegrationTests {
         User owner = users.saveAndFlush(User.create("task-api-owner@example.com", "hash", "owner"));
         User other = users.saveAndFlush(User.create("task-api-other@example.com", "hash", "other"));
         Project project = projects.saveAndFlush(Project.create(owner, "task api project", null, null));
-        TaskRun run = service.create(owner.getId(), project.getId(), TaskType.IDEA_INTERPRETATION,
-            "IDEA_INTERPRETATION_RUN", "subject-api", "{}", hash(), "create-api", "correlation-api", 3);
-        TaskRunService.Claim claim = service.claimNext("worker-api", Duration.ofSeconds(30), Duration.ofMinutes(2));
+        TaskRun run = service.create(owner.getId(), project.getId(), TaskType.QUICK_ASSESSMENT,
+            "TASK_API_TEST", "subject-api", "{}",
+            hasher.hash(TaskType.QUICK_ASSESSMENT, "1.0", "ko-KR", "{}"), "create-api", "correlation-api", 3);
+        TaskRunService.Claim claim = service.claim(run.getId(), "worker-api", Duration.ofSeconds(30), Duration.ofMinutes(2));
         service.startExecution(run.getId(), claim.taskAttemptId(), claim.claimToken());
         service.fail(run.getId(), claim.taskAttemptId(), claim.claimToken(), "DEPENDENCY_UNAVAILABLE", "MODEL_DEPENDENCY_UNAVAILABLE", true);
 
@@ -116,16 +117,17 @@ class TaskRunServiceIntegrationTests {
     void expiredLeaseAutomaticallyQueuesAnotherAttemptUntilLimitIsExhausted() {
         User owner = users.saveAndFlush(User.create("task-recovery@example.com", "hash", "owner"));
         Project project = projects.saveAndFlush(Project.create(owner, "task recovery", null, null));
-        TaskRun run = service.create(owner.getId(), project.getId(), TaskType.IDEA_INTERPRETATION,
-            "IDEA_INTERPRETATION_RUN", "subject-recovery", "{}", hash(), "recovery-key", "correlation-recovery", 2);
+        TaskRun run = service.create(owner.getId(), project.getId(), TaskType.QUICK_ASSESSMENT,
+            "TASK_RECOVERY_TEST", "subject-recovery", "{}",
+            hasher.hash(TaskType.QUICK_ASSESSMENT, "1.0", "ko-KR", "{}"), "recovery-key", "correlation-recovery", 2);
 
-        TaskRunService.Claim first = service.claimNext("worker-1", Duration.ZERO, Duration.ofMinutes(2));
-        assertThat(service.recoverExpired(Duration.ZERO)).isEqualTo(1);
+        TaskRunService.Claim first = service.claim(run.getId(), "worker-1", Duration.ZERO, Duration.ofMinutes(2));
+        assertThat(service.recoverExpired(Duration.ZERO, java.util.List.of(TaskType.QUICK_ASSESSMENT))).isEqualTo(1);
         assertThat(service.getOwned(owner.getId(), project.getId(), run.getId()).getState()).isEqualTo(TaskRunState.QUEUED);
 
-        TaskRunService.Claim second = service.claimNext("worker-2", Duration.ZERO, Duration.ofMinutes(2));
+        TaskRunService.Claim second = service.claim(run.getId(), "worker-2", Duration.ZERO, Duration.ofMinutes(2));
         assertThat(second.taskAttemptId()).isNotEqualTo(first.taskAttemptId());
-        assertThat(service.recoverExpired(Duration.ZERO)).isEqualTo(1);
+        assertThat(service.recoverExpired(Duration.ZERO, java.util.List.of(TaskType.QUICK_ASSESSMENT))).isEqualTo(1);
         TaskRun exhausted = service.getOwned(owner.getId(), project.getId(), run.getId());
         assertThat(exhausted.getState()).isEqualTo(TaskRunState.TIMED_OUT);
         assertThat(exhausted.isRetryable()).isFalse();
@@ -141,7 +143,7 @@ class TaskRunServiceIntegrationTests {
         TaskRun run = service.create(owner.getId(), project.getId(), TaskType.IDEA_LEGAL_PRECHECK,
             "IDEA_ORIGIN_VERSION", "1", input, inputHash, "legal-auto-retry", "legal-correlation", 2);
 
-        TaskRunService.Claim first = service.claimNext(TaskType.IDEA_LEGAL_PRECHECK,
+        TaskRunService.Claim first = service.claim(run.getId(),
             "legal-worker-1", Duration.ofSeconds(30), Duration.ofMinutes(2));
         service.startExecution(run.getId(), first.taskAttemptId(), first.claimToken());
         service.failWithLegalAutoRetry(run.getId(), first.taskAttemptId(), first.claimToken(),
@@ -149,7 +151,7 @@ class TaskRunServiceIntegrationTests {
         assertThat(service.getOwned(owner.getId(), project.getId(), run.getId()).getState())
             .isEqualTo(TaskRunState.QUEUED);
 
-        TaskRunService.Claim second = service.claimNext(TaskType.IDEA_LEGAL_PRECHECK,
+        TaskRunService.Claim second = service.claim(run.getId(),
             "legal-worker-2", Duration.ofSeconds(30), Duration.ofMinutes(2));
         service.startExecution(run.getId(), second.taskAttemptId(), second.claimToken());
         service.failWithLegalAutoRetry(run.getId(), second.taskAttemptId(), second.claimToken(),

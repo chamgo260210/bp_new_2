@@ -546,3 +546,58 @@ def test_concept_generation_respects_configured_concurrency(monkeypatch):
     )
 
     assert maximum_active == 2
+
+
+def valid_conversation_result():
+    return {
+        "extractedFields": [],
+        "fieldSuggestions": [{
+            "fieldKey": "problem", "valueJson": "food waste",
+            "decisionStatus": "OPEN", "sourceType": "AI_PROPOSED",
+            "confidence": 0.7,
+        }],
+        "assumptions": [],
+        "openFields": ["targetCustomer", "targetRegion"],
+        "contradictions": [],
+        "clarificationQuestions": [
+            {"id": "q1", "fieldKey": "targetCustomer", "prompt": "Who has this problem?",
+             "type": "FREE_TEXT", "options": [], "allowUndecided": True},
+            {"id": "q2", "fieldKey": "targetRegion", "prompt": "Which region?",
+             "type": "FREE_TEXT", "options": [], "allowUndecided": True},
+        ],
+        "readiness": "NEEDS_INPUT",
+        "userFacingSummary": "I need two details.",
+    }
+
+
+def test_conversation_intake_uses_dedicated_prompt_and_strict_schema(monkeypatch):
+    captured = {}
+
+    async def fake_prompt(system, user):
+        captured["system"] = system
+        captured["user"] = user
+        return valid_conversation_result()
+
+    monkeypatch.setattr(journey_provider, "execute_structured_prompt", fake_prompt)
+    input_value = {"conversationContract": "opportunity-brief-v1", "messages": []}
+    result = asyncio.run(journey_provider.execute_journey_task(
+        "IDEA_INTERPRETATION", json.dumps(input_value)
+    ))
+
+    assert result["fieldSuggestions"][0]["sourceType"] == "AI_PROPOSED"
+    assert "Opportunity Brief" in captured["system"]
+
+
+def test_conversation_intake_never_accepts_user_confirmed_from_ai(monkeypatch):
+    async def fake_prompt(system, user):
+        result = valid_conversation_result()
+        result["fieldSuggestions"][0]["sourceType"] = "USER_CONFIRMED"
+        return result
+
+    monkeypatch.setattr(journey_provider, "execute_structured_prompt", fake_prompt)
+    with pytest.raises(journey_provider.ProviderFailure) as failure:
+        asyncio.run(journey_provider.execute_journey_task(
+            "IDEA_INTERPRETATION",
+            json.dumps({"conversationContract": "opportunity-brief-v1"}),
+        ))
+    assert failure.value.code == "RESULT_SCHEMA_INVALID"

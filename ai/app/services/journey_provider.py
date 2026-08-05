@@ -15,6 +15,7 @@ from app.models.journey import (
     ConceptGenerationResult,
     DetailedAnalysisResult,
     IdeaInterpretationResult,
+    OpportunityBriefDraftResult,
     InterviewSynthesisResult,
     LegalReviewResult,
     MarketingComparisonResult,
@@ -57,6 +58,8 @@ def _configuration(model_override: str | None = None) -> tuple[str, str, str]:
 def _load_prompts(task_type: str, text: str) -> tuple[str, str]:
     folders = {
         "IDEA_INTERPRETATION": "idea_interpretation",
+        "IDEA_CONVERSATION_TURN": "idea_conversation_turn",
+        "IDEA_CONVERSATION": "idea_conversation_turn",
         "LEGAL_REVIEW": "legal_review",
         "CONCEPT_GENERATION": "concept_generation",
         "QUICK_ASSESSMENT": "quick_assessment",
@@ -94,7 +97,9 @@ def _extract_json(content: str) -> dict[str, Any]:
 async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
     if task_type == "CONCEPT_GENERATION":
         return await _execute_concept_generation(text)
-    system, user = _load_prompts(task_type, text)
+    conversation_intake = _is_conversation_intake(task_type, text)
+    prompt_type = "IDEA_CONVERSATION" if conversation_intake else task_type
+    system, user = _load_prompts(prompt_type, text)
     try:
         raw_result = await execute_structured_prompt(system, user)
     except ProviderFailure as first_failure:
@@ -122,18 +127,18 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
         "FINAL_REPORT_GENERATION": FinalReportResult,
     }
     try:
-        model_type = model_types[task_type]
+        model_type = OpportunityBriefDraftResult if conversation_intake else model_types[task_type]
         return model_type.model_validate(raw_result).model_dump(
             by_alias=True,
             # Spring validates the Idea Origin object as a closed contract and
             # therefore requires nullable/defaulted properties to be present.
-            exclude_unset=task_type != "IDEA_INTERPRETATION",
+            exclude_unset=task_type != "IDEA_INTERPRETATION" or conversation_intake,
         )
     except KeyError as failure:
         raise ProviderFailure("RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False) from failure
     except ValidationError as first_failure:
         issues = _validation_issues(first_failure, model_type)
-        if task_type != "IDEA_INTERPRETATION":
+        if task_type != "IDEA_INTERPRETATION" or conversation_intake:
             logger.warning(
                 "Journey provider result schema invalid taskType=%s phase=initial issues=%s",
                 task_type,
@@ -184,6 +189,18 @@ async def execute_journey_task(task_type: str, text: str) -> dict[str, Any]:
             raise ProviderFailure(
                 "RESULT_SCHEMA_INVALID", "AI_RESULT_INVALID", 502, False
             ) from repair_failure
+
+
+def _is_conversation_intake(task_type: str, text: str) -> bool:
+    if task_type == "IDEA_CONVERSATION_TURN":
+        return True
+    if task_type != "IDEA_INTERPRETATION":
+        return False
+    try:
+        value = json.loads(text)
+        return isinstance(value, dict) and value.get("conversationContract") == "opportunity-brief-v1"
+    except (TypeError, json.JSONDecodeError):
+        return False
 
 
 def _validation_issues(failure: ValidationError, model_type) -> list[dict[str, str]]:
