@@ -109,6 +109,58 @@ class IdeaInterpretationResult(StrictResult):
         return self
 
 
+OpportunityFieldKey = Literal[
+    "problem", "targetCustomer", "beneficiaries", "usageContext", "desiredOutcome",
+    "targetRegion", "fixedConstraints", "preferredConstraints", "openDecisions",
+    "assumptions", "prohibitedApproaches", "regulatorySensitiveActivities",
+]
+
+
+class OpportunityBriefFieldProposal(StrictResult):
+    fieldKey: OpportunityFieldKey
+    valueJson: Any
+    decisionStatus: Literal["PREFERRED", "OPEN", "ASSUMPTION"]
+    sourceType: Literal["SOURCE_EXTRACTED", "AI_PROPOSED", "MISSING"]
+    confidence: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] | None
+
+    @model_validator(mode="after")
+    def validate_confidence(self):
+        missing = self.sourceType == "MISSING"
+        if (
+            missing != (self.valueJson is None)
+            or (missing and self.confidence is not None)
+            or (self.confidence is not None and not 0 <= self.confidence <= 1)
+        ):
+            raise ValueError("field proposal value and confidence are invalid")
+        return self
+
+
+class OpportunityClarificationQuestion(StrictResult):
+    id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    fieldKey: OpportunityFieldKey
+    prompt: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    type: Literal["FREE_TEXT", "SINGLE_SELECT", "MULTI_SELECT", "UNDECIDED"]
+    options: list[str]
+    allowUndecided: bool
+
+
+class OpportunityBriefDraftResult(StrictResult):
+    extractedFields: list[OpportunityBriefFieldProposal]
+    fieldSuggestions: list[OpportunityBriefFieldProposal]
+    assumptions: list[NonBlankMarketingText]
+    openFields: list[OpportunityFieldKey]
+    contradictions: list[NonBlankMarketingText]
+    clarificationQuestions: Annotated[list[OpportunityClarificationQuestion], Field(max_length=4)]
+    readiness: Literal["NEEDS_INPUT", "READY_FOR_CONFIRMATION"]
+    userFacingSummary: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+    @model_validator(mode="after")
+    def require_bounded_questions(self):
+        if self.readiness == "NEEDS_INPUT" and len(self.clarificationQuestions) < 2:
+            raise ValueError("NEEDS_INPUT requires between two and four questions")
+        return self
+
+
 class LegalReviewResult(StrictResult):
     status: Literal[
         "PASS", "PASS_WITH_CONDITIONS", "REVISION_REQUIRED", "PROHIBITED",

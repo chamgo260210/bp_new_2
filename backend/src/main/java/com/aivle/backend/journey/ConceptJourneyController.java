@@ -24,7 +24,7 @@ public class ConceptJourneyController {
     public ApiResponse<ConceptJourneyService.BatchView> currentGeneration(@PathVariable Long projectId,HttpServletRequest request){
         return ApiResponse.success(concepts.currentBatch(user(),projectId),id(request));
     }
-    @GetMapping("/concepts")
+    @GetMapping(value = "/concepts", params = "!contract")
     public ApiResponse<List<ConceptJourneyService.ConceptView>> concepts(@PathVariable Long projectId, HttpServletRequest request) {
         return ApiResponse.success(concepts.concepts(user(),projectId),id(request));
     }

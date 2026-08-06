@@ -401,6 +401,7 @@ def test_concept_generation_supports_desired_count_one(monkeypatch):
 def test_concept_generation_preserves_slot_order_after_out_of_order_completion(
     monkeypatch,
 ):
+    monkeypatch.setenv("AI_CONCEPT_GENERATION_CONCURRENCY", "3")
     task_input = concept_input()
     completion_order = []
     delays = {0: 0.02, 1: 0.04, 2: 0.0}
@@ -546,3 +547,66 @@ def test_concept_generation_respects_configured_concurrency(monkeypatch):
     )
 
     assert maximum_active == 2
+
+
+def valid_conversation_result():
+    return {
+        "extractedFields": [],
+        "fieldSuggestions": [{
+            "fieldKey": "problem", "valueKind": "TEXT",
+            "textValue": "food waste", "listValue": [],
+            "decisionStatus": "OPEN", "sourceType": "AI_PROPOSED",
+            "confidence": 0.7,
+        }],
+        "assumptions": [],
+        "openFields": ["targetCustomer", "targetRegion"],
+        "contradictions": [],
+        "clarificationQuestions": [
+            {"id": "q1", "fieldKey": "targetCustomer", "prompt": "Who has this problem?",
+             "type": "FREE_TEXT", "options": [], "allowUndecided": True},
+            {"id": "q2", "fieldKey": "targetRegion", "prompt": "Which region?",
+             "type": "FREE_TEXT", "options": [], "allowUndecided": True},
+        ],
+        "readiness": "NEEDS_INPUT",
+        "userFacingSummary": "I need two details.",
+    }
+
+
+def test_conversation_intake_uses_dedicated_prompt_and_strict_schema(monkeypatch):
+    captured = {}
+
+    async def fake_prompt(system, user, **kwargs):
+        captured["system"] = system
+        captured["user"] = user
+        captured["schema"] = kwargs["response_schema"]
+        return valid_conversation_result()
+
+    monkeypatch.setattr(journey_provider, "execute_structured_prompt", fake_prompt)
+    input_value = {"conversationContract": "opportunity-brief-v1", "messages": []}
+    result = asyncio.run(journey_provider.execute_journey_task(
+        "IDEA_INTERPRETATION", json.dumps(input_value)
+    ))
+
+    assert result["fieldSuggestions"][0]["sourceType"] == "AI_PROPOSED"
+    assert "Opportunity Brief" in captured["system"]
+    assert captured["schema"] == journey_provider.ProviderOpportunityBriefDraftResult.model_json_schema()
+
+
+def test_conversation_intake_never_accepts_user_confirmed_from_ai(monkeypatch):
+    calls = 0
+
+    async def fake_prompt(system, user, **kwargs):
+        nonlocal calls
+        calls += 1
+        result = valid_conversation_result()
+        result["fieldSuggestions"][0]["sourceType"] = "USER_CONFIRMED"
+        return result
+
+    monkeypatch.setattr(journey_provider, "execute_structured_prompt", fake_prompt)
+    with pytest.raises(journey_provider.ProviderFailure) as failure:
+        asyncio.run(journey_provider.execute_journey_task(
+            "IDEA_INTERPRETATION",
+            json.dumps({"conversationContract": "opportunity-brief-v1"}),
+        ))
+    assert failure.value.code == "RESULT_SCHEMA_INVALID"
+    assert calls == 2

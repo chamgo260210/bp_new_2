@@ -130,6 +130,43 @@ class InternalAiExecutionClientTests {
         }
     }
 
+    @Test
+    void acceptsProviderResponseSchemaRejectedAsPermanentResultFailure() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/internal/v1/ai/executions", exchange -> {
+            byte[] bytes = """
+                {"error":{"code":"RESULT_SCHEMA_INVALID","message":"safe internal failure",
+                "correlationId":"correlation-1","taskRunId":"task-run","taskAttemptId":"attempt-1",
+                "retryable":false,"details":[{"reason":"PROVIDER_RESPONSE_SCHEMA_REJECTED"}]}}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(502, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        try {
+            AiServerProperties properties = new AiServerProperties(
+                "http://127.0.0.1:" + server.getAddress().getPort(),
+                Duration.ofSeconds(1), Duration.ofSeconds(2), "test-token");
+            InternalAiExecutionClient client = new InternalAiExecutionClient(
+                RestClient.builder().baseUrl(properties.baseUrl()).build(), properties, new ObjectMapper());
+            TaskRun run = TaskRun.create(null, TaskType.IDEA_CONVERSATION_TURN,
+                "IDEA_CONVERSATION_MESSAGE", "1", "{}", "sha256:" + "a".repeat(64),
+                "key", "correlation-1", 3);
+
+            assertThatThrownBy(() -> client.execute(run, "attempt-1",
+                    LocalDateTime.of(2035, 1, 1, 0, 0)))
+                .isInstanceOfSatisfying(ExecutionFailure.class, failure -> {
+                    assertThat(failure.code()).isEqualTo("RESULT_SCHEMA_INVALID");
+                    assertThat(failure.reason()).isEqualTo("PROVIDER_RESPONSE_SCHEMA_REJECTED");
+                    assertThat(failure.retryable()).isFalse();
+                });
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private void assertResponseIdentityRejected(String responseAttemptId, String responseHash) throws Exception {
         AtomicReference<String> runId = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);

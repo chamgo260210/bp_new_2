@@ -18,6 +18,7 @@ public class TaskAttempt extends BaseEntity {
  public static TaskAttempt pending(TaskRun run,LocalDateTime deadline){TaskAttempt a=new TaskAttempt();a.id=UUID.randomUUID().toString();a.taskRun=run;a.attemptNumber=run.nextAttemptNumber();a.state=TaskAttemptState.CREATED;a.deadlineAt=deadline;run.registerAttempt(a.id);return a;}
  public static TaskAttempt claim(TaskRun run,String worker,LocalDateTime now,LocalDateTime lease,LocalDateTime deadline){TaskAttempt a=pending(run,deadline);a.claim(worker,now,lease);return a;}
  public void claim(String worker,LocalDateTime now,LocalDateTime lease){if(state!=TaskAttemptState.CREATED)throw new IllegalStateException("attempt is not claimable");state=TaskAttemptState.CLAIMED;claimToken=UUID.randomUUID().toString();workerId=worker;claimedAt=now;leaseExpiresAt=lease;heartbeatAt=now;taskRun.claimed(id,now);}
+ public void claim(String worker,LocalDateTime now,LocalDateTime lease,LocalDateTime deadline){claim(worker,now,lease);deadlineAt=deadline;}
  public void start(String token,LocalDateTime now){requireClaim(token);if(state!=TaskAttemptState.CLAIMED)throw new IllegalStateException("attempt is not claimed");state=TaskAttemptState.RUNNING;startedAt=now;}
  public void heartbeat(String token,LocalDateTime now,LocalDateTime lease){requireClaim(token);if(state!=TaskAttemptState.RUNNING)throw new IllegalStateException("attempt is not running");heartbeatAt=now;leaseExpiresAt=lease;}
  public void succeed(String token,LocalDateTime now){requireClaim(token);requireRunning();state=TaskAttemptState.SUCCEEDED;finishedAt=now;}
